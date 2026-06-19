@@ -11,6 +11,7 @@ import (
 type Config struct {
 	Server ServerConfig `yaml:"server"`
 	App    AppConfig    `yaml:"app"`
+	Auth   AuthConfig   `yaml:"auth"`
 }
 
 type ServerConfig struct {
@@ -22,6 +23,21 @@ type ServerConfig struct {
 type AppConfig struct {
 	Name    string `yaml:"name"`
 	Version string `yaml:"version"`
+}
+
+// AuthConfig 描述唯一管理员账号以及 JWT 签发参数。
+// 个人图床仅服务于本人，因此用户名/密码直接来源于配置文件。
+type AuthConfig struct {
+	Username string    `yaml:"username"`
+	Password string    `yaml:"password"`
+	JWT      JWTConfig `yaml:"jwt"`
+}
+
+// JWTConfig 是 JWT 签发与校验所需的参数。
+type JWTConfig struct {
+	Secret      string `yaml:"secret"`
+	Issuer      string `yaml:"issuer"`
+	ExpireHours int    `yaml:"expire_hours"`
 }
 
 // Global 是加载后的全局配置，便于其他包直接引用。

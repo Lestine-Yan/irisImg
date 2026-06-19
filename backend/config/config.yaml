@@ -6,3 +6,13 @@ server:
 app:
   name: "irisImg"
   version: "0.1.0"
+
+# 个人图床仅服务于本人，用户名/密码直接写在配置里。
+# 部署时请务必修改默认值，并将 jwt.secret 替换为一段足够长的随机字符串。
+auth:
+  username: "admin"
+  password: "admin123"
+  jwt:
+    secret: "please-change-me-to-a-long-random-string"
+    issuer: "irisImg"
+    expire_hours: 24

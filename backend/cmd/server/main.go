@@ -31,7 +31,7 @@ func main() {
 	gin.SetMode(cfg.Server.Mode)
 
 	// 3. 构建路由
-	r := router.New()
+	r := router.New(cfg)
 
 	// 4. 启动 HTTP 服务，并支持优雅关闭
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
