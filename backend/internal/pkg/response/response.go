@@ -49,6 +49,11 @@ func NotFound(c *gin.Context, msg string) {
 	Fail(c, http.StatusNotFound, CodeNotFound, msg)
 }
 
+// Unauthorized 是 401 的快捷方法。
+func Unauthorized(c *gin.Context, msg string) {
+	Fail(c, http.StatusUnauthorized, CodeUnauthorized, msg)
+}
+
 // ServerError 是 500 的快捷方法。
 func ServerError(c *gin.Context, msg string) {
 	Fail(c, http.StatusInternalServerError, CodeServerError, msg)
