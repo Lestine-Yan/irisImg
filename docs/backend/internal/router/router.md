@@ -1,13 +1,14 @@
 # `internal/router/router.go`
 
-整个后端唯一的依赖装配点和路由注册点。`cmd/server/main.go` 只调一次 `router.New(cfg)` 拿到 `*gin.Engine` 即可启动。
+整个后端唯一的依赖装配点和路由注册点。`cmd/server/main.go` 打开数据库、构造 DAO 后调用 `router.New(cfg, imageDAO)` 拿到 `*gin.Engine` 即可启动。
 
 ## 函数
 
-### `New(cfg *config.Config) *gin.Engine`
+### `New(cfg *config.Config, imageDAO dao.ImageDAO) *gin.Engine`
 
 - 使用 `gin.New()` 而非 `gin.Default()`，自己挂中间件以保留控制权：`Recovery → Logger → CORS`。
-- **依赖装配**（按 dao → service → api 的顺序，但当前没有 dao）：
+- `imageDAO` 由调用方基于已打开的数据库注入（见 [`dao.md`](../dao/dao.md)）；**当前尚未挂接图片相关路由，该参数预留给后续上传 / 列表 / 删除接口**，暂未使用（Go 允许未使用的函数参数）。
+- **依赖装配**（按 dao → service → api 的顺序）：
   1. `jwtMgr := jwt.NewManager(cfg.Auth.JWT)`
   2. `authSvc := service.NewAuthService(cfg.Auth, jwtMgr)`
   3. `authAPI := api.NewAuthAPI(authSvc)`

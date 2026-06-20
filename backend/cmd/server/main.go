@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Lestine-Yan/irisImg/backend/config"
+	"github.com/Lestine-Yan/irisImg/backend/internal/dao/entdao"
 	"github.com/Lestine-Yan/irisImg/backend/internal/router"
 	"github.com/gin-gonic/gin"
 )
@@ -30,10 +31,23 @@ func main() {
 	// 2. 设置 gin 运行模式
 	gin.SetMode(cfg.Server.Mode)
 
-	// 3. 构建路由
-	r := router.New(cfg)
+	// 3. 打开数据库（SQLite，纯 Go 驱动，无需 CGO）并按需自动迁移
+	dbClient, err := entdao.Open(cfg.Database)
+	if err != nil {
+		log.Fatalf("open database failed: %v", err)
+	}
+	defer dbClient.Close()
+	if err := entdao.Migrate(context.Background(), dbClient, cfg.Database); err != nil {
+		log.Fatalf("migrate database failed: %v", err)
+	}
 
-	// 4. 启动 HTTP 服务，并支持优雅关闭
+	// 4. 构建 DAO 层
+	imageDAO := entdao.NewImageDAO(dbClient)
+
+	// 5. 构建路由（注入 DAO 依赖）
+	r := router.New(cfg, imageDAO)
+
+	// 6. 启动 HTTP 服务，并支持优雅关闭
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	srv := &http.Server{
 		Addr:    addr,

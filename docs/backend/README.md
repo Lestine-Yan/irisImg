@@ -10,17 +10,27 @@ backend/                                  docs/backend/
 ├── config/                               └── config/
 │   ├── config.go                            └── config.md
 │   └── config.yaml                          (字段说明合并到 config.md)
+├── ent/                                  └── ent/
+│   ├── schema/image.go                      └── schema/image.md
+│   ├── generate.go                          (go:generate 入口，见 DATABASE.md)
+│   └── *.go (生成产物)                       (生成代码，不单独建文档)
 ├── internal/
 │   ├── api/                              └── internal/api/
 │   │   ├── ping.go                          ├── ping.md
 │   │   └── auth.go                          └── auth.md
-│   ├── dao/                              (当前为空，预留给图片存储)
+│   ├── dao/                              └── internal/dao/
+│   │   ├── dao.go                            ├── dao.md
+│   │   ├── errors.go                         ├── errors.md
+│   │   └── entdao/                           └── entdao/
+│   │       ├── db.go                            ├── db.md
+│   │       └── image.go                         └── image.md
 │   ├── middleware/                       └── internal/middleware/
 │   │   ├── auth.go                          ├── auth.md
 │   │   ├── cors.go                          ├── cors.md
 │   │   └── logger.go                        └── logger.md
 │   ├── model/                            └── internal/model/
-│   │   └── auth.go                          └── auth.md
+│   │   ├── auth.go                          ├── auth.md
+│   │   └── image.go                         └── image.md
 │   ├── pkg/                              └── internal/pkg/
 │   │   ├── jwt/jwt.go                       ├── jwt.md
 │   │   └── response/response.go             └── response.md
@@ -30,19 +40,22 @@ backend/                                  docs/backend/
 │       └── auth.go                          └── auth.md
 ```
 
+> 特性级说明（跨多文件）：持久化方案见 [`DATABASE.md`](./DATABASE.md)，登录链路见 [`AUTH.md`](./AUTH.md)。
+
 ## 分层说明
 
 后端遵循经典分层架构 `api → service → dao → model`，但当前业务非常轻量（单用户登录），所以：
 
 - **`api/`**：Gin 控制器，只负责参数解析、调用 service、组装响应
 - **`service/`**：业务逻辑，例如登录校验、签发 token
-- **`dao/`**：持久化抽象层；当前没有任何持久化需求，目录为空，未来加入图片元信息存储时在此回填
+- **`dao/`**：持久化抽象层；`dao.go` 定义 `ImageDAO` 等接口，`entdao/` 是基于 Ent + SQLite 的实现。service 只依赖接口，便于替换存储后端。详见 [`DATABASE.md`](./DATABASE.md)
 - **`model/`**：实体与 DTO，跨层数据载体
+- **`ent/`**：Ent 代码生成；只手写 `schema/`，其余为 `go generate` 产物
 - **`middleware/`**：Gin 中间件（CORS、日志、JWT 鉴权）
 - **`pkg/`**：项目内部可复用的小工具包（JWT 管理器、统一响应体）
 - **`router/`**：依赖装配与路由注册的唯一入口
 - **`config/`**：YAML 配置的结构体定义与加载
-- **`cmd/server/`**：可执行程序入口，组合 config 和 router 启动 HTTP 服务
+- **`cmd/server/`**：可执行程序入口，组合 config、数据库与 router 启动 HTTP 服务
 
 ## 入口阅读顺序
 
