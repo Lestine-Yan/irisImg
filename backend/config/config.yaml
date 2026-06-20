@@ -7,6 +7,14 @@ app:
   name: "irisImg"
   version: "0.1.0"
 
+# 持久化配置。当前使用 SQLite（纯 Go 的 modernc.org/sqlite 驱动，无需 CGO）。
+# dsn 即数据库文件路径，相对路径相对于后端进程的工作目录；
+# data/ 目录下的运行时数据不要提交到仓库。
+database:
+  driver: "sqlite"
+  dsn: "data/irisImg.db?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(on)"
+  auto_migrate: true
+
 # 个人图床仅服务于本人，用户名/密码直接写在配置里。
 # 部署时请务必修改默认值，并将 jwt.secret 替换为一段足够长的随机字符串。
 auth:

@@ -3,6 +3,7 @@ package router
 import (
 	"github.com/Lestine-Yan/irisImg/backend/config"
 	"github.com/Lestine-Yan/irisImg/backend/internal/api"
+	"github.com/Lestine-Yan/irisImg/backend/internal/dao"
 	"github.com/Lestine-Yan/irisImg/backend/internal/middleware"
 	"github.com/Lestine-Yan/irisImg/backend/internal/pkg/jwt"
 	"github.com/Lestine-Yan/irisImg/backend/internal/service"
@@ -11,7 +12,10 @@ import (
 
 // New 组装并返回 gin.Engine。
 // 依赖在这里手动注入，规模变大后可以引入 wire 等工具自动生成。
-func New(cfg *config.Config) *gin.Engine {
+//
+// imageDAO 由调用方（main）基于已打开的数据库构造后注入；
+// 当前尚未挂接图片相关路由，预留给后续上传 / 列表 / 删除接口使用。
+func New(cfg *config.Config, imageDAO dao.ImageDAO) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery(), middleware.Logger(), middleware.CORS())
 

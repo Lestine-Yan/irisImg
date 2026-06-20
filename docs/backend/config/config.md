@@ -6,10 +6,11 @@
 
 ```text
 Config
-├── Server (ServerConfig)        host / port / mode
-├── App    (AppConfig)           name / version
-└── Auth   (AuthConfig)          username / password
-    └── JWT (JWTConfig)          secret / issuer / expire_hours
+├── Server   (ServerConfig)        host / port / mode
+├── App      (AppConfig)           name / version
+├── Auth     (AuthConfig)          username / password
+│   └── JWT  (JWTConfig)           secret / issuer / expire_hours
+└── Database (DatabaseConfig)      driver / dsn / auto_migrate
 ```
 
 | 字段 | 类型 | 默认 | 用途 |
@@ -24,6 +25,11 @@ Config
 | `auth.jwt.secret` | string | 占位字符串 | HS256 签名密钥；上线必须替换为足够长的随机字符串 |
 | `auth.jwt.issuer` | string | `irisImg` | 写入 token 的 `iss` 字段 |
 | `auth.jwt.expire_hours` | int | `24` | token 有效期；`<=0` 时 jwt 包会回退到 24 小时 |
+| `database.driver` | string | `sqlite` | 数据库后端，目前仅支持 `sqlite` |
+| `database.dsn` | string | `data/irisImg.db?...` | SQLite 文件路径 + pragma；相对路径相对进程工作目录 |
+| `database.auto_migrate` | bool | `true` | 启动时是否自动建表 / 升级表结构 |
+
+> `database` 由 [`internal/dao/entdao`](../internal/dao/entdao/db.md) 消费。DSN 默认带 `busy_timeout` / `journal_mode(WAL)` / `foreign_keys(on)` 三个 pragma；其中 `foreign_keys` 是 Ent 自动迁移的前置要求（缺省时代码会自动补上）。`data/` 下的数据库文件不要提交仓库。
 
 ## 关键函数
 

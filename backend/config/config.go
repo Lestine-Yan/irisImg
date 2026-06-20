@@ -9,9 +9,10 @@ import (
 
 // Config 是整个应用的配置根结构。
 type Config struct {
-	Server ServerConfig `yaml:"server"`
-	App    AppConfig    `yaml:"app"`
-	Auth   AuthConfig   `yaml:"auth"`
+	Server   ServerConfig   `yaml:"server"`
+	App      AppConfig      `yaml:"app"`
+	Auth     AuthConfig     `yaml:"auth"`
+	Database DatabaseConfig `yaml:"database"`
 }
 
 type ServerConfig struct {
@@ -38,6 +39,18 @@ type JWTConfig struct {
 	Secret      string `yaml:"secret"`
 	Issuer      string `yaml:"issuer"`
 	ExpireHours int    `yaml:"expire_hours"`
+}
+
+// DatabaseConfig 描述持久化所用的数据库。
+// 当前仅支持 SQLite，使用纯 Go 的 modernc.org/sqlite 驱动（无需 CGO）。
+type DatabaseConfig struct {
+	// Driver 预留多后端切换能力，目前固定为 "sqlite"。
+	Driver string `yaml:"driver"`
+	// DSN 是数据库连接串。对 SQLite 而言即数据库文件路径，
+	// 可附带查询参数，例如 "data/irisImg.db?_pragma=busy_timeout(5000)"。
+	DSN string `yaml:"dsn"`
+	// AutoMigrate 为 true 时启动阶段自动建表 / 升级表结构。
+	AutoMigrate bool `yaml:"auto_migrate"`
 }
 
 // Global 是加载后的全局配置，便于其他包直接引用。
