@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 )
@@ -64,12 +65,25 @@ func (Image) Fields() []ent.Field {
 			Default(time.Now).
 			Immutable().
 			Comment("创建时间"),
+
+		// 添加该图片的 API 密钥 ID（可空）。绑定到 key edge，便于直接读取来源密钥。
+		field.Int("key_id").
+			Optional().
+			Nillable().
+			Comment("添加该图片的 API 密钥 ID，后台 JWT 上传时为空"),
 	}
 }
 
-// Edges 暂无关联实体。
+// Edges 定义关联：图片可选地归属于添加它的 API 密钥。
+// 通过后台 JWT 上传的图片没有关联密钥，故该 edge 可空。
 func (Image) Edges() []ent.Edge {
-	return nil
+	return []ent.Edge{
+		// 添加该图片的 API 密钥（可空）。
+		edge.From("key", ApiKey.Type).
+			Ref("images").
+			Field("key_id").
+			Unique(),
+	}
 }
 
 // Indexes 为高频查询字段建立索引。

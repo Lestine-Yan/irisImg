@@ -5,6 +5,7 @@ package ent
 import (
 	"time"
 
+	"github.com/Lestine-Yan/irisImg/backend/ent/apikey"
 	"github.com/Lestine-Yan/irisImg/backend/ent/image"
 	"github.com/Lestine-Yan/irisImg/backend/ent/schema"
 )
@@ -13,6 +14,34 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	apikeyFields := schema.ApiKey{}.Fields()
+	_ = apikeyFields
+	// apikeyDescName is the schema descriptor for name field.
+	apikeyDescName := apikeyFields[0].Descriptor()
+	// apikey.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	apikey.NameValidator = apikeyDescName.Validators[0].(func(string) error)
+	// apikeyDescKeyHash is the schema descriptor for key_hash field.
+	apikeyDescKeyHash := apikeyFields[1].Descriptor()
+	// apikey.KeyHashValidator is a validator for the "key_hash" field. It is called by the builders before save.
+	apikey.KeyHashValidator = apikeyDescKeyHash.Validators[0].(func(string) error)
+	// apikeyDescPrefix is the schema descriptor for prefix field.
+	apikeyDescPrefix := apikeyFields[2].Descriptor()
+	// apikey.PrefixValidator is a validator for the "prefix" field. It is called by the builders before save.
+	apikey.PrefixValidator = apikeyDescPrefix.Validators[0].(func(string) error)
+	// apikeyDescRateLimit is the schema descriptor for rate_limit field.
+	apikeyDescRateLimit := apikeyFields[4].Descriptor()
+	// apikey.DefaultRateLimit holds the default value on creation for the rate_limit field.
+	apikey.DefaultRateLimit = apikeyDescRateLimit.Default.(int)
+	// apikey.RateLimitValidator is a validator for the "rate_limit" field. It is called by the builders before save.
+	apikey.RateLimitValidator = apikeyDescRateLimit.Validators[0].(func(int) error)
+	// apikeyDescRevoked is the schema descriptor for revoked field.
+	apikeyDescRevoked := apikeyFields[5].Descriptor()
+	// apikey.DefaultRevoked holds the default value on creation for the revoked field.
+	apikey.DefaultRevoked = apikeyDescRevoked.Default.(bool)
+	// apikeyDescCreatedAt is the schema descriptor for created_at field.
+	apikeyDescCreatedAt := apikeyFields[7].Descriptor()
+	// apikey.DefaultCreatedAt holds the default value on creation for the created_at field.
+	apikey.DefaultCreatedAt = apikeyDescCreatedAt.Default.(func() time.Time)
 	imageFields := schema.Image{}.Fields()
 	_ = imageFields
 	// imageDescFilename is the schema descriptor for filename field.

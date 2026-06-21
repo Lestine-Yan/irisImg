@@ -17,16 +17,17 @@
 | `height` | int | ≥0，默认 0 | 高度（像素），未知为 0 |
 | `hash` | string | 非空 | 内容哈希，用于秒传 / 去重 |
 | `created_at` | time | 不可变，默认 `time.Now` | 创建时间 |
+| `key_id` | int | 可空（Optional + Nillable） | 添加该图片的 API 密钥 ID；后台 JWT 上传时为空 |
 
 ## 索引
 
 - `hash`：按内容哈希去重 / 秒传查询。
 - `created_at`：按创建时间倒序分页。
 
-## 关联关系
+## 关联关系（Edges）
 
-当前无 Edges。
+- `key`：`edge.From("key", ApiKey.Type).Ref("images").Field("key_id").Unique()` —— 图片**可选地**归属于添加它的 [`ApiKey`](apikey.md)。该 edge 绑定到显式字段 `key_id`：通过后台 JWT 上传的图片没有关联密钥，故 `key_id` 可空。
 
 ## 调用关系
 
-schema 仅供 Ent 代码生成使用；运行时由 [`internal/dao/entdao/image.go`](../../internal/dao/entdao/image.md) 通过生成的 `ent.Client` 读写。
+schema 仅供 Ent 代码生成使用；运行时由 [`internal/dao/entdao/image.go`](../../internal/dao/entdao/image.md) 通过生成的 `ent.Client` 读写。API 密钥关联的特性级说明见 [`APIKEY.md`](../../APIKEY.md)。

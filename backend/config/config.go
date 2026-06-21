@@ -13,6 +13,7 @@ type Config struct {
 	App      AppConfig      `yaml:"app"`
 	Auth     AuthConfig     `yaml:"auth"`
 	Database DatabaseConfig `yaml:"database"`
+	APIKey   APIKeyConfig   `yaml:"apikey"`
 }
 
 type ServerConfig struct {
@@ -51,6 +52,17 @@ type DatabaseConfig struct {
 	DSN string `yaml:"dsn"`
 	// AutoMigrate 为 true 时启动阶段自动建表 / 升级表结构。
 	AutoMigrate bool `yaml:"auto_migrate"`
+}
+
+// APIKeyConfig 描述 API 密钥鉴权相关的参数。
+// API 密钥用于外部程序「申请图片 / 添加图片」，独立于后台 JWT 登录。
+type APIKeyConfig struct {
+	// RateLimitPerMinute 是单个密钥默认的限流阈值（次/分钟），默认 100。
+	// 密钥自身的 rate_limit 字段为 0 时沿用此全局默认。
+	RateLimitPerMinute int `yaml:"rate_limit_per_minute"`
+	// HTTPSOnly 为 true 时，密钥创建等敏感接口要求请求经由 HTTPS
+	// （后端通过 X-Forwarded-Proto 二次校验 Nginx 反代）。本地开发可置 false。
+	HTTPSOnly bool `yaml:"https_only"`
 }
 
 // Global 是加载后的全局配置，便于其他包直接引用。

@@ -32,6 +32,7 @@ func (d *imageDAO) Create(ctx context.Context, img *model.Image) (*model.Image, 
 		SetWidth(img.Width).
 		SetHeight(img.Height).
 		SetHash(img.Hash).
+		SetNillableKeyID(img.KeyID).
 		Save(ctx)
 	if err != nil {
 		return nil, err
@@ -113,5 +114,6 @@ func toModel(e *ent.Image) *model.Image {
 		Height:     e.Height,
 		Hash:       e.Hash,
 		CreatedAt:  e.CreatedAt,
+		KeyID:      e.KeyID,
 	}
 }

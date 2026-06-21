@@ -12,35 +12,45 @@ backend/                                  docs/backend/
 │   └── config.yaml                          (字段说明合并到 config.md)
 ├── ent/                                  └── ent/
 │   ├── schema/image.go                      └── schema/image.md
+│   ├── schema/apikey.go                     └── schema/apikey.md
 │   ├── generate.go                          (go:generate 入口，见 DATABASE.md)
 │   └── *.go (生成产物)                       (生成代码，不单独建文档)
 ├── internal/
 │   ├── api/                              └── internal/api/
 │   │   ├── ping.go                          ├── ping.md
-│   │   └── auth.go                          └── auth.md
+│   │   ├── auth.go                          ├── auth.md
+│   │   ├── apikey.go                        ├── apikey.md
+│   │   └── image.go                         └── image.md
 │   ├── dao/                              └── internal/dao/
 │   │   ├── dao.go                            ├── dao.md
 │   │   ├── errors.go                         ├── errors.md
 │   │   └── entdao/                           └── entdao/
 │   │       ├── db.go                            ├── db.md
-│   │       └── image.go                         └── image.md
+│   │       ├── image.go                         ├── image.md
+│   │       └── apikey.go                        └── apikey.md
 │   ├── middleware/                       └── internal/middleware/
 │   │   ├── auth.go                          ├── auth.md
+│   │   ├── apikey.go                        ├── apikey.md
+│   │   ├── https.go                         ├── https.md
 │   │   ├── cors.go                          ├── cors.md
 │   │   └── logger.go                        └── logger.md
 │   ├── model/                            └── internal/model/
 │   │   ├── auth.go                          ├── auth.md
-│   │   └── image.go                         └── image.md
+│   │   ├── image.go                         ├── image.md
+│   │   └── apikey.go                        └── apikey.md
 │   ├── pkg/                              └── internal/pkg/
 │   │   ├── jwt/jwt.go                       ├── jwt.md
+│   │   ├── apikey/apikey.go                 ├── apikey.md
+│   │   ├── ratelimit/ratelimit.go           ├── ratelimit.md
 │   │   └── response/response.go             └── response.md
 │   ├── router/                           └── internal/router/
 │   │   └── router.go                        └── router.md
 │   └── service/                          └── internal/service/
-│       └── auth.go                          └── auth.md
+│       ├── auth.go                          ├── auth.md
+│       └── apikey.go                        └── apikey.md
 ```
 
-> 特性级说明（跨多文件）：持久化方案见 [`DATABASE.md`](./DATABASE.md)，登录链路见 [`AUTH.md`](./AUTH.md)。
+> 特性级说明（跨多文件）：持久化方案见 [`DATABASE.md`](./DATABASE.md)，登录链路见 [`AUTH.md`](./AUTH.md)，API 密钥鉴权见 [`APIKEY.md`](./APIKEY.md)。
 
 ## 分层说明
 
@@ -51,8 +61,8 @@ backend/                                  docs/backend/
 - **`dao/`**：持久化抽象层；`dao.go` 定义 `ImageDAO` 等接口，`entdao/` 是基于 Ent + SQLite 的实现。service 只依赖接口，便于替换存储后端。详见 [`DATABASE.md`](./DATABASE.md)
 - **`model/`**：实体与 DTO，跨层数据载体
 - **`ent/`**：Ent 代码生成；只手写 `schema/`，其余为 `go generate` 产物
-- **`middleware/`**：Gin 中间件（CORS、日志、JWT 鉴权）
-- **`pkg/`**：项目内部可复用的小工具包（JWT 管理器、统一响应体）
+- **`middleware/`**：Gin 中间件（CORS、日志、JWT 鉴权、API 密钥鉴权、HTTPS 强制）
+- **`pkg/`**：项目内部可复用的小工具包（JWT 管理器、API 密钥生成/哈希、按密钥限流令牌桶、统一响应体）
 - **`router/`**：依赖装配与路由注册的唯一入口
 - **`config/`**：YAML 配置的结构体定义与加载
 - **`cmd/server/`**：可执行程序入口，组合 config、数据库与 router 启动 HTTP 服务
@@ -68,3 +78,5 @@ backend/                                  docs/backend/
 5. [`internal/middleware/auth.md`](./internal/middleware/auth.md) — token 校验中间件
 
 登录流程的端到端图示与排错说明见 [`AUTH.md`](./AUTH.md)。
+
+API 密钥鉴权（独立于 JWT 的另一条链路：`api/apikey` → `service/apikey` → `pkg/apikey` → `dao`，校验侧 `middleware/apikey` → `service/apikey`）的端到端说明见 [`APIKEY.md`](./APIKEY.md)。

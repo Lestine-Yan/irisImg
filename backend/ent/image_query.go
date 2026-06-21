@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/Lestine-Yan/irisImg/backend/ent/apikey"
 	"github.com/Lestine-Yan/irisImg/backend/ent/image"
 	"github.com/Lestine-Yan/irisImg/backend/ent/predicate"
 )
@@ -22,6 +23,7 @@ type ImageQuery struct {
 	order      []image.OrderOption
 	inters     []Interceptor
 	predicates []predicate.Image
+	withKey    *ApiKeyQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -56,6 +58,28 @@ func (_q *ImageQuery) Unique(unique bool) *ImageQuery {
 func (_q *ImageQuery) Order(o ...image.OrderOption) *ImageQuery {
 	_q.order = append(_q.order, o...)
 	return _q
+}
+
+// QueryKey chains the current query on the "key" edge.
+func (_q *ImageQuery) QueryKey() *ApiKeyQuery {
+	query := (&ApiKeyClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(image.Table, image.FieldID, selector),
+			sqlgraph.To(apikey.Table, apikey.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, image.KeyTable, image.KeyColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first Image entity from the query.
@@ -250,10 +274,22 @@ func (_q *ImageQuery) Clone() *ImageQuery {
 		order:      append([]image.OrderOption{}, _q.order...),
 		inters:     append([]Interceptor{}, _q.inters...),
 		predicates: append([]predicate.Image{}, _q.predicates...),
+		withKey:    _q.withKey.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
+}
+
+// WithKey tells the query-builder to eager-load the nodes that are connected to
+// the "key" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ImageQuery) WithKey(opts ...func(*ApiKeyQuery)) *ImageQuery {
+	query := (&ApiKeyClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withKey = query
+	return _q
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -332,8 +368,11 @@ func (_q *ImageQuery) prepareQuery(ctx context.Context) error {
 
 func (_q *ImageQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Image, error) {
 	var (
-		nodes = []*Image{}
-		_spec = _q.querySpec()
+		nodes       = []*Image{}
+		_spec       = _q.querySpec()
+		loadedTypes = [1]bool{
+			_q.withKey != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*Image).scanValues(nil, columns)
@@ -341,6 +380,7 @@ func (_q *ImageQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Image,
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &Image{config: _q.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -352,7 +392,46 @@ func (_q *ImageQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Image,
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := _q.withKey; query != nil {
+		if err := _q.loadKey(ctx, query, nodes, nil,
+			func(n *Image, e *ApiKey) { n.Edges.Key = e }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (_q *ImageQuery) loadKey(ctx context.Context, query *ApiKeyQuery, nodes []*Image, init func(*Image), assign func(*Image, *ApiKey)) error {
+	ids := make([]int, 0, len(nodes))
+	nodeids := make(map[int][]*Image)
+	for i := range nodes {
+		if nodes[i].KeyID == nil {
+			continue
+		}
+		fk := *nodes[i].KeyID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(apikey.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "key_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
 }
 
 func (_q *ImageQuery) sqlCount(ctx context.Context) (int, error) {
@@ -379,6 +458,9 @@ func (_q *ImageQuery) querySpec() *sqlgraph.QuerySpec {
 			if fields[i] != image.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
+		}
+		if _q.withKey != nil {
+			_spec.Node.AddColumnOnce(image.FieldKeyID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {
