@@ -43,9 +43,10 @@ func main() {
 
 	// 4. 构建 DAO 层
 	imageDAO := entdao.NewImageDAO(dbClient)
+	apiKeyDAO := entdao.NewAPIKeyDAO(dbClient)
 
 	// 5. 构建路由（注入 DAO 依赖）
-	r := router.New(cfg, imageDAO)
+	r := router.New(cfg, imageDAO, apiKeyDAO)
 
 	// 6. 启动 HTTP 服务，并支持优雅关闭
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)

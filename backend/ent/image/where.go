@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/Lestine-Yan/irisImg/backend/ent/predicate"
 )
 
@@ -97,6 +98,11 @@ func Hash(v string) predicate.Image {
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Image {
 	return predicate.Image(sql.FieldEQ(FieldCreatedAt, v))
+}
+
+// KeyID applies equality check predicate on the "key_id" field. It's identical to KeyIDEQ.
+func KeyID(v int) predicate.Image {
+	return predicate.Image(sql.FieldEQ(FieldKeyID, v))
 }
 
 // FilenameEQ applies the EQ predicate on the "filename" field.
@@ -582,6 +588,59 @@ func CreatedAtLT(v time.Time) predicate.Image {
 // CreatedAtLTE applies the LTE predicate on the "created_at" field.
 func CreatedAtLTE(v time.Time) predicate.Image {
 	return predicate.Image(sql.FieldLTE(FieldCreatedAt, v))
+}
+
+// KeyIDEQ applies the EQ predicate on the "key_id" field.
+func KeyIDEQ(v int) predicate.Image {
+	return predicate.Image(sql.FieldEQ(FieldKeyID, v))
+}
+
+// KeyIDNEQ applies the NEQ predicate on the "key_id" field.
+func KeyIDNEQ(v int) predicate.Image {
+	return predicate.Image(sql.FieldNEQ(FieldKeyID, v))
+}
+
+// KeyIDIn applies the In predicate on the "key_id" field.
+func KeyIDIn(vs ...int) predicate.Image {
+	return predicate.Image(sql.FieldIn(FieldKeyID, vs...))
+}
+
+// KeyIDNotIn applies the NotIn predicate on the "key_id" field.
+func KeyIDNotIn(vs ...int) predicate.Image {
+	return predicate.Image(sql.FieldNotIn(FieldKeyID, vs...))
+}
+
+// KeyIDIsNil applies the IsNil predicate on the "key_id" field.
+func KeyIDIsNil() predicate.Image {
+	return predicate.Image(sql.FieldIsNull(FieldKeyID))
+}
+
+// KeyIDNotNil applies the NotNil predicate on the "key_id" field.
+func KeyIDNotNil() predicate.Image {
+	return predicate.Image(sql.FieldNotNull(FieldKeyID))
+}
+
+// HasKey applies the HasEdge predicate on the "key" edge.
+func HasKey() predicate.Image {
+	return predicate.Image(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, KeyTable, KeyColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasKeyWith applies the HasEdge predicate on the "key" edge with a given conditions (other predicates).
+func HasKeyWith(preds ...predicate.ApiKey) predicate.Image {
+	return predicate.Image(func(s *sql.Selector) {
+		step := newKeyStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

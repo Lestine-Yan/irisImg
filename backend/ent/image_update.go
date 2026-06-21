@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/Lestine-Yan/irisImg/backend/ent/apikey"
 	"github.com/Lestine-Yan/irisImg/backend/ent/image"
 	"github.com/Lestine-Yan/irisImg/backend/ent/predicate"
 )
@@ -160,9 +161,40 @@ func (_u *ImageUpdate) SetNillableHash(v *string) *ImageUpdate {
 	return _u
 }
 
+// SetKeyID sets the "key_id" field.
+func (_u *ImageUpdate) SetKeyID(v int) *ImageUpdate {
+	_u.mutation.SetKeyID(v)
+	return _u
+}
+
+// SetNillableKeyID sets the "key_id" field if the given value is not nil.
+func (_u *ImageUpdate) SetNillableKeyID(v *int) *ImageUpdate {
+	if v != nil {
+		_u.SetKeyID(*v)
+	}
+	return _u
+}
+
+// ClearKeyID clears the value of the "key_id" field.
+func (_u *ImageUpdate) ClearKeyID() *ImageUpdate {
+	_u.mutation.ClearKeyID()
+	return _u
+}
+
+// SetKey sets the "key" edge to the ApiKey entity.
+func (_u *ImageUpdate) SetKey(v *ApiKey) *ImageUpdate {
+	return _u.SetKeyID(v.ID)
+}
+
 // Mutation returns the ImageMutation object of the builder.
 func (_u *ImageUpdate) Mutation() *ImageMutation {
 	return _u.mutation
+}
+
+// ClearKey clears the "key" edge to the ApiKey entity.
+func (_u *ImageUpdate) ClearKey() *ImageUpdate {
+	_u.mutation.ClearKey()
+	return _u
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -281,6 +313,35 @@ func (_u *ImageUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Hash(); ok {
 		_spec.SetField(image.FieldHash, field.TypeString, value)
+	}
+	if _u.mutation.KeyCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   image.KeyTable,
+			Columns: []string{image.KeyColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.KeyIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   image.KeyTable,
+			Columns: []string{image.KeyColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -435,9 +496,40 @@ func (_u *ImageUpdateOne) SetNillableHash(v *string) *ImageUpdateOne {
 	return _u
 }
 
+// SetKeyID sets the "key_id" field.
+func (_u *ImageUpdateOne) SetKeyID(v int) *ImageUpdateOne {
+	_u.mutation.SetKeyID(v)
+	return _u
+}
+
+// SetNillableKeyID sets the "key_id" field if the given value is not nil.
+func (_u *ImageUpdateOne) SetNillableKeyID(v *int) *ImageUpdateOne {
+	if v != nil {
+		_u.SetKeyID(*v)
+	}
+	return _u
+}
+
+// ClearKeyID clears the value of the "key_id" field.
+func (_u *ImageUpdateOne) ClearKeyID() *ImageUpdateOne {
+	_u.mutation.ClearKeyID()
+	return _u
+}
+
+// SetKey sets the "key" edge to the ApiKey entity.
+func (_u *ImageUpdateOne) SetKey(v *ApiKey) *ImageUpdateOne {
+	return _u.SetKeyID(v.ID)
+}
+
 // Mutation returns the ImageMutation object of the builder.
 func (_u *ImageUpdateOne) Mutation() *ImageMutation {
 	return _u.mutation
+}
+
+// ClearKey clears the "key" edge to the ApiKey entity.
+func (_u *ImageUpdateOne) ClearKey() *ImageUpdateOne {
+	_u.mutation.ClearKey()
+	return _u
 }
 
 // Where appends a list predicates to the ImageUpdate builder.
@@ -586,6 +678,35 @@ func (_u *ImageUpdateOne) sqlSave(ctx context.Context) (_node *Image, err error)
 	}
 	if value, ok := _u.mutation.Hash(); ok {
 		_spec.SetField(image.FieldHash, field.TypeString, value)
+	}
+	if _u.mutation.KeyCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   image.KeyTable,
+			Columns: []string{image.KeyColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.KeyIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   image.KeyTable,
+			Columns: []string{image.KeyColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Image{config: _u.config}
 	_spec.Assign = _node.assignValues

@@ -23,8 +23,14 @@ type Body struct {
 | `CodeOK` | `0` | 成功 |
 | `CodeBadRequest` | `40000` | 入参非法 |
 | `CodeUnauthorized` | `40100` | 未登录 / token 无效 / 凭据错 |
+| `CodeAPIKeyMissing` | `40110` | 缺少 `X-API-Key` 请求头 |
+| `CodeAPIKeyInvalid` | `40120` | API 密钥格式非法 / 不存在 / 已吊销 |
+| `CodeForbidden` | `40300` | 已认证但无权访问（如只读密钥写、未走 HTTPS） |
 | `CodeNotFound` | `40400` | 资源不存在 |
+| `CodeTooManyRequests` | `42900` | 触发限流 |
 | `CodeServerError` | `50000` | 服务器内部错误 |
+
+> API 密钥相关错误码（40110 / 40120 / 40300 / 42900）的使用场景见 [`APIKEY.md`](../../APIKEY.md) 与 [`middleware/apikey.md`](../middleware/apikey.md)。
 
 ## 快捷方法
 
@@ -34,7 +40,9 @@ type Body struct {
 | `Fail(c, httpStatus, code, msg)` | 自定义 | 自定义 |
 | `BadRequest(c, msg)` | 400 | 40000 |
 | `Unauthorized(c, msg)` | 401 | 40100 |
+| `Forbidden(c, msg)` | 403 | 40300 |
 | `NotFound(c, msg)` | 404 | 40400 |
+| `TooManyRequests(c, msg)` | 429 | 42900 |
 | `ServerError(c, msg)` | 500 | 50000 |
 
 `Fail` 是兜底，所有具名方法都是它的薄封装；新增业务码时优先扩 `CodeXxx` + 对应快捷方法，不要让 handler 直接调 `Fail`。

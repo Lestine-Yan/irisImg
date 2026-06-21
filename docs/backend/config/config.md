@@ -10,7 +10,8 @@ Config
 ├── App      (AppConfig)           name / version
 ├── Auth     (AuthConfig)          username / password
 │   └── JWT  (JWTConfig)           secret / issuer / expire_hours
-└── Database (DatabaseConfig)      driver / dsn / auto_migrate
+├── Database (DatabaseConfig)      driver / dsn / auto_migrate
+└── APIKey   (APIKeyConfig)        rate_limit_per_minute / https_only
 ```
 
 | 字段 | 类型 | 默认 | 用途 |
@@ -28,8 +29,12 @@ Config
 | `database.driver` | string | `sqlite` | 数据库后端，目前仅支持 `sqlite` |
 | `database.dsn` | string | `data/irisImg.db?...` | SQLite 文件路径 + pragma；相对路径相对进程工作目录 |
 | `database.auto_migrate` | bool | `true` | 启动时是否自动建表 / 升级表结构 |
+| `apikey.rate_limit_per_minute` | int | `100` | 单密钥默认限流阈值（次/分钟）；`<=0` 回退 100。密钥自身 `rate_limit` 为 0 时沿用此值 |
+| `apikey.https_only` | bool | `false` | 为 true 时密钥管理等敏感接口要求 HTTPS（后端通过 `X-Forwarded-Proto` 二次校验 Nginx 反代）；本地开发置 false |
 
 > `database` 由 [`internal/dao/entdao`](../internal/dao/entdao/db.md) 消费。DSN 默认带 `busy_timeout` / `journal_mode(WAL)` / `foreign_keys(on)` 三个 pragma；其中 `foreign_keys` 是 Ent 自动迁移的前置要求（缺省时代码会自动补上）。`data/` 下的数据库文件不要提交仓库。
+
+> `apikey` 段由 [`router`](../internal/router/router.md) 消费：`rate_limit_per_minute` 注入 [`ratelimit.Store`](../internal/pkg/ratelimit.md)，`https_only` 注入 [`middleware.HTTPSOnly`](../internal/middleware/https.md)。特性级说明见 [`APIKEY.md`](../APIKEY.md)。
 
 ## 关键函数
 

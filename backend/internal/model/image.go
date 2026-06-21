@@ -17,4 +17,7 @@ type Image struct {
 	Height     int       `json:"height"`      // 高度（像素），未知为 0
 	Hash       string    `json:"hash"`        // 内容哈希，用于去重
 	CreatedAt  time.Time `json:"created_at"`  // 创建时间
+	// KeyID 是添加该图片的 API 密钥 ID，可空：
+	// 通过后台 JWT 上传的图片没有关联密钥，此处为 nil。
+	KeyID *int `json:"key_id,omitempty"`
 }

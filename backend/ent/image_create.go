@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/Lestine-Yan/irisImg/backend/ent/apikey"
 	"github.com/Lestine-Yan/irisImg/backend/ent/image"
 )
 
@@ -96,6 +97,25 @@ func (_c *ImageCreate) SetNillableCreatedAt(v *time.Time) *ImageCreate {
 		_c.SetCreatedAt(*v)
 	}
 	return _c
+}
+
+// SetKeyID sets the "key_id" field.
+func (_c *ImageCreate) SetKeyID(v int) *ImageCreate {
+	_c.mutation.SetKeyID(v)
+	return _c
+}
+
+// SetNillableKeyID sets the "key_id" field if the given value is not nil.
+func (_c *ImageCreate) SetNillableKeyID(v *int) *ImageCreate {
+	if v != nil {
+		_c.SetKeyID(*v)
+	}
+	return _c
+}
+
+// SetKey sets the "key" edge to the ApiKey entity.
+func (_c *ImageCreate) SetKey(v *ApiKey) *ImageCreate {
+	return _c.SetKeyID(v.ID)
 }
 
 // Mutation returns the ImageMutation object of the builder.
@@ -277,6 +297,23 @@ func (_c *ImageCreate) createSpec() (*Image, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(image.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
+	}
+	if nodes := _c.mutation.KeyIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   image.KeyTable,
+			Columns: []string{image.KeyColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.KeyID = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

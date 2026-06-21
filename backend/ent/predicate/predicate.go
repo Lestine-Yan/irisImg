@@ -6,5 +6,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// ApiKey is the predicate function for apikey builders.
+type ApiKey func(*sql.Selector)
+
 // Image is the predicate function for image builders.
 type Image func(*sql.Selector)

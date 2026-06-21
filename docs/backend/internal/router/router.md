@@ -1,30 +1,42 @@
 # `internal/router/router.go`
 
-整个后端唯一的依赖装配点和路由注册点。`cmd/server/main.go` 打开数据库、构造 DAO 后调用 `router.New(cfg, imageDAO)` 拿到 `*gin.Engine` 即可启动。
+整个后端唯一的依赖装配点和路由注册点。`cmd/server/main.go` 打开数据库、构造 DAO 后调用 `router.New(cfg, imageDAO, apiKeyDAO)` 拿到 `*gin.Engine` 即可启动。
 
 ## 函数
 
-### `New(cfg *config.Config, imageDAO dao.ImageDAO) *gin.Engine`
+### `New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO) *gin.Engine`
 
 - 使用 `gin.New()` 而非 `gin.Default()`，自己挂中间件以保留控制权：`Recovery → Logger → CORS`。
-- `imageDAO` 由调用方基于已打开的数据库注入（见 [`dao.md`](../dao/dao.md)）；**当前尚未挂接图片相关路由，该参数预留给后续上传 / 列表 / 删除接口**，暂未使用（Go 允许未使用的函数参数）。
+- `imageDAO` / `apiKeyDAO` 由调用方基于已打开的数据库注入（见 [`dao.md`](../dao/dao.md)）。
 - **依赖装配**（按 dao → service → api 的顺序）：
   1. `jwtMgr := jwt.NewManager(cfg.Auth.JWT)`
-  2. `authSvc := service.NewAuthService(cfg.Auth, jwtMgr)`
-  3. `authAPI := api.NewAuthAPI(authSvc)`
+  2. `authSvc := service.NewAuthService(cfg.Auth, jwtMgr)` → `authAPI := api.NewAuthAPI(authSvc)`
+  3. `apiKeySvc := service.NewAPIKeyService(apiKeyDAO)` → `apiKeyAPI := api.NewAPIKeyAPI(apiKeySvc)`
+  4. `imageAPI := api.NewImageAPI(imageDAO)`
+  5. `rateStore := ratelimit.NewStore(cfg.APIKey.RateLimitPerMinute)` —— 按密钥维度限流的内存令牌桶。
 - **路由注册**：所有业务接口挂在 `/api/v1` 下。
   - 公开：`GET /ping`、`POST /auth/login`
-  - 受保护（`middleware.JWTAuth(jwtMgr)`）：`GET /auth/me`，未来图片接口同组挂载。
+  - 受保护（`middleware.JWTAuth(jwtMgr)`）：`GET /auth/me`；其下再套 `keys := protected.Group("/apikeys", middleware.HTTPSOnly(cfg.APIKey.HTTPSOnly))` 挂密钥管理接口（**JWT + HTTPS** 双重保护）。
+  - API 密钥保护（`middleware.APIKeyAuth(apiKeySvc, rateStore)`，独立于 JWT）：`images` 占位组。
 
 ## 路由地图
 
 ```
 /api/v1
-├── GET  /ping                   公开    api.Ping
-├── POST /auth/login             公开    AuthAPI.Login
-└── ── (中间件: JWTAuth)
-    └── GET  /auth/me            受保护  AuthAPI.Me
+├── GET  /ping                   公开        api.Ping
+├── POST /auth/login             公开        AuthAPI.Login
+├── ── (中间件: JWTAuth)
+│   ├── GET  /auth/me            受保护      AuthAPI.Me
+│   └── ── (中间件: HTTPSOnly)   /apikeys
+│       ├── POST   ""            JWT+HTTPS   APIKeyAPI.Create
+│       ├── GET    ""            JWT+HTTPS   APIKeyAPI.List
+│       └── DELETE "/:id"        JWT+HTTPS   APIKeyAPI.Revoke
+└── ── (中间件: APIKeyAuth)      /images
+    ├── GET  ""                  API Key     ImageAPI.List   (占位)
+    └── POST ""                  API Key     ImageAPI.Create (占位，需 readwrite)
 ```
+
+API 密钥鉴权链路与权限矩阵的完整说明见 [`APIKEY.md`](../../APIKEY.md)。
 
 ## 修改建议
 

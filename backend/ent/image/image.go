@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 const (
@@ -31,8 +32,19 @@ const (
 	FieldHash = "hash"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
+	// FieldKeyID holds the string denoting the key_id field in the database.
+	FieldKeyID = "key_id"
+	// EdgeKey holds the string denoting the key edge name in mutations.
+	EdgeKey = "key"
 	// Table holds the table name of the image in the database.
 	Table = "images"
+	// KeyTable is the table that holds the key relation/edge.
+	KeyTable = "images"
+	// KeyInverseTable is the table name for the ApiKey entity.
+	// It exists in this package in order to avoid circular dependency with the "apikey" package.
+	KeyInverseTable = "api_keys"
+	// KeyColumn is the table column denoting the key relation/edge.
+	KeyColumn = "key_id"
 )
 
 // Columns holds all SQL columns for image fields.
@@ -47,6 +59,7 @@ var Columns = []string{
 	FieldHeight,
 	FieldHash,
 	FieldCreatedAt,
+	FieldKeyID,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -135,4 +148,23 @@ func ByHash(opts ...sql.OrderTermOption) OrderOption {
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// ByKeyID orders the results by the key_id field.
+func ByKeyID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldKeyID, opts...).ToFunc()
+}
+
+// ByKeyField orders the results by key field.
+func ByKeyField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newKeyStep(), sql.OrderByField(field, opts...))
+	}
+}
+func newKeyStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(KeyInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, KeyTable, KeyColumn),
+	)
 }

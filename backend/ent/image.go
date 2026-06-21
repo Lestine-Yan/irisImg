@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/Lestine-Yan/irisImg/backend/ent/apikey"
 	"github.com/Lestine-Yan/irisImg/backend/ent/image"
 )
 
@@ -34,8 +35,33 @@ type Image struct {
 	// 内容哈希，用于去重
 	Hash string `json:"hash,omitempty"`
 	// 创建时间
-	CreatedAt    time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	// 添加该图片的 API 密钥 ID，后台 JWT 上传时为空
+	KeyID *int `json:"key_id,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the ImageQuery when eager-loading is set.
+	Edges        ImageEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// ImageEdges holds the relations/edges for other nodes in the graph.
+type ImageEdges struct {
+	// Key holds the value of the key edge.
+	Key *ApiKey `json:"key,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// KeyOrErr returns the Key value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e ImageEdges) KeyOrErr() (*ApiKey, error) {
+	if e.Key != nil {
+		return e.Key, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: apikey.Label}
+	}
+	return nil, &NotLoadedError{edge: "key"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -43,7 +69,7 @@ func (*Image) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case image.FieldID, image.FieldSize, image.FieldWidth, image.FieldHeight:
+		case image.FieldID, image.FieldSize, image.FieldWidth, image.FieldHeight, image.FieldKeyID:
 			values[i] = new(sql.NullInt64)
 		case image.FieldFilename, image.FieldStoredPath, image.FieldURL, image.FieldMimeType, image.FieldHash:
 			values[i] = new(sql.NullString)
@@ -124,6 +150,13 @@ func (_m *Image) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.CreatedAt = value.Time
 			}
+		case image.FieldKeyID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field key_id", values[i])
+			} else if value.Valid {
+				_m.KeyID = new(int)
+				*_m.KeyID = int(value.Int64)
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -135,6 +168,11 @@ func (_m *Image) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (_m *Image) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
+}
+
+// QueryKey queries the "key" edge of the Image entity.
+func (_m *Image) QueryKey() *ApiKeyQuery {
+	return NewImageClient(_m.config).QueryKey(_m)
 }
 
 // Update returns a builder for updating this Image.
@@ -186,6 +224,11 @@ func (_m *Image) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	if v := _m.KeyID; v != nil {
+		builder.WriteString("key_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }
