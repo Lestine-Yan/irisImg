@@ -24,6 +24,8 @@ const (
 	CodeAPIKeyInvalid = 40120
 	CodeForbidden     = 40300
 	CodeNotFound      = 40400
+	// CodePayloadTooLarge 表示上传内容超过限制（如 max_upload_size_mb）。
+	CodePayloadTooLarge = 41300
 	// CodeTooManyRequests 表示触发限流。
 	CodeTooManyRequests = 42900
 	CodeServerError     = 50000
@@ -69,6 +71,11 @@ func Forbidden(c *gin.Context, msg string) {
 // TooManyRequests 是 429 的快捷方法（触发限流）。
 func TooManyRequests(c *gin.Context, msg string) {
 	Fail(c, http.StatusTooManyRequests, CodeTooManyRequests, msg)
+}
+
+// PayloadTooLarge 是 413 的快捷方法（上传超限）。
+func PayloadTooLarge(c *gin.Context, msg string) {
+	Fail(c, http.StatusRequestEntityTooLarge, CodePayloadTooLarge, msg)
 }
 
 // ServerError 是 500 的快捷方法。

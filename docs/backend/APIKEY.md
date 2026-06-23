@@ -26,7 +26,7 @@
 | DAO | `internal/dao/dao.go`（APIKeyDAO）、`internal/dao/entdao/apikey.go`、`.../image.go` |
 | 业务逻辑 | `internal/service/apikey.go` |
 | 中间件 | `internal/middleware/apikey.go`、`internal/middleware/https.go` |
-| 控制器 | `internal/api/apikey.go`、`internal/api/image.go`（占位） |
+| 控制器 | `internal/api/apikey.go`、`internal/api/image.go` |
 | 统一响应 | `internal/pkg/response/response.go`（新增错误码） |
 | 路由装配 | `internal/router/router.go` |
 
@@ -48,7 +48,7 @@ apikey:
 | GET | `/api/v1/apikeys` | JWT + HTTPS | 列出全部密钥（不含明文/哈希） |
 | DELETE | `/api/v1/apikeys/:id` | JWT + HTTPS | 吊销指定密钥 |
 | GET | `/api/v1/images` | API Key（任意有效） | 申请图片（**占位，返回 501**） |
-| POST | `/api/v1/images` | API Key（需 readwrite） | 添加图片（**占位，返回 501**） |
+| POST | `/api/v1/images` | API Key（需 readwrite） | 添加图片（**已实现**，链路见 [`IMAGE.md`](./IMAGE.md)） |
 
 ## 4. 签发链路（POST /apikeys）
 
@@ -138,7 +138,7 @@ client       middleware.APIKeyAuth      service.Authenticate      ratelimit.Stor
 ## 11. image.key 关联
 
 - `image` 表新增可空外键 `key_id`（`*int`），通过 Ent `key` edge（`edge.From("key", ApiKey.Type).Ref("images")`）绑定，记录图片由哪把密钥添加。
-- 通过后台 JWT 上传的图片 `key_id` 为空；通过密钥 POST 添加的图片应回填中间件注入的 `api_key_id`（占位实现里尚未落库，见 [`image.md`](./internal/api/image.md)）。
+- 通过后台 JWT 上传的图片 `key_id` 为空；通过密钥 POST 添加的图片由 [`api.ImageAPI.Create`](./internal/api/image.md) 回填中间件注入的 `api_key_id`。
 - 详见 [`ent/schema/image.md`](./ent/schema/image.md)、[`entdao/image.md`](./internal/dao/entdao/image.md)、[`model/image.md`](./internal/model/image.md)。
 
 ## 12. 示例
@@ -156,7 +156,8 @@ curl -X POST http://localhost:8080/api/v1/apikeys \
 # 3) 用密钥访问图片接口
 KEY="<43字符明文>"
 curl http://localhost:8080/api/v1/images -H "X-API-Key: $KEY"
-# → 501（占位）；缺头→401 40110；只读密钥 POST→403 40300；超限→429 42900
+# → GET 当前 501（占位）；缺头→401 40110；只读密钥 POST→403 40300；超限→429 42900；
+#   POST 上传请见 IMAGE.md。
 
 # 4) 吊销
 curl -X DELETE http://localhost:8080/api/v1/apikeys/1 -H "Authorization: Bearer $TOKEN"

@@ -8,14 +8,16 @@
 2. **设置 Gin 模式**：`gin.SetMode(cfg.Server.Mode)`，可取 `debug | release | test`。
 3. **打开数据库并迁移**：`entdao.Open(cfg.Database)` 打开 SQLite（纯 Go 驱动，无需 CGO），`defer dbClient.Close()`；再按 `cfg.Database.AutoMigrate` 调 `entdao.Migrate` 建表。失败直接 `log.Fatalf`。详见 [`entdao/db.md`](../internal/dao/entdao/db.md)。
 4. **构建 DAO 层**：`entdao.NewImageDAO(dbClient)` 与 `entdao.NewAPIKeyDAO(dbClient)`，分别得到 `dao.ImageDAO` 与 `dao.APIKeyDAO`。
-5. **构建路由**：`router.New(cfg, imageDAO, apiKeyDAO)` 注入配置与两个 DAO，由 router 包完成其余依赖装配（jwt manager / service / api / 限流令牌桶）。
-6. **启动 HTTP 服务**：`http.Server` 监听 `cfg.Server.Host:cfg.Server.Port`，在 goroutine 里调用 `ListenAndServe`。
-7. **优雅关闭**：监听 `SIGINT/SIGTERM`，收到信号后用 5 秒超时的 context 调 `srv.Shutdown(ctx)`。
+5. **构建图片存储器**：`storage.NewSaver(cfg.Storage)` 启动期 `MkdirAll` 出 `storage.root_dir`，路径或权限有问题立刻 `log.Fatalf` 暴露。详见 [`internal/pkg/storage.md`](../internal/pkg/storage.md)。
+6. **构建路由**：`router.New(cfg, imageDAO, apiKeyDAO, saver)` 注入配置、两个 DAO 与 Saver，由 router 包完成其余依赖装配（jwt manager / service / api / 限流令牌桶）。
+7. **启动 HTTP 服务**：`http.Server` 监听 `cfg.Server.Host:cfg.Server.Port`，在 goroutine 里调用 `ListenAndServe`。
+8. **优雅关闭**：监听 `SIGINT/SIGTERM`，收到信号后用 5 秒超时的 context 调 `srv.Shutdown(ctx)`。
 
 ## 与其它文件的关系
 
-- 依赖 [`config`](../config/config.md)：从 yaml 读取 server / database 段
+- 依赖 [`config`](../config/config.md)：从 yaml 读取 server / database / storage 段
 - 依赖 [`internal/dao/entdao`](../internal/dao/entdao/db.md)：打开数据库、迁移、构造 DAO
+- 依赖 [`internal/pkg/storage`](../internal/pkg/storage.md)：构造图片存储器
 - 依赖 [`router`](../internal/router/router.md)：把 `*gin.Engine` 当作 `http.Handler` 用
 
 ## 修改建议

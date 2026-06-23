@@ -13,6 +13,7 @@ import (
 
 	"github.com/Lestine-Yan/irisImg/backend/config"
 	"github.com/Lestine-Yan/irisImg/backend/internal/dao/entdao"
+	"github.com/Lestine-Yan/irisImg/backend/internal/pkg/storage"
 	"github.com/Lestine-Yan/irisImg/backend/internal/router"
 	"github.com/gin-gonic/gin"
 )
@@ -45,10 +46,16 @@ func main() {
 	imageDAO := entdao.NewImageDAO(dbClient)
 	apiKeyDAO := entdao.NewAPIKeyDAO(dbClient)
 
-	// 5. 构建路由（注入 DAO 依赖）
-	r := router.New(cfg, imageDAO, apiKeyDAO)
+	// 5. 构建图片存储器（提前 MkdirAll，权限/路径问题在启动时就暴露）
+	saver, err := storage.NewSaver(cfg.Storage)
+	if err != nil {
+		log.Fatalf("init storage failed: %v", err)
+	}
 
-	// 6. 启动 HTTP 服务，并支持优雅关闭
+	// 6. 构建路由（注入 DAO / Saver 依赖）
+	r := router.New(cfg, imageDAO, apiKeyDAO, saver)
+
+	// 7. 启动 HTTP 服务，并支持优雅关闭
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	srv := &http.Server{
 		Addr:    addr,

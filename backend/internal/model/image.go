@@ -21,3 +21,17 @@ type Image struct {
 	// 通过后台 JWT 上传的图片没有关联密钥，此处为 nil。
 	KeyID *int `json:"key_id,omitempty"`
 }
+
+// UploadImageInput 描述「上传一张图片」的入参，由 api 层从 HTTP 请求装配后传给 service。
+//
+// 设计成结构体而不是多参数，便于后续追加字段（如标签、相册 ID）不破坏签名。
+type UploadImageInput struct {
+	// Filename 是上传时客户端给出的原始文件名，仅作展示。
+	// 真实落盘文件名由 hash + 嗅探得到的扩展名决定，不信任此字段。
+	Filename string
+	// Content 是图片完整字节，由 api 层在受 MaxBytesReader 保护下读出。
+	Content []byte
+	// KeyID 是添加该图片的 API 密钥 ID。
+	// 通过 API Key 渠道上传时由中间件保证非空；后台 JWT 直传时可置 nil。
+	KeyID *int
+}

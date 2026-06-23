@@ -14,6 +14,7 @@ type Config struct {
 	Auth     AuthConfig     `yaml:"auth"`
 	Database DatabaseConfig `yaml:"database"`
 	APIKey   APIKeyConfig   `yaml:"apikey"`
+	Storage  StorageConfig  `yaml:"storage"`
 }
 
 type ServerConfig struct {
@@ -63,6 +64,26 @@ type APIKeyConfig struct {
 	// HTTPSOnly 为 true 时，密钥创建等敏感接口要求请求经由 HTTPS
 	// （后端通过 X-Forwarded-Proto 二次校验 Nginx 反代）。本地开发可置 false。
 	HTTPSOnly bool `yaml:"https_only"`
+}
+
+// StorageConfig 描述图片落盘存储相关的参数。
+//
+// 物理目录由 RootDir 决定（相对路径相对于后端进程工作目录，部署时建议改为绝对路径），
+// 真实文件按 <RootDir>/<YYYY>/<MM>/<sha256>.<ext> 的形式排布。
+// 对外访问 URL 由 PublicBaseURL + 相对路径拼接：
+//   - PublicBaseURL 为空 → 返回 "/imgs/<rel>"，前端/Nginx 同域代理；
+//   - 非空（如 "https://img.example.com"，结尾不带斜杠）→ 拼成绝对地址。
+type StorageConfig struct {
+	// RootDir 是图片落盘根目录，默认 "data/imgs"。
+	RootDir string `yaml:"root_dir"`
+	// PublicBaseURL 是对外访问 URL 前缀，空表示走相对路径 "/imgs/..."。
+	PublicBaseURL string `yaml:"public_base_url"`
+	// MaxUploadSizeMB 限制单次上传字节数（MiB），0 表示走默认 20。
+	MaxUploadSizeMB int `yaml:"max_upload_size_mb"`
+	// AllowedMimeTypes 是真实 MIME 白名单。
+	// 后端用 http.DetectContentType 嗅探内容头部得到真实类型，
+	// 不信任客户端提交的 Content-Type，未命中白名单直接拒收。
+	AllowedMimeTypes []string `yaml:"allowed_mime_types"`
 }
 
 // Global 是加载后的全局配置，便于其他包直接引用。
