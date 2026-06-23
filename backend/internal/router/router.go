@@ -7,6 +7,7 @@ import (
 	"github.com/Lestine-Yan/irisImg/backend/internal/middleware"
 	"github.com/Lestine-Yan/irisImg/backend/internal/pkg/jwt"
 	"github.com/Lestine-Yan/irisImg/backend/internal/pkg/ratelimit"
+	"github.com/Lestine-Yan/irisImg/backend/internal/pkg/storage"
 	"github.com/Lestine-Yan/irisImg/backend/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -14,8 +15,9 @@ import (
 // New 组装并返回 gin.Engine。
 // 依赖在这里手动注入，规模变大后可以引入 wire 等工具自动生成。
 //
-// imageDAO / apiKeyDAO 由调用方（main）基于已打开的数据库构造后注入。
-func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO) *gin.Engine {
+// imageDAO / apiKeyDAO 由调用方（main）基于已打开的数据库构造后注入；
+// saver 由调用方基于配置构造（启动失败可早期暴露权限/路径问题）。
+func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, saver *storage.Saver) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery(), middleware.Logger(), middleware.CORS())
 
@@ -26,7 +28,9 @@ func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO) *gi
 
 	apiKeySvc := service.NewAPIKeyService(apiKeyDAO)
 	apiKeyAPI := api.NewAPIKeyAPI(apiKeySvc)
-	imageAPI := api.NewImageAPI(imageDAO)
+
+	imageSvc := service.NewImageService(imageDAO, saver, cfg.Storage)
+	imageAPI := api.NewImageAPI(imageSvc)
 
 	// 按密钥维度限流的内存令牌桶，默认阈值来自配置。
 	rateStore := ratelimit.NewStore(cfg.APIKey.RateLimitPerMinute)
@@ -54,7 +58,7 @@ func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO) *gi
 		}
 
 		// 图片接口：由 API 密钥鉴权中间件保护（独立于 JWT）。
-		// GET 任意有效密钥可访问，POST 需读写密钥；当前为占位实现。
+		// GET 任意有效密钥可访问，POST 需读写密钥；POST 已落地，GET 仍为占位。
 		images := v1.Group("/images", middleware.APIKeyAuth(apiKeySvc, rateStore))
 		{
 			images.GET("", imageAPI.List)

@@ -27,6 +27,7 @@ type Body struct {
 | `CodeAPIKeyInvalid` | `40120` | API 密钥格式非法 / 不存在 / 已吊销 |
 | `CodeForbidden` | `40300` | 已认证但无权访问（如只读密钥写、未走 HTTPS） |
 | `CodeNotFound` | `40400` | 资源不存在 |
+| `CodePayloadTooLarge` | `41300` | 上传内容超过限制（如 `storage.max_upload_size_mb`） |
 | `CodeTooManyRequests` | `42900` | 触发限流 |
 | `CodeServerError` | `50000` | 服务器内部错误 |
 
@@ -42,6 +43,7 @@ type Body struct {
 | `Unauthorized(c, msg)` | 401 | 40100 |
 | `Forbidden(c, msg)` | 403 | 40300 |
 | `NotFound(c, msg)` | 404 | 40400 |
+| `PayloadTooLarge(c, msg)` | 413 | 41300 |
 | `TooManyRequests(c, msg)` | 429 | 42900 |
 | `ServerError(c, msg)` | 500 | 50000 |
 

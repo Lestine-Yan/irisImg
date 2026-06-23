@@ -42,15 +42,17 @@ backend/                                  docs/backend/
 │   │   ├── jwt/jwt.go                       ├── jwt.md
 │   │   ├── apikey/apikey.go                 ├── apikey.md
 │   │   ├── ratelimit/ratelimit.go           ├── ratelimit.md
-│   │   └── response/response.go             └── response.md
+│   │   ├── response/response.go             ├── response.md
+│   │   └── storage/storage.go               └── storage.md
 │   ├── router/                           └── internal/router/
 │   │   └── router.go                        └── router.md
 │   └── service/                          └── internal/service/
 │       ├── auth.go                          ├── auth.md
-│       └── apikey.go                        └── apikey.md
+│       ├── apikey.go                        ├── apikey.md
+│       └── image.go                         └── image.md
 ```
 
-> 特性级说明（跨多文件）：持久化方案见 [`DATABASE.md`](./DATABASE.md)，登录链路见 [`AUTH.md`](./AUTH.md)，API 密钥鉴权见 [`APIKEY.md`](./APIKEY.md)。
+> 特性级说明（跨多文件）：持久化方案见 [`DATABASE.md`](./DATABASE.md)，登录链路见 [`AUTH.md`](./AUTH.md)，API 密钥鉴权见 [`APIKEY.md`](./APIKEY.md)，图片上传 / 静态反代约定见 [`IMAGE.md`](./IMAGE.md)。
 
 ## 分层说明
 
