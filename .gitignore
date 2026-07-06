@@ -1,6 +1,7 @@
 .obsidian
 CLAUDE.md
 docs/plan.md
+docs/pr
 
 # 运行时数据与上传内容（含 SQLite 数据库文件），切勿提交
 data/

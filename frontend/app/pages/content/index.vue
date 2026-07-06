@@ -1,8 +1,8 @@
 <template>
   <div class="space-y-6">
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">仪表盘</h1>
-      <p class="mt-1 text-sm text-gray-500">概览你的图片服务运行状况</p>
+      <h1 class="text-2xl font-bold text-gray-900">内容中心</h1>
+      <p class="mt-1 text-sm text-gray-500">管理已上传的图片资源</p>
     </div>
 
     <div class="rounded-2xl border border-dashed border-gray-300 bg-white/60 p-12 text-center">
