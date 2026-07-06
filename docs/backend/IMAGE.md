@@ -7,7 +7,9 @@
 
 ## 1. 整体设计
 
-- 上传通道挂在 **API 密钥鉴权**之下（独立于后台 JWT），由 [`middleware.APIKeyAuth`](./internal/middleware/apikey.md) 保证 POST 必为 `readwrite` 密钥。
+- 上传通道有两条，独立解耦：
+  - **对外**：`POST /images`，挂在 **API 密钥鉴权**之下，由 [`middleware.APIKeyAuth`](./internal/middleware/apikey.md) 保证 POST 必为 `readwrite` 密钥，落库 `key_id` 记录是哪把密钥添加的。
+  - **后台**：`POST /admin/images`，挂在 **JWT 鉴权**之下，供内容中心管理端直传，`key_id` 留空（admin 直传）。两条通道复用同一套业务流程（嗅探 → 去重 → 落盘 → 落库）。
 - 文件名由内容 **SHA256** 计算得出，**天然唯一、天然去重**：同一张图二次上传自动秒传，复用首次记录。
 - 落盘目录按 `<root>/<YYYY>/<MM>/<sha256>.<ext>` 排布，避免单目录文件过多。
 - **真实 MIME 嗅探**（`http.DetectContentType`）+ 白名单，不信任客户端 `Content-Type`，扩展名由后端推导。
@@ -65,9 +67,33 @@ storage:
 | 429 | `CodeTooManyRequests` | 触发该密钥限流 |
 | 500 | `CodeServerError` | 落盘 / 落库失败等内部错误 |
 
+### `GET /api/v1/admin/images` —— 后台图片列表
+
+- **鉴权**：`Authorization: Bearer <JWT>`（由 [`middleware.JWTAuth`](./internal/middleware/auth.md) 校验），供后台内容中心调用，与对外 API Key 通道解耦。
+- **Query**：`key_id`（可选，缺省=全部）、`order`（asc/desc，默认 asc 升序）、`page`（默认 1）、`page_size`（默认 24）。
+- **响应**：`200` + `data` 为 `{ items: [model.Image], total, page, page_size }`。
+- **错误**：400（page/page_size/key_id 非法）、401（未登录）、500（内部错误）。
+
+### `POST /api/v1/admin/images` —— 后台直传图片
+
+- **鉴权**：`Authorization: Bearer <JWT>`（由 [`middleware.JWTAuth`](./internal/middleware/auth.md) 校验），无需 `X-API-Key`。供内容中心在管理端直接上传，与对外 API Key 上传通道解耦。
+- **请求体**：`multipart/form-data`，唯一字段 `file`（图片二进制）。
+- **关联密钥**：**不关联**——`key_id` 留空（NULL），语义上即「admin 直传」。这类图片只会在内容中心「全部」里出现，按密钥筛选时不可见；详情里来源展示为 `admin`。
+- **成功响应**：`200` + `data` 为完整 `model.Image`（`key_id` 为 `null`，因 `omitempty` 不出现在 JSON 中）。
+- **错误**：
+
+| HTTP | 业务码 | 场景 |
+| --- | --- | --- |
+| 400 | `CodeBadRequest` | 缺少 `file` 字段 / 内容为空 / 嗅探出的 MIME 不在白名单 |
+| 401 | `CodeUnauthorized` | 未登录 / JWT 失效（由中间件返回） |
+| 413 | `CodePayloadTooLarge` | 超过 `storage.max_upload_size_mb` |
+| 500 | `CodeServerError` | 落盘 / 落库失败等内部错误 |
+
+> 业务流程（嗅探 → sha256 秒传 → 落盘 → 落库）与 `POST /images` 完全一致，复用 `service.ImageService.Upload`，差别仅在 `KeyID` 传 `nil`。详见 [`internal/api/image.md`](./internal/api/image.md) 的 `CreateAdmin`。
+
 ### `GET /api/v1/images` —— 申请图片（占位）
 
-任意有效密钥可访问，**当前固定返回 501**，待前端列表页接入时再实现。
+任意有效密钥可访问，**当前固定返回 501**，对外列表 / 单图查询语义待定。
 
 ## 4. 上传链路
 
@@ -102,6 +128,7 @@ client           api.ImageAPI             service.ImageService           dao.Ima
 
 ## 5. 部署与 Nginx 反代约定
 
+- **开发期**：后端 `router` 已注册 `r.Static("/imgs", storage.root_dir)`，前端直接通过后端 origin（如 `http://localhost:8080/imgs/...`）即可加载图片，无需 Nginx。前端 `useImages.resolveImageUrl` 会把相对 URL 拼成完整地址。
 - `storage.root_dir` 与 Nginx `location /imgs/` 暴露的物理路径**必须一致**。例如：
 
   ```yaml
@@ -138,6 +165,5 @@ client           api.ImageAPI             service.ImageService           dao.Ima
 ## 7. 不在本次范围
 
 - Nginx 配置文件本身（仅在本文档里约定路径）。
-- `GET /api/v1/images` 列表 / 单图查询接口。
-- 后台 JWT 直传通道（目前所有上传都走 API Key；后续接前端时再补 JWT 入口，`KeyID` 留空）。
+- `GET /api/v1/images` 对外列表 / 单图查询接口（语义待定，保持 501 占位）。后台列表已通过 `GET /api/v1/admin/images`（JWT）落地。
 - 缩略图、EXIF 清理、防盗链、对象存储后端。

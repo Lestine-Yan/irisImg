@@ -5,8 +5,10 @@ import (
 	"errors"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/Lestine-Yan/irisImg/backend/config"
+	"github.com/Lestine-Yan/irisImg/backend/ent/apikey"
 	"github.com/Lestine-Yan/irisImg/backend/internal/dao"
 	"github.com/Lestine-Yan/irisImg/backend/internal/model"
 )
@@ -104,7 +106,7 @@ func TestImageDAO_ListAndDelete(t *testing.T) {
 		}
 	}
 
-	items, total, err := d.List(ctx, 0, 2)
+	items, total, err := d.List(ctx, model.ImageListQuery{Limit: 2})
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -118,7 +120,107 @@ func TestImageDAO_ListAndDelete(t *testing.T) {
 	if err := d.Delete(ctx, items[0].ID); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
-	if _, _, err := d.List(ctx, 0, 0); err != nil {
+	if _, _, err := d.List(ctx, model.ImageListQuery{}); err != nil {
 		t.Fatalf("list after delete: %v", err)
+	}
+}
+
+// TestImageDAO_ListFilterAndOrder 覆盖 List 的过滤、排序、分页：
+//   - 按 key_id 过滤
+//   - asc / desc 排序方向
+//   - offset/limit 分页与 total 的关系
+//
+// 为让排序可测，这里直接用 ent client 写入带明确 created_at 的记录
+// （dao.Create 走 default now，无法控制时间）。
+func TestImageDAO_ListFilterAndOrder(t *testing.T) {
+	d := newTestDAO(t)
+	ctx := context.Background()
+	impl := d.(*imageDAO)
+
+	// image.key_id 有外键约束到 api_keys.id，先插入两把密钥（空表自增得 id=1、2），
+	// 否则带 key_id 的 image 落库会触发 FOREIGN KEY constraint failed。
+	keyNames := []string{"key-one", "key-two"}
+	for _, name := range keyNames {
+		if _, err := impl.client.ApiKey.Create().
+			SetName(name).
+			SetKeyHash("hash-"+name).
+			SetPrefix("pfx").
+			SetScope(apikey.ScopeReadwrite).
+			Save(ctx); err != nil {
+			t.Fatalf("create key %s: %v", name, err)
+		}
+	}
+
+	base := time.Now().Truncate(time.Hour).UTC()
+	records := []struct {
+		hash string
+		key  int
+		t    time.Time
+	}{
+		{"h1", 1, base.Add(3 * time.Minute)},
+		{"h2", 1, base.Add(1 * time.Minute)},
+		{"h3", 2, base.Add(2 * time.Minute)},
+	}
+	for _, r := range records {
+		if _, err := impl.client.Image.Create().
+			SetFilename(r.hash + ".png").
+			SetStoredPath("p/" + r.hash).
+			SetURL("/i/" + r.hash).
+			SetSize(100).
+			SetMimeType("image/png").
+			SetWidth(10).
+			SetHeight(10).
+			SetHash(r.hash).
+			SetNillableKeyID(&r.key).
+			SetCreatedAt(r.t).
+			Save(ctx); err != nil {
+			t.Fatalf("create %s: %v", r.hash, err)
+		}
+	}
+
+	// 全部升序：h2(1m) → h3(2m) → h1(3m)
+	items, total, err := d.List(ctx, model.ImageListQuery{Order: "asc"})
+	if err != nil {
+		t.Fatalf("list asc: %v", err)
+	}
+	if total != 3 || len(items) != 3 {
+		t.Fatalf("asc: total=%d len=%d", total, len(items))
+	}
+	if items[0].Hash != "h2" || items[2].Hash != "h1" {
+		t.Fatalf("asc order: %s %s %s", items[0].Hash, items[1].Hash, items[2].Hash)
+	}
+
+	// 倒序：h1 → h3 → h2
+	items, _, err = d.List(ctx, model.ImageListQuery{Order: "desc"})
+	if err != nil {
+		t.Fatalf("list desc: %v", err)
+	}
+	if items[0].Hash != "h1" || items[2].Hash != "h2" {
+		t.Fatalf("desc order: %s %s %s", items[0].Hash, items[1].Hash, items[2].Hash)
+	}
+
+	// 按 key_id=1 过滤：仅 h2、h1，升序
+	key1 := 1
+	items, total, err = d.List(ctx, model.ImageListQuery{KeyID: &key1, Order: "asc"})
+	if err != nil {
+		t.Fatalf("list key1: %v", err)
+	}
+	if total != 2 || len(items) != 2 {
+		t.Fatalf("key1: total=%d len=%d", total, len(items))
+	}
+	if items[0].Hash != "h2" || items[1].Hash != "h1" {
+		t.Fatalf("key1 order: %s %s", items[0].Hash, items[1].Hash)
+	}
+
+	// 分页：升序 offset=1, limit=1 应命中第二条 h3
+	items, total, err = d.List(ctx, model.ImageListQuery{Order: "asc", Offset: 1, Limit: 1})
+	if err != nil {
+		t.Fatalf("list paged: %v", err)
+	}
+	if total != 3 || len(items) != 1 {
+		t.Fatalf("paged: total=%d len=%d", total, len(items))
+	}
+	if items[0].Hash != "h3" {
+		t.Fatalf("paged item=%s, want h3", items[0].Hash)
 	}
 }

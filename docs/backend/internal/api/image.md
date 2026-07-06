@@ -2,8 +2,10 @@
 
 图片相关接口的 Gin 控制器。
 
-- **`POST /api/v1/images`** —— 添加图片，**已实现**，由 [API 密钥鉴权中间件](../middleware/apikey.md) 保护，需 `readwrite` 密钥。
-- **`GET  /api/v1/images`** —— 任意有效密钥可访问，**目前为占位**，待接入前端列表页时再实现，显式返回 501 与鉴权失败状态码区分开。
+- **`POST /api/v1/images`** —— 对外添加图片，**已实现**，由 [API 密钥鉴权中间件](../middleware/apikey.md) 保护，需 `readwrite` 密钥。
+- **`POST /api/v1/admin/images`** —— 后台直传图片，**已实现**，由 [JWT 鉴权中间件](../middleware/auth.md) 保护，供内容中心上传，`key_id` 留空（admin 直传）。
+- **`GET  /api/v1/admin/images`** —— 后台图片列表，**已实现**，由 [JWT 鉴权中间件](../middleware/auth.md) 保护，供内容中心拉取图片（支持按 `key_id` 过滤、时间升序、分页）。
+- **`GET  /api/v1/images`** —— 对外占位，任意有效密钥可访问，**目前返回 501**，待语义明确后再实现。
 
 ## 类型
 
@@ -42,14 +44,64 @@ type ImageAPI struct {
 
 **关键实现**：
 
-1. `http.MaxBytesReader(...)` 把 `c.Request.Body` 包一层，超大请求体在更早阶段就被拦下。上限取自 `svc.MaxBytes()`。
-2. `c.FormFile("file")` 解析出 `*multipart.FileHeader`；若被 `MaxBytesReader` 触发，`errors.As(err, *http.MaxBytesError)` 命中 → 413。
-3. 读完文件全部字节后调 `svc.Upload`，按 sentinel error 分支映射状态码。
+1. 文件读取与错误映射抽到共享 helper `readUploadFile` / `respondUploadError`（见下文），`Create` 与 `CreateAdmin` 复用，避免两处分支漂移。
+2. `readUploadFile` 先用 `http.MaxBytesReader(...)` 把 `c.Request.Body` 包一层（上限取自 `svc.MaxBytes()`），超大请求体在更早阶段就被拦下；再 `c.FormFile("file")` 解析出 `*multipart.FileHeader`，若被 `MaxBytesReader` 触发，`errors.As(err, *http.MaxBytesError)` 命中 → 413。
+3. 读完文件全部字节后调 `svc.Upload`，`respondUploadError` 按 sentinel error 分支映射状态码。
 4. `key_id` 取自 `c.GetInt(middleware.ContextKeyAPIKeyID)`（中间件保证一定 >0），透传给 service 落库，记录图片由哪把密钥添加。
+
+### `CreateAdmin(c *gin.Context)` —— `POST /api/v1/admin/images`
+
+后台直传图片，由 [JWT 鉴权中间件](../middleware/auth.md) 保护，供内容中心管理端上传，无需 `X-API-Key`。
+
+**请求**：`multipart/form-data`
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `file` | file | 图片文件，必填。MIME 白名单见 `storage.allowed_mime_types` |
+
+**Header**：`Authorization: Bearer <JWT>`（由 [`middleware.JWTAuth`](../middleware/auth.md) 校验）。
+
+**响应**：200 + 完整 `model.Image`，`key_id` 为 `null`（admin 直传，不关联任何密钥；因 `omitempty` 不出现在 JSON 中）。
+
+**错误映射**：
+
+| HTTP | 业务码 | 触发 |
+| --- | --- | --- |
+| 400 | `CodeBadRequest` | 缺少 `file` 字段、上传内容为空、MIME 不在白名单 |
+| 401 | `CodeUnauthorized` | 未登录 / JWT 失效（由中间件返回） |
+| 413 | `CodePayloadTooLarge` | 文件超过 `storage.max_upload_size_mb` |
+| 500 | `CodeServerError` | 内部错误（落盘 / 落库失败等） |
+
+**与 `Create` 的差别**：仅在不走 API Key 通道、`KeyID` 传 `nil`。业务流程（嗅探 → 秒传 → 落盘 → 落库）完全一致，复用 `svc.Upload`。这类图片只会在内容中心「全部」里出现，详情里来源展示为 `admin`。
 
 ### `List(c *gin.Context)` —— `GET /api/v1/images`（占位）
 
 显式返回 `501 Not Implemented`（`code = CodeServerError`，message「图片列表接口尚未实现（占位）」），便于前端 / 调用方与鉴权失败的 401/403/429 区分。
+
+### `ListAdmin(c *gin.Context)` —— `GET /api/v1/admin/images`
+
+后台图片列表，由 [JWT 鉴权中间件](../middleware/auth.md) 保护，供内容中心拉取图片。
+
+**Query 参数**：
+
+| 参数 | 类型 | 默认 | 说明 |
+| --- | --- | --- | --- |
+| `key_id` | int | 缺省=全部 | >=1 时只返回该密钥添加的图片 |
+| `order` | string | `asc` | `asc`/`desc`，时间升序契合内容中心 |
+| `page` | int | 1 | 页码，<1 非法 |
+| `page_size` | int | 24 | 每页条数，<1 非法 |
+
+**响应**：200 + `{ items: [model.Image], total, page, page_size }`。
+
+**错误映射**：
+
+| HTTP | 业务码 | 触发 |
+| --- | --- | --- |
+| 400 | `CodeBadRequest` | page / page_size / key_id 非法 |
+| 401 | `CodeUnauthorized` | 未登录 / JWT 失效（由中间件返回） |
+| 500 | `CodeServerError` | 查询失败 |
+
+**关键实现**：`page` / `page_size` → `offset=(page-1)*page_size`、`limit=page_size`，组装 `model.ImageListQuery` 调 `svc.List`。
 
 ## 与其它包的关系
 
@@ -57,6 +109,10 @@ type ImageAPI struct {
 images 组 ── APIKeyAuth ──► ImageAPI.Create ──► ImageService.Upload ──► dao.ImageDAO + pkg/storage.Saver
                                               │
                                               └─ c.GetInt(ContextKeyAPIKeyID) → model.UploadImageInput.KeyID
+
+admin/images 组 ── JWTAuth ──► ImageAPI.CreateAdmin ──► ImageService.Upload ──► dao.ImageDAO + pkg/storage.Saver
+                                                     │
+                                                     └─ KeyID = nil（admin 直传）
 ```
 
 ## 注意

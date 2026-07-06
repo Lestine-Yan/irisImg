@@ -54,7 +54,7 @@ func (m *memImageDAO) GetByHash(_ context.Context, hash string) (*model.Image, e
 	return nil, dao.ErrNotFound
 }
 
-func (m *memImageDAO) List(_ context.Context, _, _ int) ([]*model.Image, int, error) {
+func (m *memImageDAO) List(_ context.Context, _ model.ImageListQuery) ([]*model.Image, int, error) {
 	return nil, 0, errors.New("not used")
 }
 
@@ -158,6 +158,29 @@ func TestImageService_Upload_DedupSecondTime(t *testing.T) {
 	}
 	if mem.nextID != 1 {
 		t.Fatalf("expected only 1 row, got nextID=%d", mem.nextID)
+	}
+}
+
+// TestImageService_Upload_AdminNilKey 覆盖后台 JWT 直传路径：
+// KeyID 传 nil 时，落库记录的 KeyID 也应保持 nil（admin 直传，不关联密钥）。
+func TestImageService_Upload_AdminNilKey(t *testing.T) {
+	svc, mem := newTestImageService(t)
+	content := makePNG(t)
+
+	got, err := svc.Upload(context.Background(), &model.UploadImageInput{
+		Filename: "admin.png",
+		Content:  content,
+		KeyID:    nil,
+	})
+	if err != nil {
+		t.Fatalf("upload: %v", err)
+	}
+	if got.KeyID != nil {
+		t.Fatalf("expected nil key_id for admin upload, got %v", *got.KeyID)
+	}
+	// 落库记录同样应为 nil。
+	if stored, ok := mem.byHash[got.Hash]; !ok || stored.KeyID != nil {
+		t.Fatalf("expected nil key_id in dao record, got %+v", stored.KeyID)
 	}
 }
 

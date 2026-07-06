@@ -11,7 +11,7 @@
 | `Create(ctx, *model.Image) (*model.Image, error)` | 落库一条记录，回填自增 ID 与创建时间 |
 | `GetByID(ctx, id int) (*model.Image, error)` | 按主键查询，未找到返回 `ErrNotFound` |
 | `GetByHash(ctx, hash string) (*model.Image, error)` | 按内容哈希查询（秒传 / 去重），未找到返回 `ErrNotFound` |
-| `List(ctx, offset, limit int) ([]*model.Image, int, error)` | 按创建时间倒序分页，返回条目与总数 |
+| `List(ctx, q model.ImageListQuery) ([]*model.Image, int, error)` | 按 `ImageListQuery` 过滤（可选 key_id）/ 排序（asc/desc）/ 分页，返回条目与符合过滤条件的总数 |
 | `Delete(ctx, id int) error` | 按主键删除，未找到返回 `ErrNotFound` |
 
 ## 错误

@@ -52,6 +52,10 @@ type ImageService struct {
 7. **写盘**：调 [`saver.Save`](../pkg/storage.md) 得到相对路径，再调 `saver.PublicURL` 拼出对外 URL。
 8. **落库**：组装 `model.Image{Filename, StoredPath, URL, Size, MimeType, Width, Height, Hash, KeyID}` 调 `dao.Create`。
 
+### `(s *ImageService) List(ctx, model.ImageListQuery) (*model.ImageListResult, error)`
+
+查询图片列表：对 `q.Limit<=0` 兜底为 24，调 [`dao.ImageDAO.List`](../dao/dao.md)，组装 `model.ImageListResult{Items, Total}` 返回。过滤（key_id）与排序方向由 dao 层落实，service 只做参数兜底与结果组装。
+
 ### `decodeImageSize` / `extFromMime`
 
 未导出辅助函数：

@@ -21,6 +21,10 @@ func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, sav
 	r := gin.New()
 	r.Use(gin.Recovery(), middleware.Logger(), middleware.CORS())
 
+	// 静态图片服务：开发期由后端直接 serve 落盘目录，前端可加载 /imgs/<rel> 缩略图与大图。
+	// 生产建议由 Nginx 反代 /imgs/（见 docs/backend/IMAGE.md），此处兜底，不影响 Nginx 优先拦截。
+	r.Static("/imgs", cfg.Storage.RootDir)
+
 	// 依赖装配：config -> jwt.Manager / service -> api
 	jwtMgr := jwt.NewManager(cfg.Auth.JWT)
 	authSvc := service.NewAuthService(cfg.Auth, jwtMgr)
@@ -55,6 +59,12 @@ func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, sav
 				keys.GET("", apiKeyAPI.List)
 				keys.DELETE("/:id", apiKeyAPI.Revoke)
 			}
+
+			// 图片管理接口（后台）：受 JWT 保护，供内容中心拉取图片列表、后台直传上传。
+			// 与对外 /images（API Key 鉴权）解耦，避免后台页面被迫注入 X-API-Key。
+			// 路径用 /admin/images 而非 /images，后者已被 APIKeyAuth 组占用，重复注册会冲突。
+			protected.GET("/admin/images", imageAPI.ListAdmin)
+			protected.POST("/admin/images", imageAPI.CreateAdmin)
 		}
 
 		// 图片接口：由 API 密钥鉴权中间件保护（独立于 JWT）。
