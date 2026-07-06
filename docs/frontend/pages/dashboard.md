@@ -1,31 +1,30 @@
 # `frontend/app/pages/dashboard.vue`
 
-工作台占位页，对应路由 `/dashboard`。
+仪表盘占位页，对应路由 `/dashboard`，使用默认布局 `layouts/default.vue`。
 
 ## 职责
 
-- 登录成功后跳转目标。
-- 客户端校验登录态，未登录则跳转 `/`。
-- 展示当前登录用户名。
-- 提供退出登录按钮。
+- 登录成功后跳转目标，也是后台默认着陆页。
+- 暂只展示标题、副标题与「正在开发中」占位卡片。
 
 ## 鉴权逻辑
 
-- `onMounted` 中检查 `isAuthenticated.value`：
-  - 未登录 → `navigateTo('/')`。
-  - 已登录 → 调用 `useAuth().fetchMe()` 刷新用户信息。
+- `definePageMeta({ middleware: 'auth' })`：未登录跳转 `/`。
+- 校验已集中到 `middleware/auth.ts`，页面内不再做 `onMounted` 重复校验。
+- 用户信息刷新由 `layouts/default.vue` 的 `onMounted` 统一调用 `fetchMe()` 完成。
 
 ## 与其它文件的关系
 
 ```
 dashboard.vue
-  └── useAuth.ts
-        ├── isAuthenticated
-        ├── fetchMe() → /api/v1/auth/me
-        └── logout() → navigateTo('/')
+  └── middleware/auth.ts
+        └── useAuth.ts → isAuthenticated
+layouts/default.vue
+  ├── AppSidebar.vue
+  └── useAuth.ts → fetchMe()
 ```
 
 ## 修改建议
 
-- 当前为占位页，后续可替换为真正的图片上传/管理功能。
-- 若页面数量增多，建议抽取 `middleware/auth.ts` 统一做客户端路由守卫，减少重复校验代码。
+- 后续替换为真正的运营概览卡片（存储用量、最近上传、API 调用统计等）。
+- 若需要页面级数据预取，可改用 `useAsyncData` 在 SSR 阶段拉取。

@@ -9,7 +9,9 @@
 - `frontend/app/composables/useAuth.ts` — 维护 token、用户信息、登录/登出/恢复。
 - `frontend/app/composables/useApi.ts` — 封装 `$fetch`，自动附加 `Authorization` 头并处理 401。
 - `frontend/app/plugins/auth.client.ts` — 客户端启动时恢复 token。
-- `frontend/app/pages/dashboard.vue` — 登录成功后的占位页面。
+- `frontend/app/middleware/auth.ts` — 客户端路由守卫，未登录访问后台页时跳转 `/`。
+- `frontend/app/layouts/default.vue` — 后台默认布局，挂载后统一 `fetchMe()` 刷新用户信息。
+- `frontend/app/pages/dashboard.vue` — 登录成功后的占位页面（后台默认着陆页）。
 - 后端契约见 `docs/backend/AUTH.md`。
 
 ## 登录流程
@@ -38,7 +40,7 @@ LoginForm.vue emit('success') → index.vue navigateTo('/dashboard')
 - 持久化到 `localStorage`：
   - `irisimg_token`：JWT 字符串。
   - `irisimg_expires_at`：token 过期时间戳（Unix 秒）。
-- 服务端渲染阶段 token 为 `null`，读取 `localStorage` 的逻辑只在客户端插件或 `onMounted` 中执行，避免 hydration mismatch。
+- 项目为 SPA 模式（`nuxt.config.ts` 中 `ssr: false`），无服务端渲染，`localStorage` 读写均在浏览器执行，不存在 hydration mismatch 问题。
 
 ## 请求鉴权
 
@@ -58,7 +60,7 @@ LoginForm.vue emit('success') → index.vue navigateTo('/dashboard')
 
 - 登录失败：后端返回 HTTP 401 + `code=40100`，`login()` 抛出错误，`LoginForm.vue` 展示后端 message。
 - 受保护接口返回 401：`useApi.ts` 自动清 token 并跳转登录页。
-- token 过期：`isAuthenticated` 计算属性会返回 `false`；`dashboard.vue` 进入时会跳转 `/`。
+- token 过期：`isAuthenticated` 计算属性会返回 `false`；后台页面通过 `middleware/auth.ts` 守卫，进入时未登录则跳转 `/`。
 
 ## 安全说明
 
@@ -68,6 +70,6 @@ LoginForm.vue emit('success') → index.vue navigateTo('/dashboard')
 
 ## 修改建议
 
-- 新增受保护页面时，在 `onMounted` 中检查 `isAuthenticated.value`，未登录则 `navigateTo('/')`。
-- 若后续引入路由中间件，可在 `middleware/auth.ts` 中统一做客户端鉴权守卫。
+- 新增受保护页面时，在页面内 `definePageMeta({ middleware: 'auth' })` 即可，无需重复写 `onMounted` 校验。
+- 鉴权守卫已统一收敛到 `middleware/auth.ts`（客户端执行）。
 - 修改 `localStorage` key 时，务必同步更新 `useAuth.ts` 与 `auth.client.ts`。
