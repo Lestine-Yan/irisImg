@@ -20,8 +20,9 @@ type ImageDAO interface {
 	GetByID(ctx context.Context, id int) (*model.Image, error)
 	// GetByHash 按内容哈希查询，用于秒传 / 去重；未找到返回 ErrNotFound。
 	GetByHash(ctx context.Context, hash string) (*model.Image, error)
-	// List 按创建时间倒序分页返回，同时给出总条数。
-	List(ctx context.Context, offset, limit int) (items []*model.Image, total int, err error)
+	// List 按 ImageListQuery 过滤（可选 key_id）、排序（asc/desc）、分页返回，
+	// 同时给出符合过滤条件的总条数（用于前端计算总页数）。
+	List(ctx context.Context, q model.ImageListQuery) (items []*model.Image, total int, err error)
 	// Delete 按主键删除，未找到返回 ErrNotFound。
 	Delete(ctx context.Context, id int) error
 }

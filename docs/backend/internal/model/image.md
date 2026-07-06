@@ -21,3 +21,18 @@
 | `Filename` | string | 客户端给出的原始文件名，仅作展示。真实落盘文件名由 hash + 嗅探的扩展名决定 |
 | `Content` | []byte | 完整字节，由 api 层在 `http.MaxBytesReader` 保护下读出 |
 | `KeyID` | *int | 添加该图片的 API 密钥 ID。API Key 渠道由中间件保证非空；JWT 直传渠道（暂未实现）传 nil |
+
+## 类型：ImageListQuery / ImageListResult
+
+「查询图片列表」的入参与返回结构，供后台内容中心 `GET /api/v1/admin/images` 使用（见 [`api/image.md`](../api/image.md)）。设计成结构体便于后续追加过滤维度（如 MIME、时间区间）不破坏签名。
+
+`ImageListQuery`：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `KeyID` | *int | 非 nil 时只返回该密钥添加的图片；nil 表示不按密钥过滤（全部） |
+| `Order` | string | 排序方向：非 `"desc"` 一律视为升序。空字符串按升序处理，契合内容中心「时间升序」需求 |
+| `Offset` | int | 分页偏移 |
+| `Limit` | int | 每页条数；<=0 时由 service 兜底为 24 |
+
+`ImageListResult`：`Items []*Image` + `Total int`（符合过滤条件的总数，用于前端计算总页数）。

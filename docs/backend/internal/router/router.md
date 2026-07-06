@@ -7,6 +7,7 @@
 ### `New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, saver *storage.Saver) *gin.Engine`
 
 - 使用 `gin.New()` 而非 `gin.Default()`，自己挂中间件以保留控制权：`Recovery → Logger → CORS`。
+- `r.Static("/imgs", cfg.Storage.RootDir)`：开发期由后端直接 serve 图片落盘目录，供前端加载 `/imgs/<rel>`；生产环境建议由 Nginx 反代 `/imgs/`（见 [`IMAGE.md`](../../IMAGE.md)），此处仅兜底。
 - `imageDAO` / `apiKeyDAO` 由调用方基于已打开的数据库注入（见 [`dao.md`](../dao/dao.md)）。
 - `saver` 由调用方基于 `cfg.Storage` 提前构造（见 [`pkg/storage.md`](../pkg/storage.md)），启动期 `MkdirAll` 暴露路径/权限问题。
 - **依赖装配**（按 dao → service → api 的顺序）：
@@ -17,17 +18,21 @@
   5. `rateStore := ratelimit.NewStore(cfg.APIKey.RateLimitPerMinute)` —— 按密钥维度限流的内存令牌桶。
 - **路由注册**：所有业务接口挂在 `/api/v1` 下。
   - 公开：`GET /ping`、`POST /auth/login`
-  - 受保护（`middleware.JWTAuth(jwtMgr)`）：`GET /auth/me`；其下再套 `keys := protected.Group("/apikeys", middleware.HTTPSOnly(cfg.APIKey.HTTPSOnly))` 挂密钥管理接口（**JWT + HTTPS** 双重保护）。
+  - 受保护（`middleware.JWTAuth(jwtMgr)`）：`GET /auth/me`、`GET /admin/images`（后台图片列表）、`POST /admin/images`（后台直传上传，`key_id` 留空），均供内容中心；其下再套 `keys := protected.Group("/apikeys", middleware.HTTPSOnly(cfg.APIKey.HTTPSOnly))` 挂密钥管理接口（**JWT + HTTPS** 双重保护）。`/admin/images` 与对外 `/images`（API Key 鉴权）路径不同，避免同方法同路径重复注册冲突。
   - API 密钥保护（`middleware.APIKeyAuth(apiKeySvc, rateStore)`，独立于 JWT）：`images` 组。
 
 ## 路由地图
 
 ```
+/imgs/*filepath                  静态        r.Static(cfg.Storage.RootDir)  （开发期 serve，生产由 Nginx 反代）
+
 /api/v1
 ├── GET  /ping                   公开        api.Ping
 ├── POST /auth/login             公开        AuthAPI.Login
 ├── ── (中间件: JWTAuth)
 │   ├── GET  /auth/me            受保护      AuthAPI.Me
+│   ├── GET  /admin/images       受保护      ImageAPI.ListAdmin
+│   ├── POST /admin/images       受保护      ImageAPI.CreateAdmin (后台直传，key_id=nil)
 │   └── ── (中间件: HTTPSOnly)   /apikeys
 │       ├── POST   ""            JWT+HTTPS   APIKeyAPI.Create
 │       ├── GET    ""            JWT+HTTPS   APIKeyAPI.List

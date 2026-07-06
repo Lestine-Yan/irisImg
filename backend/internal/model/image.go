@@ -35,3 +35,23 @@ type UploadImageInput struct {
 	// 通过 API Key 渠道上传时由中间件保证非空；后台 JWT 直传时可置 nil。
 	KeyID *int
 }
+
+// ImageListQuery 描述「查询图片列表」的过滤 / 排序 / 分页条件。
+//
+// 设计成结构体而不是多参数，便于后续追加过滤维度（如 MIME、时间区间）不破坏签名。
+type ImageListQuery struct {
+	// KeyID 为非 nil 时仅返回该密钥添加的图片；为 nil 表示不按密钥过滤（全部）。
+	KeyID *int
+	// Order 控制按 created_at 排序的方向：非 "desc" 一律视为升序（"asc"）。
+	// 内容中心默认需要时间升序，故空字符串也按升序处理。
+	Order string
+	// Offset / Limit 是分页参数；Limit<=0 时由 service 兜底为默认页大小。
+	Offset int
+	Limit  int
+}
+
+// ImageListResult 是图片列表查询的返回结构，同时承载分页元信息。
+type ImageListResult struct {
+	Items []*Image `json:"items"`
+	Total int      `json:"total"`
+}

@@ -25,12 +25,17 @@ frontend/                                  docs/frontend/
     │   │   ├── GeometricBackground.vue     │   │   ├── components/login/GeometricBackground.md
     │   │   ├── LoginHero.vue               │   │   ├── components/login/LoginHero.md
     │   │   └── LoginForm.vue               │   │   └── components/login/LoginForm.md
-    │   └── layout/
-    │       ├── AppSidebar.vue              │       ├── components/layout/AppSidebar.md
-    │       └── UserBadge.vue               │       └── components/layout/UserBadge.md
+    │   ├── layout/
+    │   │   ├── AppSidebar.vue              │   │   ├── components/layout/AppSidebar.md
+    │   │   └── UserBadge.vue               │   │   └── components/layout/UserBadge.md
+    │   └── content/
+    │       ├── ImageCard.vue               │       ├── components/content/image-card.md
+    │       ├── ImageDetailDialog.vue       │       └── components/content/image-detail-dialog.md
+    │       └── UploadPanel.vue             │       └── components/content/upload-panel.md
     ├── composables/
     │   ├── useAuth.ts                      │   ├── composables/useAuth.md
-    │   └── useApi.ts                       │   └── composables/useApi.md
+    │   ├── useApi.ts                       │   └── composables/useApi.md
+    │   └── useImages.ts                    │       └── composables/useImages.md
     ├── middleware/
     │   └── auth.ts                         │   └── middleware/auth.md
     └── plugins/
@@ -48,7 +53,8 @@ frontend/                                  docs/frontend/
 - **pages/**：Nuxt 文件路由，每个 `.vue` 对应一个 URL。`index.vue` 是登录落地页（`layout: false`）；`dashboard.vue`、`content/`、`logs/`、`apikeys/`、`settings/` 是后台五个模块的占位页，均通过 `middleware: 'auth'` 保护。
 - **components/login/**：登录页专用展示组件。`GeometricBackground.vue` 负责 SVG 背景；`LoginHero.vue` 负责左侧品牌字标；`LoginForm.vue` 负责右侧登录表单与校验。
 - **components/layout/**：后台布局专用组件。`AppSidebar.vue` 负责侧边栏（logo + 导航 + 用户区）；`UserBadge.vue` 负责底部当前用户展示与退出登录。
-- **composables/**：自动导入的组合函数。`useAuth.ts` 维护 token 与登录态；`useApi.ts` 封装 `$fetch`，统一处理响应体、鉴权头与 401 跳转。
+- **components/content/**：内容中心专用组件。`ImageCard.vue` 是图片网格单元；`ImageDetailDialog.vue` 是图片详情弹窗；`UploadPanel.vue` 是拖拽上传栏（JWT 后台直传）。
+- **composables/**：自动导入的组合函数。`useAuth.ts` 维护 token 与登录态；`useApi.ts` 封装 `$fetch`，统一处理响应体、鉴权头与 401 跳转；`useImages.ts` 封装内容中心的图片列表请求、后台直传上传与 URL / 格式化工具。
 - **middleware/**：路由中间件。`auth.ts` 是客户端命名守卫，未登录访问后台页面时跳转 `/`。
 - **plugins/**：客户端插件。`auth.client.ts` 在应用启动时从 `localStorage` 恢复 token。
 

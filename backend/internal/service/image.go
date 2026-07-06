@@ -140,6 +140,20 @@ func (s *ImageService) Upload(ctx context.Context, in *model.UploadImageInput) (
 	return s.dao.Create(ctx, img)
 }
 
+// List 查询图片列表，按 ImageListQuery 过滤 / 排序 / 分页。
+// Limit<=0 时兜底为 24（与内容中心默认页大小一致），避免无限制拉取。
+// 排序方向、key_id 过滤由 dao 层落实，service 只做参数兜底与结果组装。
+func (s *ImageService) List(ctx context.Context, q model.ImageListQuery) (*model.ImageListResult, error) {
+	if q.Limit <= 0 {
+		q.Limit = 24
+	}
+	items, total, err := s.dao.List(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	return &model.ImageListResult{Items: items, Total: total}, nil
+}
+
 // decodeImageSize 通过标准库 image.DecodeConfig 读宽高，未注册的格式或解析失败均返回 0,0。
 func decodeImageSize(content []byte) (int, int) {
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(content))

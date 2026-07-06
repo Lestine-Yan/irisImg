@@ -58,20 +58,30 @@ func (d *imageDAO) GetByHash(ctx context.Context, hash string) (*model.Image, er
 	return toModel(row), nil
 }
 
-func (d *imageDAO) List(ctx context.Context, offset, limit int) ([]*model.Image, int, error) {
-	total, err := d.client.Image.Query().Count(ctx)
+func (d *imageDAO) List(ctx context.Context, q model.ImageListQuery) ([]*model.Image, int, error) {
+	total, err := d.countImages(ctx, q)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	q := d.client.Image.Query().Order(ent.Desc(image.FieldCreatedAt))
-	if offset > 0 {
-		q = q.Offset(offset)
+	query := d.client.Image.Query()
+	if q.KeyID != nil {
+		query = query.Where(image.KeyIDEQ(*q.KeyID))
 	}
-	if limit > 0 {
-		q = q.Limit(limit)
+
+	// 默认升序；仅当显式指定 "desc" 时才倒序。空字符串按升序处理，契合内容中心需求。
+	if q.Order == "desc" {
+		query = query.Order(ent.Desc(image.FieldCreatedAt))
+	} else {
+		query = query.Order(ent.Asc(image.FieldCreatedAt))
 	}
-	rows, err := q.All(ctx)
+	if q.Offset > 0 {
+		query = query.Offset(q.Offset)
+	}
+	if q.Limit > 0 {
+		query = query.Limit(q.Limit)
+	}
+	rows, err := query.All(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -81,6 +91,15 @@ func (d *imageDAO) List(ctx context.Context, offset, limit int) ([]*model.Image,
 		items = append(items, toModel(row))
 	}
 	return items, total, nil
+}
+
+// countImages 统计符合过滤条件的图片总数，过滤条件与 List 保持一致。
+func (d *imageDAO) countImages(ctx context.Context, q model.ImageListQuery) (int, error) {
+	query := d.client.Image.Query()
+	if q.KeyID != nil {
+		query = query.Where(image.KeyIDEQ(*q.KeyID))
+	}
+	return query.Count(ctx)
 }
 
 func (d *imageDAO) Delete(ctx context.Context, id int) error {
