@@ -109,6 +109,32 @@ func (d *imageDAO) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
+// ListByKeyID 返回指定密钥关联的全部图片（不分页），供删除密钥时级联清理使用。
+func (d *imageDAO) ListByKeyID(ctx context.Context, keyID int) ([]*model.Image, error) {
+	rows, err := d.client.Image.Query().
+		Where(image.KeyIDEQ(keyID)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]*model.Image, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, toModel(row))
+	}
+	return items, nil
+}
+
+// DeleteByKeyID 批量删除指定密钥关联的全部图片记录，返回实际删除条数。
+func (d *imageDAO) DeleteByKeyID(ctx context.Context, keyID int) (int, error) {
+	n, err := d.client.Image.Delete().
+		Where(image.KeyIDEQ(keyID)).
+		Exec(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
 // wrapErr 将 Ent 的「记录不存在」错误统一转换为 dao.ErrNotFound。
 func wrapErr(err error) error {
 	if ent.IsNotFound(err) {

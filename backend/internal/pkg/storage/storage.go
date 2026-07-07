@@ -112,6 +112,23 @@ func (s *Saver) Save(content []byte, hash, ext string, t time.Time) (string, err
 	return rel, nil
 }
 
+// Delete 删除相对路径对应的物理文件，文件不存在视为已删除（幂等）。
+// rel 采用正斜杠（与 Save 返回值一致），内部转回平台分隔符后拼接到 rootDir 之下。
+func (s *Saver) Delete(rel string) error {
+	rel = strings.TrimSpace(rel)
+	if rel == "" {
+		return nil
+	}
+	abs := filepath.Join(s.rootDir, filepath.FromSlash(rel))
+	if err := os.Remove(abs); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("删除文件失败: %w", err)
+	}
+	return nil
+}
+
 // PublicURL 把相对路径拼接成对外访问 URL：
 //   - publicBaseURL 为空 → "/imgs/<rel>"；
 //   - 非空 → "<base>/<rel>"。

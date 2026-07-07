@@ -40,6 +40,22 @@ const (
 
 密钥列表项，不含明文（`Key`）与哈希（`KeyHash`），用于 `GET /apikeys` 列表展示。
 
+### `RenameAPIKeyRequest`
+
+重命名密钥的请求体，仅一个 `Name` 字段（`binding:"required,max=64"`）。
+
+### `ResetAPIKeyResponse`
+
+重置密钥明文后的响应体，与 `CreateAPIKeyResponse` 同构（含一次性 `Key`）。重置会同时取消吊销，故 `Revoked` 恒为 `false`。
+
+### `DestructiveAPIKeyRequest`
+
+吊销 / 删除密钥这类敏感操作的请求体，含 `Username` / `Password`（均 `required`）。后端用 `subtle.ConstantTimeCompare` 校验，作为 JWT 登录态之上的**二次确认**。
+
+### `DeleteAPIKeyResponse`
+
+删除密钥的响应体，`ImagesRemoved` 为被级联删除的图片数量。
+
 ## 调用关系
 
 - 被 [`service.APIKeyService`](../service/apikey.md) 构造与消费。

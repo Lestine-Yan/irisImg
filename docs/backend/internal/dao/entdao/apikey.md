@@ -19,6 +19,9 @@
 | `GetByID` | `client.ApiKey.Get(ctx, id)` |
 | `List` | 按 `created_at` 倒序（`ent.Desc`）返回全部密钥 |
 | `Revoke` | `UpdateOneID(id).SetRevoked(true)` |
+| `UpdateName` | `UpdateOneID(id).SetName(name).Save(ctx)`，返回更新后的实体 |
+| `ResetKey` | `UpdateOneID(id).SetKeyHash(...).SetPrefix(...).SetRevoked(false).Save(ctx)`，重置明文并取消吊销 |
+| `Delete` | `DeleteOneID(id).Exec(ctx)`，物理删除 |
 | `TouchLastUsed` | `UpdateOneID(id).SetLastUsedAt(t)`，鉴权通过后尽力更新最近使用时间 |
 
 ## 错误与转换

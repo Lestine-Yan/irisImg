@@ -62,6 +62,30 @@ func (m *memImageDAO) Delete(_ context.Context, _ int) error {
 	return errors.New("not used")
 }
 
+// ListByKeyID 返回指定密钥关联的全部图片（内存实现，供删除密钥级联测试使用）。
+func (m *memImageDAO) ListByKeyID(_ context.Context, keyID int) ([]*model.Image, error) {
+	var items []*model.Image
+	for _, img := range m.byID {
+		if img.KeyID != nil && *img.KeyID == keyID {
+			items = append(items, img)
+		}
+	}
+	return items, nil
+}
+
+// DeleteByKeyID 批量删除指定密钥关联的全部图片记录，返回删除条数。
+func (m *memImageDAO) DeleteByKeyID(_ context.Context, keyID int) (int, error) {
+	n := 0
+	for id, img := range m.byID {
+		if img.KeyID != nil && *img.KeyID == keyID {
+			delete(m.byID, id)
+			delete(m.byHash, img.Hash)
+			n++
+		}
+	}
+	return n, nil
+}
+
 // 编译期断言：memImageDAO 满足 dao.ImageDAO。
 var _ dao.ImageDAO = (*memImageDAO)(nil)
 
