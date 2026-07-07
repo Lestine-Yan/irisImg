@@ -29,9 +29,7 @@ func NewAuthService(cfg config.AuthConfig, m *jwt.Manager) *AuthService {
 // 用 subtle.ConstantTimeCompare 同时比对用户名与密码，
 // 既防时序攻击，也避免根据响应耗时区分账号是否存在。
 func (s *AuthService) Login(req *model.LoginRequest) (*model.LoginResponse, error) {
-	usernameOK := subtle.ConstantTimeCompare([]byte(req.Username), []byte(s.cfg.Username)) == 1
-	passwordOK := subtle.ConstantTimeCompare([]byte(req.Password), []byte(s.cfg.Password)) == 1
-	if !usernameOK || !passwordOK {
+	if !s.verify(req.Username, req.Password) {
 		return nil, ErrInvalidCredentials
 	}
 
@@ -45,4 +43,21 @@ func (s *AuthService) Login(req *model.LoginRequest) (*model.LoginResponse, erro
 		TokenType: "Bearer",
 		ExpiresAt: expiresAt,
 	}, nil
+}
+
+// VerifyCredentials 校验用户名 / 密码，用于吊销 / 删除密钥等敏感操作的二次确认。
+// 复用 Login 的常量时间比对逻辑，但不签发 token；失败返回 ErrInvalidCredentials。
+func (s *AuthService) VerifyCredentials(username, password string) error {
+	if !s.verify(username, password) {
+		return ErrInvalidCredentials
+	}
+	return nil
+}
+
+// verify 用 subtle.ConstantTimeCompare 同时比对用户名与密码，
+// 既防时序攻击，也避免根据响应耗时区分账号是否存在。
+func (s *AuthService) verify(username, password string) bool {
+	usernameOK := subtle.ConstantTimeCompare([]byte(username), []byte(s.cfg.Username)) == 1
+	passwordOK := subtle.ConstantTimeCompare([]byte(password), []byte(s.cfg.Password)) == 1
+	return usernameOK && passwordOK
 }

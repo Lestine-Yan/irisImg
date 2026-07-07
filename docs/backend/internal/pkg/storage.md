@@ -53,6 +53,12 @@ type Saver struct {
 - `publicBaseURL == ""` → `/imgs/<rel>`（前端 / Nginx 同域反代）。
 - 非空 → `<base>/<rel>`（独立图片域名场景）。
 
+### `(s *Saver) Delete(rel string) error`
+
+- 按 `Save` 返回的相对路径（正斜杠）删除物理文件，内部转回平台分隔符后拼到 `rootDir` 之下。
+- 文件不存在视为已删除（**幂等**），不报错——供删除密钥时 best-effort 清理关联图片文件。
+- 空路径直接返回 nil。
+
 ### `(s *Saver) RootDir() string`
 
 返回根目录绝对/相对路径，便于测试与诊断。
@@ -62,7 +68,9 @@ type Saver struct {
 ```
 service.ImageService ──► storage.Saver
                             ├─ Save     (按 hash 写盘)
+                            ├─ Delete   (删密钥时清理关联图片文件)
                             └─ PublicURL(拼对外访问地址)
+service.APIKeyService ──► storage.Saver（Delete，级联清理）
 ```
 
 URL 中的 `/imgs` 前缀与生产 Nginx `location /imgs/` → `<root_dir>` 的路径需要保持一致。

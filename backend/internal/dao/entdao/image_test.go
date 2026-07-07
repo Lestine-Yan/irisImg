@@ -224,3 +224,68 @@ func TestImageDAO_ListFilterAndOrder(t *testing.T) {
 		t.Fatalf("paged item=%s, want h3", items[0].Hash)
 	}
 }
+
+// TestImageDAO_ListAndDeleteByKeyID 覆盖按密钥批量查询与删除：
+//   - ListByKeyID 只返回该密钥的图片；
+//   - DeleteByKeyID 删除该密钥全部图片并返回计数，不影响其他密钥的图片。
+func TestImageDAO_ListAndDeleteByKeyID(t *testing.T) {
+	d := newTestDAO(t)
+	ctx := context.Background()
+	impl := d.(*imageDAO)
+
+	// 先建两把密钥（image.key_id 外键依赖）。
+	for _, name := range []string{"k1", "k2"} {
+		if _, err := impl.client.ApiKey.Create().
+			SetName(name).
+			SetKeyHash("hash-" + name).
+			SetPrefix("pfx").
+			SetScope(apikey.ScopeReadwrite).
+			Save(ctx); err != nil {
+			t.Fatalf("create key %s: %v", name, err)
+		}
+	}
+
+	mk := func(hash string, keyID int) {
+		k := keyID
+		if _, err := impl.client.Image.Create().
+			SetFilename(hash + ".png").
+			SetStoredPath("p/" + hash).
+			SetURL("/i/" + hash).
+			SetSize(10).
+			SetMimeType("image/png").
+			SetWidth(1).
+			SetHeight(1).
+			SetHash(hash).
+			SetNillableKeyID(&k).
+			Save(ctx); err != nil {
+			t.Fatalf("create %s: %v", hash, err)
+		}
+	}
+	mk("a1", 1)
+	mk("a2", 1)
+	mk("b1", 2)
+
+	items, err := d.ListByKeyID(ctx, 1)
+	if err != nil {
+		t.Fatalf("list by key 1: %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("expected 2 images for key 1, got %d", len(items))
+	}
+
+	n, err := d.DeleteByKeyID(ctx, 1)
+	if err != nil {
+		t.Fatalf("delete by key 1: %v", err)
+	}
+	if n != 2 {
+		t.Fatalf("expected 2 removed, got %d", n)
+	}
+
+	// key1 图片已清空，key2 仍有一张。
+	if left, err := d.ListByKeyID(ctx, 1); err != nil || len(left) != 0 {
+		t.Fatalf("expected key1 empty, got %d (err %v)", len(left), err)
+	}
+	if left, err := d.ListByKeyID(ctx, 2); err != nil || len(left) != 1 {
+		t.Fatalf("expected key2 still 1, got %d (err %v)", len(left), err)
+	}
+}

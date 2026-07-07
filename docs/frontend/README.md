@@ -28,11 +28,21 @@ frontend/                                  docs/frontend/
     │   ├── layout/
     │   │   ├── AppSidebar.vue              │   │   ├── components/layout/AppSidebar.md
     │   │   └── UserBadge.vue               │   │   └── components/layout/UserBadge.md
-    │   └── content/
-    │       ├── ImageCard.vue               │       ├── components/content/image-card.md
-    │       ├── ImageDetailDialog.vue       │       └── components/content/image-detail-dialog.md
-    │       └── UploadPanel.vue             │       └── components/content/upload-panel.md
+    │   ├── content/
+    │   │   ├── ImageCard.vue               │   │   ├── components/content/image-card.md
+    │   │   ├── ImageDetailDialog.vue       │   │   ├── components/content/image-detail-dialog.md
+    │   │   └── UploadPanel.vue             │   │   └── components/content/upload-panel.md
+    │   ├── ui/
+    │   │   └── BaseDialog.vue              │   │   └── components/ui/BaseDialog.md
+    │   └── apikeys/
+    │       ├── ApiKeyTable.vue             │       ├── components/apikeys/ApiKeyTable.md
+    │       ├── CreateKeyDialog.vue         │       ├── components/apikeys/CreateKeyDialog.md
+    │       ├── PlaintextKeyDialog.vue      │       ├── components/apikeys/PlaintextKeyDialog.md
+    │       ├── RenameKeyDialog.vue         │       ├── components/apikeys/RenameKeyDialog.md
+    │       ├── ResetKeyDialog.vue          │       ├── components/apikeys/ResetKeyDialog.md
+    │       └── RevokeDeleteDialog.vue      │       └── components/apikeys/RevokeDeleteDialog.md
     ├── composables/
+    │   ├── useApiKeys.ts                   │   ├── composables/useApiKeys.md
     │   ├── useAuth.ts                      │   ├── composables/useAuth.md
     │   ├── useApi.ts                       │   └── composables/useApi.md
     │   └── useImages.ts                    │       └── composables/useImages.md
@@ -54,7 +64,9 @@ frontend/                                  docs/frontend/
 - **components/login/**：登录页专用展示组件。`GeometricBackground.vue` 负责 SVG 背景；`LoginHero.vue` 负责左侧品牌字标；`LoginForm.vue` 负责右侧登录表单与校验。
 - **components/layout/**：后台布局专用组件。`AppSidebar.vue` 负责侧边栏（logo + 导航 + 用户区）；`UserBadge.vue` 负责底部当前用户展示与退出登录。
 - **components/content/**：内容中心专用组件。`ImageCard.vue` 是图片网格单元；`ImageDetailDialog.vue` 是图片详情弹窗；`UploadPanel.vue` 是拖拽上传栏（JWT 后台直传）。
-- **composables/**：自动导入的组合函数。`useAuth.ts` 维护 token 与登录态；`useApi.ts` 封装 `$fetch`，统一处理响应体、鉴权头与 401 跳转；`useImages.ts` 封装内容中心的图片列表请求、后台直传上传与 URL / 格式化工具。
+- **components/ui/**：跨页面复用的基础组件。`BaseDialog.vue` 是弹窗外壳（Teleport + 遮罩 + ESC），供各业务弹窗复用。
+- **components/apikeys/**：APIkey 管理页专用组件。`ApiKeyTable.vue` 是密钥列表表格（四态 + 行操作图标）；`CreateKeyDialog.vue` / `RenameKeyDialog.vue` / `ResetKeyDialog.vue` / `RevokeDeleteDialog.vue` 是各操作弹窗；`PlaintextKeyDialog.vue` 是一次性明文展示（创建/重置共用）。
+- **composables/**：自动导入的组合函数。`useAuth.ts` 维护 token 与登录态；`useApi.ts` 封装 `$fetch`，统一处理响应体、鉴权头与 401 跳转；`useImages.ts` 封装内容中心的图片列表请求、后台直传上传与 URL / 格式化工具；`useApiKeys.ts` 封装 APIkey 管理的列表 / 创建 / 重命名 / 重置 / 吊销 / 删除接口。
 - **middleware/**：路由中间件。`auth.ts` 是客户端命名守卫，未登录访问后台页面时跳转 `/`。
 - **plugins/**：客户端插件。`auth.client.ts` 在应用启动时从 `localStorage` 恢复 token。
 

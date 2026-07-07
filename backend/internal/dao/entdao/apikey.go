@@ -87,6 +87,36 @@ func (d *apiKeyDAO) TouchLastUsed(ctx context.Context, id int, t time.Time) erro
 	return nil
 }
 
+func (d *apiKeyDAO) UpdateName(ctx context.Context, id int, name string) (*model.APIKey, error) {
+	row, err := d.client.ApiKey.UpdateOneID(id).
+		SetName(name).
+		Save(ctx)
+	if err != nil {
+		return nil, wrapErr(err)
+	}
+	return toAPIKeyModel(row), nil
+}
+
+// ResetKey 写入新的哈希与前缀，并清除吊销状态，使该密钥重新可用。
+func (d *apiKeyDAO) ResetKey(ctx context.Context, id int, keyHash, prefix string) (*model.APIKey, error) {
+	row, err := d.client.ApiKey.UpdateOneID(id).
+		SetKeyHash(keyHash).
+		SetPrefix(prefix).
+		SetRevoked(false).
+		Save(ctx)
+	if err != nil {
+		return nil, wrapErr(err)
+	}
+	return toAPIKeyModel(row), nil
+}
+
+func (d *apiKeyDAO) Delete(ctx context.Context, id int) error {
+	if err := d.client.ApiKey.DeleteOneID(id).Exec(ctx); err != nil {
+		return wrapErr(err)
+	}
+	return nil
+}
+
 // toAPIKeyModel 将 Ent 实体转换为跨层的 model.APIKey。
 func toAPIKeyModel(e *ent.ApiKey) *model.APIKey {
 	if e == nil {

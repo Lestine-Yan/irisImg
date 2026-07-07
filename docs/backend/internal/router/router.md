@@ -13,12 +13,12 @@
 - **依赖装配**（按 dao → service → api 的顺序）：
   1. `jwtMgr := jwt.NewManager(cfg.Auth.JWT)`
   2. `authSvc := service.NewAuthService(cfg.Auth, jwtMgr)` → `authAPI := api.NewAuthAPI(authSvc)`
-  3. `apiKeySvc := service.NewAPIKeyService(apiKeyDAO)` → `apiKeyAPI := api.NewAPIKeyAPI(apiKeySvc)`
+  3. `apiKeySvc := service.NewAPIKeyService(apiKeyDAO, imageDAO, saver)` → `apiKeyAPI := api.NewAPIKeyAPI(apiKeySvc, authSvc)`（`imageDAO`/`saver` 供删除密钥级联清理，`authSvc` 供吊销/删除密码二次确认）
   4. `imageSvc := service.NewImageService(imageDAO, saver, cfg.Storage)` → `imageAPI := api.NewImageAPI(imageSvc)`
   5. `rateStore := ratelimit.NewStore(cfg.APIKey.RateLimitPerMinute)` —— 按密钥维度限流的内存令牌桶。
 - **路由注册**：所有业务接口挂在 `/api/v1` 下。
   - 公开：`GET /ping`、`POST /auth/login`
-  - 受保护（`middleware.JWTAuth(jwtMgr)`）：`GET /auth/me`、`GET /admin/images`（后台图片列表）、`POST /admin/images`（后台直传上传，`key_id` 留空），均供内容中心；其下再套 `keys := protected.Group("/apikeys", middleware.HTTPSOnly(cfg.APIKey.HTTPSOnly))` 挂密钥管理接口（**JWT + HTTPS** 双重保护）。`/admin/images` 与对外 `/images`（API Key 鉴权）路径不同，避免同方法同路径重复注册冲突。
+  - 受保护（`middleware.JWTAuth(jwtMgr)`）：`GET /auth/me`、`GET /admin/images`（后台图片列表）、`POST /admin/images`（后台直传上传，`key_id` 留空），均供内容中心；其下再套 `keys := protected.Group("/apikeys", middleware.HTTPSOnly(cfg.APIKey.HTTPSOnly))` 挂密钥管理接口（**JWT + HTTPS** 双重保护）；其中吊销（`POST /:id/revoke`）与删除（`DELETE /:id`）为敏感操作，handler 内部还会校验请求体携带的账号密码做二次确认。`/admin/images` 与对外 `/images`（API Key 鉴权）路径不同，避免同方法同路径重复注册冲突。
   - API 密钥保护（`middleware.APIKeyAuth(apiKeySvc, rateStore)`，独立于 JWT）：`images` 组。
 
 ## 路由地图
@@ -36,7 +36,10 @@
 │   └── ── (中间件: HTTPSOnly)   /apikeys
 │       ├── POST   ""            JWT+HTTPS   APIKeyAPI.Create
 │       ├── GET    ""            JWT+HTTPS   APIKeyAPI.List
-│       └── DELETE "/:id"        JWT+HTTPS   APIKeyAPI.Revoke
+│       ├── PATCH  "/:id"        JWT+HTTPS   APIKeyAPI.Rename
+│       ├── POST   "/:id/reset"  JWT+HTTPS   APIKeyAPI.Reset
+│       ├── POST   "/:id/revoke" JWT+HTTPS   APIKeyAPI.Revoke（软吊销，需密码）
+│       └── DELETE "/:id"        JWT+HTTPS   APIKeyAPI.Delete（硬删+级联删图，需密码）
 └── ── (中间件: APIKeyAuth)      /images
     ├── GET  ""                  API Key     ImageAPI.List   (占位)
     └── POST ""                  API Key     ImageAPI.Create (已实现，需 readwrite)

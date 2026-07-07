@@ -47,11 +47,41 @@ type CreateAPIKeyResponse struct {
 // APIKeyInfo 是密钥列表项，不包含明文与哈希。
 type APIKeyInfo struct {
 	ID         int        `json:"id"`
-	Name       string     `json:"name"`
-	Prefix     string     `json:"prefix"`
-	Scope      string     `json:"scope"`
+	Name       string    `json:"name"`
+	Prefix     string    `json:"prefix"`
+	Scope      string    `json:"scope"`
 	RateLimit  int        `json:"rate_limit"`
 	Revoked    bool       `json:"revoked"`
 	LastUsedAt *time.Time `json:"last_used_at"`
 	CreatedAt  time.Time  `json:"created_at"`
+}
+
+// RenameAPIKeyRequest 是重命名密钥的请求体。
+type RenameAPIKeyRequest struct {
+	Name string `json:"name" binding:"required,max=64"` // 新的密钥标签
+}
+
+// ResetAPIKeyResponse 是重置密钥明文后的响应体，与创建响应同构。
+// 新明文 Key 仅在此返回一次，调用方需自行妥善保存；重置同时会取消吊销状态。
+type ResetAPIKeyResponse struct {
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	Prefix    string    `json:"prefix"`
+	Key       string    `json:"key"`       // 新明文密钥，仅此一次返回
+	Revoked   bool      `json:"revoked"`   // 重置后恒为 false
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// DestructiveAPIKeyRequest 是吊销 / 删除密钥这类敏感操作的请求体。
+// 后端用 subtle.ConstantTimeCompare 校验账号密码，作为 JWT 登录态之上的二次确认。
+type DestructiveAPIKeyRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+// DeleteAPIKeyResponse 是删除密钥的响应体，附带被级联删除的图片数量。
+type DeleteAPIKeyResponse struct {
+	ID            int  `json:"id"`
+	Deleted       bool `json:"deleted"`
+	ImagesRemoved int  `json:"images_removed"`
 }

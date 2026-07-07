@@ -49,6 +49,10 @@ token, expiresAt, err := s.jwtMgr.Issue(s.cfg.Username)
 - 用配置里的 `cfg.Username`（而非请求里的 `req.Username`）签发 token——多此一举但更稳：避免在配置使用大小写不同写法时出现「输入与签发不一致」的怪问题；当前两者必然相等。
 - jwt 签发失败直接把 err 透传给上层，由控制器映射成 500。
 
+### `VerifyCredentials(username, password string) error`
+
+用于吊销 / 删除密钥等敏感操作的**二次确认**：复用 `Login` 的常量时间比对逻辑（抽到私有 `verify` 方法共用），但不签发 token；失败返回 `ErrInvalidCredentials`。控制器据此映射成 403（而非 401，避免触发前端 `useApi` 的全局登出）。
+
 ## 与其它包的关系
 
 ```

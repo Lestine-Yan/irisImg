@@ -30,8 +30,8 @@ func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, sav
 	authSvc := service.NewAuthService(cfg.Auth, jwtMgr)
 	authAPI := api.NewAuthAPI(authSvc)
 
-	apiKeySvc := service.NewAPIKeyService(apiKeyDAO)
-	apiKeyAPI := api.NewAPIKeyAPI(apiKeySvc)
+	apiKeySvc := service.NewAPIKeyService(apiKeyDAO, imageDAO, saver)
+	apiKeyAPI := api.NewAPIKeyAPI(apiKeySvc, authSvc)
 
 	imageSvc := service.NewImageService(imageDAO, saver, cfg.Storage)
 	imageAPI := api.NewImageAPI(imageSvc)
@@ -52,12 +52,16 @@ func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, sav
 		{
 			protected.GET("/auth/me", authAPI.Me)
 
-			// 密钥管理接口：受 JWT 保护 + 强制 HTTPS（生产由配置开启）
+			// 密钥管理接口：受 JWT 保护 + 强制 HTTPS（生产由配置开启）。
+			// 吊销 / 删除为敏感操作，handler 内部还会校验请求体携带的账号密码做二次确认。
 			keys := protected.Group("/apikeys", middleware.HTTPSOnly(cfg.APIKey.HTTPSOnly))
 			{
 				keys.POST("", apiKeyAPI.Create)
 				keys.GET("", apiKeyAPI.List)
-				keys.DELETE("/:id", apiKeyAPI.Revoke)
+				keys.PATCH("/:id", apiKeyAPI.Rename)
+				keys.POST("/:id/reset", apiKeyAPI.Reset)
+				keys.POST("/:id/revoke", apiKeyAPI.Revoke)
+				keys.DELETE("/:id", apiKeyAPI.Delete)
 			}
 
 			// 图片管理接口（后台）：受 JWT 保护，供内容中心拉取图片列表、后台直传上传。

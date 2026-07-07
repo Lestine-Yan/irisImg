@@ -46,7 +46,10 @@ apikey:
 | --- | --- | --- | --- |
 | POST | `/api/v1/apikeys` | JWT + HTTPS | 创建密钥，**响应含一次性明文 `key`** |
 | GET | `/api/v1/apikeys` | JWT + HTTPS | 列出全部密钥（不含明文/哈希） |
-| DELETE | `/api/v1/apikeys/:id` | JWT + HTTPS | 吊销指定密钥 |
+| PATCH | `/api/v1/apikeys/:id` | JWT + HTTPS | 重命名密钥 |
+| POST | `/api/v1/apikeys/:id/reset` | JWT + HTTPS | 重置明文，**响应含一次性新明文 `key`**；同时取消吊销 |
+| POST | `/api/v1/apikeys/:id/revoke` | JWT + HTTPS + 密码 | 吊销密钥（软删除，仍展示但无法鉴权） |
+| DELETE | `/api/v1/apikeys/:id` | JWT + HTTPS + 密码 | 物理删除密钥并级联删除关联图片 |
 | GET | `/api/v1/images` | API Key（任意有效） | 申请图片（**占位，返回 501**） |
 | POST | `/api/v1/images` | API Key（需 readwrite） | 添加图片（**已实现**，链路见 [`IMAGE.md`](./IMAGE.md)） |
 
@@ -107,8 +110,8 @@ client       middleware.APIKeyAuth      service.Authenticate      ratelimit.Stor
 | 40100 | 401 | `CodeUnauthorized` | JWT 未登录 / 无效（管理接口） |
 | 40110 | 401 | `CodeAPIKeyMissing` | 缺少 `X-API-Key` 请求头 |
 | 40120 | 401 | `CodeAPIKeyInvalid` | 密钥格式非法 / 不存在 / 已吊销 |
-| 40300 | 403 | `CodeForbidden` | 只读密钥访问写接口 / 未走 HTTPS |
-| 40400 | 404 | `CodeNotFound` | 吊销时密钥不存在 |
+| 40300 | 403 | `CodeForbidden` | 只读密钥访问写接口 / 未走 HTTPS / 吊销·删除密码二次确认失败 |
+| 40400 | 404 | `CodeNotFound` | 吊销 / 重置 / 删除 / 重命名时密钥不存在 |
 | 42900 | 429 | `CodeTooManyRequests` | 触发限流 |
 | 50000 | 500 | `CodeServerError` | 内部错误 / 占位接口 501 |
 
@@ -140,6 +143,23 @@ client       middleware.APIKeyAuth      service.Authenticate      ratelimit.Stor
 - `image` 表新增可空外键 `key_id`（`*int`），通过 Ent `key` edge（`edge.From("key", ApiKey.Type).Ref("images")`）绑定，记录图片由哪把密钥添加。
 - 通过后台 JWT 上传的图片 `key_id` 为空；通过密钥 POST 添加的图片由 [`api.ImageAPI.Create`](./internal/api/image.md) 回填中间件注入的 `api_key_id`。
 - 详见 [`ent/schema/image.md`](./ent/schema/image.md)、[`entdao/image.md`](./internal/dao/entdao/image.md)、[`model/image.md`](./internal/model/image.md)。
+
+## 11.1 密钥管理操作（重命名 / 重置 / 吊销 / 删除）
+
+后台 JWT 登录后可对密钥做以下管理操作，均挂在 `/apikeys` 下（JWT + HTTPS）：
+
+| 操作 | 接口 | 行为 |
+| --- | --- | --- |
+| 重命名 | `PATCH /apikeys/:id` | 改 `name`，不影响明文与状态 |
+| 重置明文 | `POST /apikeys/:id/reset` | 生成新明文/哈希/前缀，旧明文立即失效；**同时取消吊销**（重新激活）。响应含一次性新明文 |
+| 吊销 | `POST /apikeys/:id/revoke` | 软删除：`revoked=true`，密钥仍展示、仍可操作，仅无法通过鉴权 |
+| 删除 | `DELETE /apikeys/:id` | 物理删除密钥，并**级联删除**由该密钥上传的全部图片（物理文件 + 记录） |
+
+**密码二次确认**：吊销与删除为敏感操作，请求体需携带 `{username, password}`，后端用 `subtle.ConstantTimeCompare` 校验（见 [`service/auth.go`](./internal/service/auth.md) 的 `VerifyCredentials`）。校验失败返回 **403**（而非 401）——前端 `useApi` 会把 401 当作 JWT 失效并全局登出，403 则交由调用方就地提示「用户名或密码错误」。
+
+**已吊销密钥**：不影响展示与操作——仍出现在列表里（带「已吊销」标记），仍可重命名 / 重置（重置会重新激活）/ 删除；只是 `Authenticate` 对其返回 `ErrKeyRevoked`，无法通过 `X-API-Key` 鉴权。
+
+**删除的级联清理**（见 [`service.APIKeyService.Delete`](./internal/service/apikey.md)）：取关联图片 → best-effort 删物理文件 → 删图片记录（解除外键约束）→ 删密钥。非事务，失败可重试。
 
 ## 12. 示例
 
