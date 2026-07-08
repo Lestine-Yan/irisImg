@@ -15,6 +15,7 @@ type Config struct {
 	Database DatabaseConfig `yaml:"database"`
 	APIKey   APIKeyConfig   `yaml:"apikey"`
 	Storage  StorageConfig  `yaml:"storage"`
+	Logger   LoggerConfig   `yaml:"logger"`
 }
 
 type ServerConfig struct {
@@ -88,6 +89,21 @@ type StorageConfig struct {
 
 // Global 是加载后的全局配置，便于其他包直接引用。
 var Global *Config
+
+// LoggerConfig 描述结构化日志（zap）的参数。
+//
+// 访问日志经中间件异步落库供日志中心查询；此处控制的是 zap 输出到 stdout/文件的部分，
+// 用于运维采集。所有字段都有合理默认值，缺省时按 info/json/stdout/iso8601 处理。
+type LoggerConfig struct {
+	// Level 是日志级别：debug|info|warn|error，默认 info。
+	Level string `yaml:"level"`
+	// Encoding 是输出编码：json|console，默认 json。
+	Encoding string `yaml:"encoding"`
+	// Output 是输出目标：stdout|stderr|<文件路径>，默认 stdout。
+	Output string `yaml:"output"`
+	// TimeFormat 是时间字段格式：iso8601|rfc3339|epoch，默认 iso8601。
+	TimeFormat string `yaml:"time_format"`
+}
 
 // Load 从指定路径读取并解析 yaml 配置。
 func Load(path string) (*Config, error) {

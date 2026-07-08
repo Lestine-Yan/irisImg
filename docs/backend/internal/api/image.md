@@ -2,10 +2,10 @@
 
 图片相关接口的 Gin 控制器。
 
-- **`POST /api/v1/images`** —— 对外添加图片，**已实现**，由 [API 密钥鉴权中间件](../middleware/apikey.md) 保护，需 `readwrite` 密钥。
-- **`POST /api/v1/admin/images`** —— 后台直传图片，**已实现**，由 [JWT 鉴权中间件](../middleware/auth.md) 保护，供内容中心上传，`key_id` 留空（admin 直传）。
-- **`GET  /api/v1/admin/images`** —— 后台图片列表，**已实现**，由 [JWT 鉴权中间件](../middleware/auth.md) 保护，供内容中心拉取图片（支持按 `key_id` 过滤、时间升序、分页）。
-- **`GET  /api/v1/images`** —— 对外占位，任意有效密钥可访问，**目前返回 501**，待语义明确后再实现。
+- **`POST /api/v1/images`** -- 对外添加图片，**已实现**，由 [API 密钥鉴权中间件](../middleware/apikey.md) 保护，需 `readwrite` 密钥。
+- **`POST /api/v1/admin/images`** -- 后台直传图片，**已实现**，由 [JWT 鉴权中间件](../middleware/auth.md) 保护，供内容中心上传，`key_id` 留空（admin 直传）。
+- **`GET  /api/v1/admin/images`** -- 后台图片列表，**已实现**，由 [JWT 鉴权中间件](../middleware/auth.md) 保护，供内容中心拉取图片（支持按 `key_id` 过滤、时间升序、分页）。
+- **`GET  /api/v1/images`** -- 对外占位，任意有效密钥可访问，**目前返回 501**，待语义明确后再实现。
 
 ## 类型
 
@@ -14,14 +14,15 @@
 ```go
 type ImageAPI struct {
     svc *service.ImageService
+    rec service.LogRecorder
 }
 ```
 
-由 [`router`](../router/router.md) 通过 `NewImageAPI(svc)` 注入；不再直接持有 DAO，便于在 service 层统一编排上传链路。
+由 [`router`](../router/router.md) 通过 `NewImageAPI(svc, rec)` 注入；`rec` 为 `service.LogRecorder`，用于把图片上传业务事件记录到日志中心（`rec` 为 `nil` 时静默跳过，便于测试）。控制器不再直接持有 DAO，便于在 service 层统一编排上传链路。
 
 ## 处理函数
 
-### `Create(c *gin.Context)` —— `POST /api/v1/images`
+### `Create(c *gin.Context)` -- `POST /api/v1/images`
 
 **请求**：`multipart/form-data`
 
@@ -45,11 +46,12 @@ type ImageAPI struct {
 **关键实现**：
 
 1. 文件读取与错误映射抽到共享 helper `readUploadFile` / `respondUploadError`（见下文），`Create` 与 `CreateAdmin` 复用，避免两处分支漂移。
-2. `readUploadFile` 先用 `http.MaxBytesReader(...)` 把 `c.Request.Body` 包一层（上限取自 `svc.MaxBytes()`），超大请求体在更早阶段就被拦下；再 `c.FormFile("file")` 解析出 `*multipart.FileHeader`，若被 `MaxBytesReader` 触发，`errors.As(err, *http.MaxBytesError)` 命中 → 413。
+2. `readUploadFile` 先用 `http.MaxBytesReader(...)` 把 `c.Request.Body` 包一层（上限取自 `svc.MaxBytes()`），超大请求体在更早阶段就被拦下；再 `c.FormFile("file")` 解析出 `*multipart.FileHeader`，若被 `MaxBytesReader` 触发，`errors.As(err, *http.MaxBytesError)` 命中 -> 413。
 3. 读完文件全部字节后调 `svc.Upload`，`respondUploadError` 按 sentinel error 分支映射状态码。
 4. `key_id` 取自 `c.GetInt(middleware.ContextKeyAPIKeyID)`（中间件保证一定 >0），透传给 service 落库，记录图片由哪把密钥添加。
+5. 上传成功后调 `recordUpload(c, filename)`，经 `rec` 记录一条 `model.EventImageUpload`（`model.LevelInfo`）业务事件，消息体为 `"upload image: <filename>"`；`rec` 为 `nil` 时跳过。
 
-### `CreateAdmin(c *gin.Context)` —— `POST /api/v1/admin/images`
+### `CreateAdmin(c *gin.Context)` -- `POST /api/v1/admin/images`
 
 后台直传图片，由 [JWT 鉴权中间件](../middleware/auth.md) 保护，供内容中心管理端上传，无需 `X-API-Key`。
 
@@ -72,13 +74,17 @@ type ImageAPI struct {
 | 413 | `CodePayloadTooLarge` | 文件超过 `storage.max_upload_size_mb` |
 | 500 | `CodeServerError` | 内部错误（落盘 / 落库失败等） |
 
-**与 `Create` 的差别**：仅在不走 API Key 通道、`KeyID` 传 `nil`。业务流程（嗅探 → 秒传 → 落盘 → 落库）完全一致，复用 `svc.Upload`。这类图片只会在内容中心「全部」里出现，详情里来源展示为 `admin`。
+**与 `Create` 的差别**：仅在不走 API Key 通道、`KeyID` 传 `nil`。业务流程（嗅探 -> 秒传 -> 落盘 -> 落库）完全一致，复用 `svc.Upload`；上传成功后同样调 `recordUpload(c, filename)` 记录 `model.EventImageUpload`（`LevelInfo`）业务事件。这类图片只会在内容中心「全部」里出现，详情里来源展示为 `admin`。
 
-### `List(c *gin.Context)` —— `GET /api/v1/images`（占位）
+### `recordUpload(c *gin.Context, filename string)` -- 辅助方法
+
+上传成功业务事件的统一记录入口。`rec` 为 `nil` 时直接返回；否则调 `rec.Record(model.NewEventLog(model.EventImageUpload, model.LevelInfo, "upload image: "+filename, middleware.LogContextFromGin(c)))`，把请求上下文（操作者 / 来源 IP 等）一并带入日志。`Create` 与 `CreateAdmin` 在 `svc.Upload` 成功后调用。
+
+### `List(c *gin.Context)` -- `GET /api/v1/images`（占位）
 
 显式返回 `501 Not Implemented`（`code = CodeServerError`，message「图片列表接口尚未实现（占位）」），便于前端 / 调用方与鉴权失败的 401/403/429 区分。
 
-### `ListAdmin(c *gin.Context)` —— `GET /api/v1/admin/images`
+### `ListAdmin(c *gin.Context)` -- `GET /api/v1/admin/images`
 
 后台图片列表，由 [JWT 鉴权中间件](../middleware/auth.md) 保护，供内容中心拉取图片。
 
@@ -101,22 +107,25 @@ type ImageAPI struct {
 | 401 | `CodeUnauthorized` | 未登录 / JWT 失效（由中间件返回） |
 | 500 | `CodeServerError` | 查询失败 |
 
-**关键实现**：`page` / `page_size` → `offset=(page-1)*page_size`、`limit=page_size`，组装 `model.ImageListQuery` 调 `svc.List`。
+**关键实现**：`page` / `page_size` -> `offset=(page-1)*page_size`、`limit=page_size`，组装 `model.ImageListQuery` 调 `svc.List`。
 
 ## 与其它包的关系
 
 ```
 images 组 ── APIKeyAuth ──► ImageAPI.Create ──► ImageService.Upload ──► dao.ImageDAO + pkg/storage.Saver
                                               │
-                                              └─ c.GetInt(ContextKeyAPIKeyID) → model.UploadImageInput.KeyID
+                                              ├─ c.GetInt(ContextKeyAPIKeyID) -> model.UploadImageInput.KeyID
+                                              └─ recordUpload -> rec.Record(EventImageUpload, LevelInfo, filename)
 
 admin/images 组 ── JWTAuth ──► ImageAPI.CreateAdmin ──► ImageService.Upload ──► dao.ImageDAO + pkg/storage.Saver
                                                      │
-                                                     └─ KeyID = nil（admin 直传）
+                                                     ├─ KeyID = nil（admin 直传）
+                                                     └─ recordUpload -> rec.Record(EventImageUpload, LevelInfo, filename)
 ```
 
 ## 注意
 
 - 控制器**不再做权限/限流判定**，这些全部在 [`middleware.APIKeyAuth`](../middleware/apikey.md) 内完成。
 - `MaxBytesReader` 的兜底校验在 service 层用 `len(content) > MaxBytes` 又做一次，避免接入新调用路径时遗漏。
+- `recordUpload` 仅在上传**成功**路径上触发，失败分支由 `respondUploadError` 直接写响应返回，不记录业务事件。
 - 落盘 / URL 生成的细节见 [`service/image.md`](../service/image.md) 与 [`pkg/storage.md`](../pkg/storage.md)；运维侧的 Nginx 静态反代约定见 [`IMAGE.md`](../../IMAGE.md)。

@@ -6,6 +6,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// AccessLog is the predicate function for accesslog builders.
+type AccessLog func(*sql.Selector)
+
 // ApiKey is the predicate function for apikey builders.
 type ApiKey func(*sql.Selector)
 

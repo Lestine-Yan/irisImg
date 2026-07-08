@@ -49,3 +49,13 @@ storage:
     - "image/gif"
     - "image/webp"
 
+# 结构化日志（zap）配置。
+# level: debug|info|warn|error；encoding: json|console；
+# output: stdout|stderr|<文件路径>；time_format: iso8601|rfc3339|epoch。
+# 访问日志同时异步落库供日志中心查询，此处控制的是 zap 输出到 stdout/文件的部分。
+logger:
+  level: "info"
+  encoding: "json"
+  output: "stdout"
+  time_format: "iso8601"
+

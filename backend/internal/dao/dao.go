@@ -53,3 +53,20 @@ type APIKeyDAO interface {
 	// TouchLastUsed 更新指定密钥的最近使用时间。
 	TouchLastUsed(ctx context.Context, id int, t time.Time) error
 }
+
+// LogDAO 抽象日志中心日志的持久化操作。
+//
+// 访问日志与业务事件统一写入 logs 表，由 LogService 异步批量落库；
+// 日志中心前端经 LogService 查询 / 直方图 / 清理。
+type LogDAO interface {
+	// Create 落库单条日志，成功后回填自增 ID 与时间戳。
+	Create(ctx context.Context, l *model.Log) (*model.Log, error)
+	// BatchCreate 批量落库日志，供异步 flusher 调用。
+	BatchCreate(ctx context.Context, logs []*model.Log) error
+	// List 按 LogQuery 过滤 / 分页返回日志（按 timestamp 倒序），同时给出符合过滤条件的总条数。
+	List(ctx context.Context, q model.LogQuery) (items []*model.Log, total int, err error)
+	// CountByRange 统计 [start, end) 时间区间的日志条数，供直方图按日聚合。
+	CountByRange(ctx context.Context, start, end time.Time) (int, error)
+	// ClearAll 清空全部日志，返回删除条数。
+	ClearAll(ctx context.Context) (int64, error)
+}

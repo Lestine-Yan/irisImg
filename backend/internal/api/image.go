@@ -23,11 +23,20 @@ import (
 // GET /images（对外，API Key）暂为占位，待语义明确后再实现。
 type ImageAPI struct {
 	svc *service.ImageService
+	rec service.LogRecorder
 }
 
-// NewImageAPI 通过依赖注入构造控制器。
-func NewImageAPI(svc *service.ImageService) *ImageAPI {
-	return &ImageAPI{svc: svc}
+// NewImageAPI 通过依赖注入构造控制器。rec 用于记录图片上传业务事件到日志中心。
+func NewImageAPI(svc *service.ImageService, rec service.LogRecorder) *ImageAPI {
+	return &ImageAPI{svc: svc, rec: rec}
+}
+
+// recordUpload 记录一次图片上传业务事件。rec 为空时直接返回，便于测试。
+func (h *ImageAPI) recordUpload(c *gin.Context, filename string) {
+	if h.rec == nil {
+		return
+	}
+	h.rec.Record(model.NewEventLog(model.EventImageUpload, model.LevelInfo, "upload image: "+filename, middleware.LogContextFromGin(c)))
 }
 
 // uploadFormField 是上传字段名，固定为 "file"。
@@ -118,6 +127,7 @@ func (h *ImageAPI) Create(c *gin.Context) {
 		respondUploadError(c, err)
 		return
 	}
+	h.recordUpload(c, filename)
 	response.Success(c, img)
 }
 
@@ -146,6 +156,7 @@ func (h *ImageAPI) CreateAdmin(c *gin.Context) {
 		respondUploadError(c, err)
 		return
 	}
+	h.recordUpload(c, filename)
 	response.Success(c, img)
 }
 

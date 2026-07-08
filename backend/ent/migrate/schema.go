@@ -3,11 +3,62 @@
 package migrate
 
 import (
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 )
 
 var (
+	// LogsColumns holds the columns for the "logs" table.
+	LogsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "timestamp", Type: field.TypeTime},
+		{Name: "level", Type: field.TypeEnum, Enums: []string{"debug", "info", "warn", "error"}, Default: "info"},
+		{Name: "event", Type: field.TypeString},
+		{Name: "method", Type: field.TypeString, Nullable: true},
+		{Name: "path", Type: field.TypeString, Nullable: true},
+		{Name: "status", Type: field.TypeInt, Nullable: true},
+		{Name: "duration_ms", Type: field.TypeInt, Nullable: true},
+		{Name: "client_ip", Type: field.TypeString, Nullable: true},
+		{Name: "request_id", Type: field.TypeString, Nullable: true},
+		{Name: "api_key_id", Type: field.TypeInt, Nullable: true},
+		{Name: "username", Type: field.TypeString, Nullable: true},
+		{Name: "message", Type: field.TypeString, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// LogsTable holds the schema information for the "logs" table.
+	LogsTable = &schema.Table{
+		Name:       "logs",
+		Columns:    LogsColumns,
+		PrimaryKey: []*schema.Column{LogsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "accesslog_timestamp",
+				Unique:  false,
+				Columns: []*schema.Column{LogsColumns[1]},
+			},
+			{
+				Name:    "accesslog_level",
+				Unique:  false,
+				Columns: []*schema.Column{LogsColumns[2]},
+			},
+			{
+				Name:    "accesslog_event",
+				Unique:  false,
+				Columns: []*schema.Column{LogsColumns[3]},
+			},
+			{
+				Name:    "accesslog_request_id",
+				Unique:  false,
+				Columns: []*schema.Column{LogsColumns[9]},
+			},
+			{
+				Name:    "accesslog_api_key_id",
+				Unique:  false,
+				Columns: []*schema.Column{LogsColumns[10]},
+			},
+		},
+	}
 	// APIKeysColumns holds the columns for the "api_keys" table.
 	APIKeysColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -75,11 +126,15 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		LogsTable,
 		APIKeysTable,
 		ImagesTable,
 	}
 )
 
 func init() {
+	LogsTable.Annotation = &entsql.Annotation{
+		Table: "logs",
+	}
 	ImagesTable.ForeignKeys[0].RefTable = APIKeysTable
 }
