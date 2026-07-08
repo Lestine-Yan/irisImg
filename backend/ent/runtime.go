@@ -5,6 +5,7 @@ package ent
 import (
 	"time"
 
+	"github.com/Lestine-Yan/irisImg/backend/ent/accesslog"
 	"github.com/Lestine-Yan/irisImg/backend/ent/apikey"
 	"github.com/Lestine-Yan/irisImg/backend/ent/image"
 	"github.com/Lestine-Yan/irisImg/backend/ent/schema"
@@ -14,6 +15,24 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	accesslogFields := schema.AccessLog{}.Fields()
+	_ = accesslogFields
+	// accesslogDescTimestamp is the schema descriptor for timestamp field.
+	accesslogDescTimestamp := accesslogFields[0].Descriptor()
+	// accesslog.DefaultTimestamp holds the default value on creation for the timestamp field.
+	accesslog.DefaultTimestamp = accesslogDescTimestamp.Default.(func() time.Time)
+	// accesslogDescEvent is the schema descriptor for event field.
+	accesslogDescEvent := accesslogFields[2].Descriptor()
+	// accesslog.EventValidator is a validator for the "event" field. It is called by the builders before save.
+	accesslog.EventValidator = accesslogDescEvent.Validators[0].(func(string) error)
+	// accesslogDescMessage is the schema descriptor for message field.
+	accesslogDescMessage := accesslogFields[11].Descriptor()
+	// accesslog.DefaultMessage holds the default value on creation for the message field.
+	accesslog.DefaultMessage = accesslogDescMessage.Default.(string)
+	// accesslogDescCreatedAt is the schema descriptor for created_at field.
+	accesslogDescCreatedAt := accesslogFields[12].Descriptor()
+	// accesslog.DefaultCreatedAt holds the default value on creation for the created_at field.
+	accesslog.DefaultCreatedAt = accesslogDescCreatedAt.Default.(func() time.Time)
 	apikeyFields := schema.ApiKey{}.Fields()
 	_ = apikeyFields
 	// apikeyDescName is the schema descriptor for name field.

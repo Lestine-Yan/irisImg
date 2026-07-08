@@ -13,6 +13,7 @@ backend/                                  docs/backend/
 ├── ent/                                  └── ent/
 │   ├── schema/image.go                      └── schema/image.md
 │   ├── schema/apikey.go                     └── schema/apikey.md
+│   ├── schema/log.go                        └── schema/log.md
 │   ├── generate.go                          (go:generate 入口，见 DATABASE.md)
 │   └── *.go (生成产物)                       (生成代码，不单独建文档)
 ├── internal/
@@ -20,39 +21,46 @@ backend/                                  docs/backend/
 │   │   ├── ping.go                          ├── ping.md
 │   │   ├── auth.go                          ├── auth.md
 │   │   ├── apikey.go                        ├── apikey.md
-│   │   └── image.go                         └── image.md
+│   │   ├── image.go                         ├── image.md
+│   │   └── log.go                           └── log.md
 │   ├── dao/                              └── internal/dao/
 │   │   ├── dao.go                            ├── dao.md
 │   │   ├── errors.go                         ├── errors.md
 │   │   └── entdao/                           └── entdao/
 │   │       ├── db.go                            ├── db.md
 │   │       ├── image.go                         ├── image.md
-│   │       └── apikey.go                        └── apikey.md
+│   │       ├── apikey.go                        ├── apikey.md
+│   │       └── log.go                           └── log.md
 │   ├── middleware/                       └── internal/middleware/
 │   │   ├── auth.go                          ├── auth.md
 │   │   ├── apikey.go                        ├── apikey.md
 │   │   ├── https.go                         ├── https.md
 │   │   ├── cors.go                          ├── cors.md
-│   │   └── logger.go                        └── logger.md
+│   │   ├── logger.go                        ├── logger.md
+│   │   ├── requestid.go                     ├── requestid.md
+│   │   └── recovery.go                      └── recovery.md
 │   ├── model/                            └── internal/model/
 │   │   ├── auth.go                          ├── auth.md
 │   │   ├── image.go                         ├── image.md
-│   │   └── apikey.go                        └── apikey.md
+│   │   ├── apikey.go                        ├── apikey.md
+│   │   └── log.go                           └── log.md
 │   ├── pkg/                              └── internal/pkg/
 │   │   ├── jwt/jwt.go                       ├── jwt.md
 │   │   ├── apikey/apikey.go                 ├── apikey.md
 │   │   ├── ratelimit/ratelimit.go           ├── ratelimit.md
 │   │   ├── response/response.go             ├── response.md
-│   │   └── storage/storage.go               └── storage.md
+│   │   ├── storage/storage.go               ├── storage.md
+│   │   └── logger/logger.go                 └── logger.md
 │   ├── router/                           └── internal/router/
 │   │   └── router.go                        └── router.md
 │   └── service/                          └── internal/service/
 │       ├── auth.go                          ├── auth.md
 │       ├── apikey.go                        ├── apikey.md
-│       └── image.go                         └── image.md
+│       ├── image.go                         ├── image.md
+│       └── log.go                           └── log.md
 ```
 
-> 特性级说明（跨多文件）：持久化方案见 [`DATABASE.md`](./DATABASE.md)，登录链路见 [`AUTH.md`](./AUTH.md)，API 密钥鉴权见 [`APIKEY.md`](./APIKEY.md)，图片上传 / 静态反代约定见 [`IMAGE.md`](./IMAGE.md)。
+> 特性级说明（跨多文件）：持久化方案见 [`DATABASE.md`](./DATABASE.md)，登录链路见 [`AUTH.md`](./AUTH.md)，API 密钥鉴权见 [`APIKEY.md`](./APIKEY.md)，图片上传 / 静态反代约定见 [`IMAGE.md`](./IMAGE.md)，操作日志与请求追踪见 [`LOG.md`](./LOG.md)。
 
 ## 分层说明
 

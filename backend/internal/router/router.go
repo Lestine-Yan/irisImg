@@ -6,20 +6,33 @@ import (
 	"github.com/Lestine-Yan/irisImg/backend/internal/dao"
 	"github.com/Lestine-Yan/irisImg/backend/internal/middleware"
 	"github.com/Lestine-Yan/irisImg/backend/internal/pkg/jwt"
+	"github.com/Lestine-Yan/irisImg/backend/internal/pkg/logger"
 	"github.com/Lestine-Yan/irisImg/backend/internal/pkg/ratelimit"
 	"github.com/Lestine-Yan/irisImg/backend/internal/pkg/storage"
 	"github.com/Lestine-Yan/irisImg/backend/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
-// New 组装并返回 gin.Engine。
+// New 组装并返回 gin.Engine，同时返回 LogService 供调用方在优雅关闭时 flush 异步日志缓冲。
+//
 // 依赖在这里手动注入，规模变大后可以引入 wire 等工具自动生成。
 //
-// imageDAO / apiKeyDAO 由调用方（main）基于已打开的数据库构造后注入；
-// saver 由调用方基于配置构造（启动失败可早期暴露权限/路径问题）。
-func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, saver *storage.Saver) *gin.Engine {
+// imageDAO / apiKeyDAO / logDAO 由调用方（main）基于已打开的数据库构造后注入；
+// saver 由调用方基于配置构造；lg 是贯穿全链路的 zap 结构化日志。
+func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, logDAO dao.LogDAO, saver *storage.Saver, lg *logger.Logger) (*gin.Engine, *service.LogService) {
 	r := gin.New()
-	r.Use(gin.Recovery(), middleware.Logger(), middleware.CORS())
+
+	// LogService 先于中间件链构造：Logger / Recovery 中间件需要它异步落库访问日志 / panic。
+	logSvc := service.NewLogService(logDAO, lg)
+
+	// 中间件链：RequestID 最前（后续中间件 / handler 均可取 request id）->
+	// Recovery 捕获 panic 并落库 -> CORS -> Logger 结构化访问日志 + 异步落库。
+	r.Use(
+		middleware.RequestID(),
+		middleware.Recovery(lg, logSvc),
+		middleware.CORS(),
+		middleware.Logger(lg, logSvc),
+	)
 
 	// 静态图片服务：开发期由后端直接 serve 落盘目录，前端可加载 /imgs/<rel> 缩略图与大图。
 	// 生产建议由 Nginx 反代 /imgs/（见 docs/backend/IMAGE.md），此处兜底，不影响 Nginx 优先拦截。
@@ -28,13 +41,15 @@ func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, sav
 	// 依赖装配：config -> jwt.Manager / service -> api
 	jwtMgr := jwt.NewManager(cfg.Auth.JWT)
 	authSvc := service.NewAuthService(cfg.Auth, jwtMgr)
-	authAPI := api.NewAuthAPI(authSvc)
+	authAPI := api.NewAuthAPI(authSvc, logSvc)
 
 	apiKeySvc := service.NewAPIKeyService(apiKeyDAO, imageDAO, saver)
-	apiKeyAPI := api.NewAPIKeyAPI(apiKeySvc, authSvc)
+	apiKeyAPI := api.NewAPIKeyAPI(apiKeySvc, authSvc, logSvc)
 
 	imageSvc := service.NewImageService(imageDAO, saver, cfg.Storage)
-	imageAPI := api.NewImageAPI(imageSvc)
+	imageAPI := api.NewImageAPI(imageSvc, logSvc)
+
+	logAPI := api.NewLogAPI(logSvc, authSvc)
 
 	// 按密钥维度限流的内存令牌桶，默认阈值来自配置。
 	rateStore := ratelimit.NewStore(cfg.APIKey.RateLimitPerMinute)
@@ -69,6 +84,15 @@ func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, sav
 			// 路径用 /admin/images 而非 /images，后者已被 APIKeyAuth 组占用，重复注册会冲突。
 			protected.GET("/admin/images", imageAPI.ListAdmin)
 			protected.POST("/admin/images", imageAPI.CreateAdmin)
+
+			// 日志中心接口：受 JWT 保护 + 强制 HTTPS（生产由配置开启）。
+			// 清理日志为敏感操作，handler 内部还会校验请求体携带的账号密码做二次确认。
+			logs := protected.Group("/admin/logs", middleware.HTTPSOnly(cfg.APIKey.HTTPSOnly))
+			{
+				logs.GET("", logAPI.List)
+				logs.GET("/histogram", logAPI.Histogram)
+				logs.DELETE("", logAPI.Clear)
+			}
 		}
 
 		// 图片接口：由 API 密钥鉴权中间件保护（独立于 JWT）。
@@ -80,5 +104,5 @@ func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, sav
 		}
 	}
 
-	return r
+	return r, logSvc
 }

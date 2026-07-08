@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strconv"
 
+	"github.com/Lestine-Yan/irisImg/backend/internal/middleware"
 	"github.com/Lestine-Yan/irisImg/backend/internal/model"
 	"github.com/Lestine-Yan/irisImg/backend/internal/pkg/response"
 	"github.com/Lestine-Yan/irisImg/backend/internal/service"
@@ -16,11 +17,20 @@ import (
 type APIKeyAPI struct {
 	svc     *service.APIKeyService
 	authSvc *service.AuthService
+	rec     service.LogRecorder
 }
 
-// NewAPIKeyAPI 构造控制器。
-func NewAPIKeyAPI(svc *service.APIKeyService, authSvc *service.AuthService) *APIKeyAPI {
-	return &APIKeyAPI{svc: svc, authSvc: authSvc}
+// NewAPIKeyAPI 构造控制器。rec 用于记录密钥管理业务事件到日志中心。
+func NewAPIKeyAPI(svc *service.APIKeyService, authSvc *service.AuthService, rec service.LogRecorder) *APIKeyAPI {
+	return &APIKeyAPI{svc: svc, authSvc: authSvc, rec: rec}
+}
+
+// record 记录一条密钥管理业务事件。rec 为空时直接返回，便于测试。
+func (h *APIKeyAPI) record(c *gin.Context, event, level, msg string) {
+	if h.rec == nil {
+		return
+	}
+	h.rec.Record(model.NewEventLog(event, level, msg, middleware.LogContextFromGin(c)))
 }
 
 // Create 处理 POST /apikeys，创建一把新密钥。
@@ -41,6 +51,7 @@ func (h *APIKeyAPI) Create(c *gin.Context) {
 		response.ServerError(c, err.Error())
 		return
 	}
+	h.record(c, model.EventAPIKeyCreate, model.LevelInfo, "create apikey: "+resp.Name)
 	response.Success(c, resp)
 }
 
@@ -77,6 +88,7 @@ func (h *APIKeyAPI) Rename(c *gin.Context) {
 		response.ServerError(c, err.Error())
 		return
 	}
+	h.record(c, model.EventAPIKeyRename, model.LevelInfo, "rename apikey #"+strconv.Itoa(id))
 	response.Success(c, info)
 }
 
@@ -98,6 +110,7 @@ func (h *APIKeyAPI) Reset(c *gin.Context) {
 		response.ServerError(c, err.Error())
 		return
 	}
+	h.record(c, model.EventAPIKeyReset, model.LevelInfo, "reset apikey #"+strconv.Itoa(id))
 	response.Success(c, resp)
 }
 
@@ -128,6 +141,7 @@ func (h *APIKeyAPI) Revoke(c *gin.Context) {
 		response.ServerError(c, err.Error())
 		return
 	}
+	h.record(c, model.EventAPIKeyRevoke, model.LevelWarn, "revoke apikey #"+strconv.Itoa(id))
 	response.Success(c, gin.H{"id": id, "revoked": true})
 }
 
@@ -159,5 +173,6 @@ func (h *APIKeyAPI) Delete(c *gin.Context) {
 		response.ServerError(c, err.Error())
 		return
 	}
+	h.record(c, model.EventAPIKeyDelete, model.LevelWarn, "delete apikey #"+strconv.Itoa(id))
 	response.Success(c, gin.H{"id": id, "deleted": true, "images_removed": removed})
 }

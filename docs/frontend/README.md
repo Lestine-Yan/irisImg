@@ -34,18 +34,23 @@ frontend/                                  docs/frontend/
     │   │   └── UploadPanel.vue             │   │   └── components/content/upload-panel.md
     │   ├── ui/
     │   │   └── BaseDialog.vue              │   │   └── components/ui/BaseDialog.md
-    │   └── apikeys/
-    │       ├── ApiKeyTable.vue             │       ├── components/apikeys/ApiKeyTable.md
-    │       ├── CreateKeyDialog.vue         │       ├── components/apikeys/CreateKeyDialog.md
-    │       ├── PlaintextKeyDialog.vue      │       ├── components/apikeys/PlaintextKeyDialog.md
-    │       ├── RenameKeyDialog.vue         │       ├── components/apikeys/RenameKeyDialog.md
-    │       ├── ResetKeyDialog.vue          │       ├── components/apikeys/ResetKeyDialog.md
-    │       └── RevokeDeleteDialog.vue      │       └── components/apikeys/RevokeDeleteDialog.md
+    │   ├── apikeys/
+    │   │   ├── ApiKeyTable.vue             │   │   ├── components/apikeys/ApiKeyTable.md
+    │   │   ├── CreateKeyDialog.vue         │   │   ├── components/apikeys/CreateKeyDialog.md
+    │   │   ├── PlaintextKeyDialog.vue      │   │   ├── components/apikeys/PlaintextKeyDialog.md
+    │   │   ├── RenameKeyDialog.vue         │   │   ├── components/apikeys/RenameKeyDialog.md
+    │   │   ├── ResetKeyDialog.vue          │   │   ├── components/apikeys/ResetKeyDialog.md
+    │   │   └── RevokeDeleteDialog.vue      │   │   └── components/apikeys/RevokeDeleteDialog.md
+    │   └── logs/
+    │       ├── LogsHistogram.vue           │       ├── components/logs/LogsHistogram.md
+    │       ├── LogsTable.vue               │       ├── components/logs/LogsTable.md
+    │       └── LogsPurgeDialog.vue         │       └── components/logs/LogsPurgeDialog.md
     ├── composables/
     │   ├── useApiKeys.ts                   │   ├── composables/useApiKeys.md
     │   ├── useAuth.ts                      │   ├── composables/useAuth.md
-    │   ├── useApi.ts                       │   └── composables/useApi.md
-    │   └── useImages.ts                    │       └── composables/useImages.md
+    │   ├── useApi.ts                       │   ├── composables/useApi.md
+    │   ├── useImages.ts                    │   ├── composables/useImages.md
+    │   └── useLogs.ts                      │   └── composables/useLogs.md
     ├── middleware/
     │   └── auth.ts                         │   └── middleware/auth.md
     └── plugins/
@@ -54,7 +59,7 @@ frontend/                                  docs/frontend/
 
 ## 跨文件特性文档
 
-- [AUTH.md](./AUTH.md) — 前端登录链路：页面 → 表单 → useAuth → useApi → 后端 `/auth/login`、`/auth/me`。
+- [AUTH.md](./AUTH.md) - 前端登录链路：页面 -> 表单 -> useAuth -> useApi -> 后端 `/auth/login`、`/auth/me`。
 
 ## 分层说明
 
@@ -66,18 +71,19 @@ frontend/                                  docs/frontend/
 - **components/content/**：内容中心专用组件。`ImageCard.vue` 是图片网格单元；`ImageDetailDialog.vue` 是图片详情弹窗；`UploadPanel.vue` 是拖拽上传栏（JWT 后台直传）。
 - **components/ui/**：跨页面复用的基础组件。`BaseDialog.vue` 是弹窗外壳（Teleport + 遮罩 + ESC），供各业务弹窗复用。
 - **components/apikeys/**：APIkey 管理页专用组件。`ApiKeyTable.vue` 是密钥列表表格（四态 + 行操作图标）；`CreateKeyDialog.vue` / `RenameKeyDialog.vue` / `ResetKeyDialog.vue` / `RevokeDeleteDialog.vue` 是各操作弹窗；`PlaintextKeyDialog.vue` 是一次性明文展示（创建/重置共用）。
-- **composables/**：自动导入的组合函数。`useAuth.ts` 维护 token 与登录态；`useApi.ts` 封装 `$fetch`，统一处理响应体、鉴权头与 401 跳转；`useImages.ts` 封装内容中心的图片列表请求、后台直传上传与 URL / 格式化工具；`useApiKeys.ts` 封装 APIkey 管理的列表 / 创建 / 重命名 / 重置 / 吊销 / 删除接口。
+- **components/logs/**：日志中心专用组件。`LogsHistogram.vue` 是按时间维度的日志直方图；`LogsTable.vue` 是日志列表表格（筛选条件 + 分页）；`LogsPurgeDialog.vue` 是批量清理确认弹窗。
+- **composables/**：自动导入的组合函数。`useAuth.ts` 维护 token 与登录态；`useApi.ts` 封装 `$fetch`，统一处理响应体、鉴权头与 401 跳转；`useImages.ts` 封装内容中心的图片列表请求、后台直传上传与 URL / 格式化工具；`useApiKeys.ts` 封装 APIkey 管理的列表 / 创建 / 重命名 / 重置 / 吊销 / 删除接口；`useLogs.ts` 封装日志中心的列表查询、直方图聚合与批量清理接口。
 - **middleware/**：路由中间件。`auth.ts` 是客户端命名守卫，未登录访问后台页面时跳转 `/`。
 - **plugins/**：客户端插件。`auth.client.ts` 在应用启动时从 `localStorage` 恢复 token。
 
 ## 入口阅读顺序
 
-1. [nuxt.config.md](./nuxt.config.md) — Nuxt 配置入口（SPA 模式、API 基址）。
-2. [app.md](./app.md) — 应用根组件。
-3. [layouts/default.md](./layouts/default.md) — 后台布局骨架。
-4. [components/layout/AppSidebar.md](./components/layout/AppSidebar.md) — 侧边栏与导航。
-5. [AUTH.md](./AUTH.md) — 登录链路总览。
-6. [middleware/auth.md](./middleware/auth.md) — 后台路由守卫。
+1. [nuxt.config.md](./nuxt.config.md) - Nuxt 配置入口（SPA 模式、API 基址）。
+2. [app.md](./app.md) - 应用根组件。
+3. [layouts/default.md](./layouts/default.md) - 后台布局骨架。
+4. [components/layout/AppSidebar.md](./components/layout/AppSidebar.md) - 侧边栏与导航。
+5. [AUTH.md](./AUTH.md) - 登录链路总览。
+6. [middleware/auth.md](./middleware/auth.md) - 后台路由守卫。
 7. 按需阅读具体页面与组件文档。
 
 ## 环境变量

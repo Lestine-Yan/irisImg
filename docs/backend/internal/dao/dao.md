@@ -38,7 +38,22 @@
 
 实现见 [`entdao/apikey.go`](./entdao/apikey.md)。特性级说明见 [`APIKEY.md`](../../APIKEY.md)。
 
+## 接口：LogDAO
+
+抽象日志中心日志的持久化操作，数据载体为 [`model.Log`](../model/log.md)。访问日志与业务事件统一写入 `logs` 表，由 `LogService` 异步批量落库；日志中心前端经 `LogService` 查询 / 聚合 / 清理，不直接持有 `LogDAO`。
+
+| 方法 | 说明 |
+|------|------|
+| `Create(ctx, *model.Log) (*model.Log, error)` | 落库单条日志，回填自增 ID 与时间戳；供同步写入场景使用 |
+| `BatchCreate(ctx, logs []*model.Log) error` | 批量落库日志，供 `LogService` 的异步 flusher 调用，单次 flush 的全部日志一条 SQL 写入 |
+| `List(ctx, q model.LogQuery) ([]*model.Log, int, error)` | 按 `LogQuery` 过滤 / 分页返回日志（按 `timestamp` 倒序），同时给出符合过滤条件的总条数（供前端计算总页数） |
+| `CountByRange(ctx, start, end time.Time) (int, error)` | 统计 `[start, end)` 时间区间的日志条数，供直方图按日聚合 |
+| `ClearAll(ctx) (int64, error)` | 清空全部日志，返回实际删除条数 |
+
+实现见 [`entdao/log.go`](./entdao/log.md)。特性级说明见 [`LOG.md`](../../LOG.md)。
+
 ## 调用关系
 
 - 实现：[`internal/dao/entdao`](./entdao/db.md)
 - 注入：`cmd/server/main.go` 构造实现后通过 `router.New` 注入（见 [`cmd/server.md`](../../cmd/server.md)、[`router.md`](../router/router.md)）。
+- 日志链路：`LogDAO` 由 `LogService` 持有，业务层只调用 `LogService` 的记录接口，实际写入由后台 flusher 异步批量调用 `BatchCreate` 完成；日志中心查询 / 直方图 / 清理同样经 `LogService` 调用 `List` / `CountByRange` / `ClearAll`。
