@@ -22,7 +22,8 @@ backend/                                  docs/backend/
 │   │   ├── auth.go                          ├── auth.md
 │   │   ├── apikey.go                        ├── apikey.md
 │   │   ├── image.go                         ├── image.md
-│   │   └── log.go                           └── log.md
+│   │   ├── log.go                           ├── log.md
+│   │   └── system.go                        └── system.md
 │   ├── dao/                              └── internal/dao/
 │   │   ├── dao.go                            ├── dao.md
 │   │   ├── errors.go                         ├── errors.md
@@ -43,7 +44,8 @@ backend/                                  docs/backend/
 │   │   ├── auth.go                          ├── auth.md
 │   │   ├── image.go                         ├── image.md
 │   │   ├── apikey.go                        ├── apikey.md
-│   │   └── log.go                           └── log.md
+│   │   ├── log.go                           ├── log.md
+│   │   └── system.go                        └── system.md
 │   ├── pkg/                              └── internal/pkg/
 │   │   ├── jwt/jwt.go                       ├── jwt.md
 │   │   ├── apikey/apikey.go                 ├── apikey.md
@@ -57,7 +59,8 @@ backend/                                  docs/backend/
 │       ├── auth.go                          ├── auth.md
 │       ├── apikey.go                        ├── apikey.md
 │       ├── image.go                         ├── image.md
-│       └── log.go                           └── log.md
+│       ├── log.go                           ├── log.md
+│       └── system.go                        └── system.md
 ```
 
 > 特性级说明（跨多文件）：持久化方案见 [`DATABASE.md`](./DATABASE.md)，登录链路见 [`AUTH.md`](./AUTH.md)，API 密钥鉴权见 [`APIKEY.md`](./APIKEY.md)，图片上传 / 静态反代约定见 [`IMAGE.md`](./IMAGE.md)，操作日志与请求追踪见 [`LOG.md`](./LOG.md)。

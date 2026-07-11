@@ -21,11 +21,12 @@
   3. `apiKeySvc := service.NewAPIKeyService(apiKeyDAO, imageDAO, saver)` -> `apiKeyAPI := api.NewAPIKeyAPI(apiKeySvc, authSvc, logSvc)`（`imageDAO`/`saver` 供删除密钥级联清理，`authSvc` 供吊销/删除密码二次确认）
   4. `imageSvc := service.NewImageService(imageDAO, saver, cfg.Storage)` -> `imageAPI := api.NewImageAPI(imageSvc, logSvc)`
   5. `logSvc := service.NewLogService(logDAO, lg)`（先于中间件链与各 API 构造，Logger/Recovery 中间件需要它异步落库）-> `logAPI := api.NewLogAPI(logSvc, authSvc)`（`authSvc` 供清理日志的密码二次确认）
-  6. `rateStore := ratelimit.NewStore(cfg.APIKey.RateLimitPerMinute)` -- 按密钥维度限流的内存令牌桶。
+  6. `systemSvc := service.NewSystemService(cfg)` -> `systemAPI := api.NewSystemAPI(systemSvc)`（只读 config 快照，不依赖 dao / storage / logger，handler 不记业务事件）
+  7. `rateStore := ratelimit.NewStore(cfg.APIKey.RateLimitPerMinute)` -- 按密钥维度限流的内存令牌桶。
 - `logSvc` 同时作为 **LogRecorder** 注入到 `authAPI` / `apiKeyAPI` / `imageAPI`，使这些 handler 能在登录、密钥增删改、图片上传等业务节点发射结构化业务事件，统一由 `logSvc` 异步落库。
 - **路由注册**：所有业务接口挂在 `/api/v1` 下。
   - 公开：`GET /ping`、`POST /auth/login`
-  - 受保护（`middleware.JWTAuth(jwtMgr)`）：`GET /auth/me`、`GET /admin/images`（后台图片列表）、`POST /admin/images`（后台直传上传，`key_id` 留空），均供内容中心；其下再套 `keys := protected.Group("/apikeys", middleware.HTTPSOnly(cfg.APIKey.HTTPSOnly))` 挂密钥管理接口（**JWT + HTTPS** 双重保护），其中吊销（`POST /:id/revoke`）与删除（`DELETE /:id`）为敏感操作，handler 内部还会校验请求体携带的账号密码做二次确认；再套 `logs := protected.Group("/admin/logs", middleware.HTTPSOnly(cfg.APIKey.HTTPSOnly))` 挂日志中心接口（**JWT + HTTPS** 双重保护），其中清理（`DELETE ""`）为敏感操作，handler 内部同样校验账号密码做二次确认。`/admin/images` 与对外 `/images`（API Key 鉴权）路径不同，避免同方法同路径重复注册冲突。
+  - 受保护（`middleware.JWTAuth(jwtMgr)`）：`GET /auth/me`、`GET /admin/images`（后台图片列表）、`POST /admin/images`（后台直传上传，`key_id` 留空），均供内容中心；其下再套 `keys := protected.Group("/apikeys", middleware.HTTPSOnly(cfg.APIKey.HTTPSOnly))` 挂密钥管理接口（**JWT + HTTPS** 双重保护），其中吊销（`POST /:id/revoke`）与删除（`DELETE /:id`）为敏感操作，handler 内部还会校验请求体携带的账号密码做二次确认；再套 `logs := protected.Group("/admin/logs", middleware.HTTPSOnly(cfg.APIKey.HTTPSOnly))` 挂日志中心接口（**JWT + HTTPS** 双重保护），其中清理（`DELETE ""`）为敏感操作，handler 内部同样校验账号密码做二次确认。`GET /system/config` 同样挂在 protected 下（**仅 JWT**，未套 HTTPSOnly），返回当前 config 的非敏感只读快照（auth 段不暴露）。`/admin/images` 与对外 `/images`（API Key 鉴权）路径不同，避免同方法同路径重复注册冲突。
   - API 密钥保护（`middleware.APIKeyAuth(apiKeySvc, rateStore)`，独立于 JWT）：`images` 组。
 
 ## 路由地图
@@ -47,10 +48,11 @@
 │   │   ├── POST   "/:id/reset"  JWT+HTTPS   APIKeyAPI.Reset
 │   │   ├── POST   "/:id/revoke" JWT+HTTPS   APIKeyAPI.Revoke（软吊销，需密码）
 │   │   └── DELETE "/:id"        JWT+HTTPS   APIKeyAPI.Delete（硬删+级联删图，需密码）
-│   └── ── (中间件: HTTPSOnly)   /admin/logs
-│       ├── GET    ""            JWT+HTTPS   LogAPI.List（分页查询访问/业务日志）
-│       ├── GET    "/histogram"  JWT+HTTPS   LogAPI.Histogram（按时间桶聚合统计）
-│       └── DELETE ""            JWT+HTTPS   LogAPI.Clear（清空日志，需密码）
+│   ├── ── (中间件: HTTPSOnly)   /admin/logs
+│   │   ├── GET    ""            JWT+HTTPS   LogAPI.List（分页查询访问/业务日志）
+│   │   ├── GET    "/histogram"  JWT+HTTPS   LogAPI.Histogram（按时间桶聚合统计）
+│   │   └── DELETE ""            JWT+HTTPS   LogAPI.Clear（清空日志，需密码）
+│   └── GET  /system/config      受保护      SystemAPI.Config（只读配置快照，无入参）
 └── ── (中间件: APIKeyAuth)      /images
     ├── GET  ""                  API Key     ImageAPI.List   (占位)
     └── POST ""                  API Key     ImageAPI.Create (已实现，需 readwrite)

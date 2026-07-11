@@ -51,6 +51,9 @@ func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, log
 
 	logAPI := api.NewLogAPI(logSvc, authSvc)
 
+	systemSvc := service.NewSystemService(cfg)
+	systemAPI := api.NewSystemAPI(systemSvc)
+
 	// 按密钥维度限流的内存令牌桶，默认阈值来自配置。
 	rateStore := ratelimit.NewStore(cfg.APIKey.RateLimitPerMinute)
 
@@ -93,6 +96,10 @@ func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, log
 				logs.GET("/histogram", logAPI.Histogram)
 				logs.DELETE("", logAPI.Clear)
 			}
+
+			// 系统配置只读接口：受 JWT 保护，返回当前 config 的非敏感快照。
+			// 不支持修改 / 热更新，配置变更需改 config 文件并重启。
+			protected.GET("/system/config", systemAPI.Config)
 		}
 
 		// 图片接口：由 API 密钥鉴权中间件保护（独立于 JWT）。
