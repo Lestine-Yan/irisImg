@@ -10,12 +10,15 @@
 
 ## 方法
 
-逐一实现 `ImageDAO` 接口：`Create` / `GetByID` / `GetByHash` / `List` / `ListByKeyID` / `Delete` / `DeleteByKeyID`。
+逐一实现 `ImageDAO` 接口：`Create` / `GetByID` / `GetByHash` / `List` / `ListByKeyID` / `Delete` / `DeleteByKeyID` / `Count` / `TotalSize` / `CountByRange`。
 
 - `Create`：`SetNillableKeyID(img.KeyID)` 写入可空外键 `key_id`（记录图片由哪把 API 密钥添加；JWT 上传时为 nil 则不设置）。
 - `List(ctx, q model.ImageListQuery)`：按 `q.KeyID` 过滤（非 nil 时用 `image.KeyIDEQ`）、按 `q.Order` 排序（`"desc"` 倒序，否则升序）、`q.Offset`/`q.Limit` 为正才生效；总数与过滤条件一致，由私有 `countImages` 统计。
 - `ListByKeyID(ctx, keyID)`：`Query().Where(image.KeyIDEQ(keyID)).All(ctx)`，不分页，供删除密钥级联清理使用。
 - `DeleteByKeyID(ctx, keyID)`：`Delete().Where(image.KeyIDEQ(keyID)).Exec(ctx)`，返回删除条数。
+- `Count(ctx)`：`Image.Query().Count(ctx)` 返回图片总量，`int` -> `int64`，供仪表盘统计。
+- `TotalSize(ctx)`：`Aggregate(ent.As(ent.Sum(image.FieldSize), "total")).Scan(ctx, &v)`，`v` 为 `[]struct{ Total *int64 \`sql:"total"\` }`（ent 的 Scan 底层是 `sql.ScanSlice`，只接受 slice 目标，故用 slice 而非单个 struct）。空表时 SQL `SUM` 返回 NULL，`*int64` 接收为 nil，兜底返回 0。用 `*int64` 直接承接 NULL 而非「先 Count 判空」，规避 Count 与 SUM 间的 TOCTOU 窗口（并发清空表会使 SUM 返回 NULL，`[]int64` 无法承接而报错 500）并省去一次冗余 Count 往返。全项目首个聚合查询。
+- `CountByRange(ctx, start, end)`：`Where(image.CreatedAtGTE(start.In(time.Local)), image.CreatedAtLT(end.In(time.Local))).Count(ctx)`，按 `created_at` 统计 `[start, end)` 新增图片数，供仪表盘按日聚合。时区对齐照搬 [`log.go`](log.md) 的 `buildLogPreds` 写法（见 [`LOG.md`](../../../LOG.md) 时区陷阱）。
 - 查询单条用 ent 生成的 `image.HashEQ` 等谓词。
 
 ## 错误与转换

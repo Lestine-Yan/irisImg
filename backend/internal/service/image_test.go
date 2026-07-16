@@ -9,6 +9,7 @@ import (
 	"image/png"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/Lestine-Yan/irisImg/backend/config"
 	"github.com/Lestine-Yan/irisImg/backend/internal/dao"
@@ -80,6 +81,32 @@ func (m *memImageDAO) DeleteByKeyID(_ context.Context, keyID int) (int, error) {
 		if img.KeyID != nil && *img.KeyID == keyID {
 			delete(m.byID, id)
 			delete(m.byHash, img.Hash)
+			n++
+		}
+	}
+	return n, nil
+}
+
+// Count 返回内存中图片总量（仪表盘统计用）。
+func (m *memImageDAO) Count(_ context.Context) (int64, error) {
+	return int64(len(m.byID)), nil
+}
+
+// TotalSize 返回内存中全部图片 size 之和（仪表盘存储占用用）。
+func (m *memImageDAO) TotalSize(_ context.Context) (int64, error) {
+	var sum int64
+	for _, img := range m.byID {
+		sum += img.Size
+	}
+	return sum, nil
+}
+
+// CountByRange 统计 [start, end) 内按 created_at 新增的图片数（仪表盘趋势用）。
+func (m *memImageDAO) CountByRange(_ context.Context, start, end time.Time) (int64, error) {
+	var n int64
+	for _, img := range m.byID {
+		// 左闭右开：start <= CreatedAt < end
+		if !img.CreatedAt.Before(start) && img.CreatedAt.Before(end) {
 			n++
 		}
 	}

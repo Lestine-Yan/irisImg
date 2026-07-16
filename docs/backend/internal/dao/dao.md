@@ -15,6 +15,9 @@
 | `ListByKeyID(ctx, keyID int) ([]*model.Image, error)` | 返回指定密钥关联的全部图片（不分页），供删除密钥时级联清理使用 |
 | `Delete(ctx, id int) error` | 按主键删除，未找到返回 `ErrNotFound` |
 | `DeleteByKeyID(ctx, keyID int) (int, error)` | 批量删除指定密钥关联的全部图片记录，返回删除条数 |
+| `Count(ctx) (int64, error)` | 图片总量（无过滤），供仪表盘统计 |
+| `TotalSize(ctx) (int64, error)` | 全部图片 `size` 之和（字节）；空表 SUM 返回 NULL，兜底为 0 |
+| `CountByRange(ctx, start, end time.Time) (int64, error)` | 统计 `[start, end)`（按 `created_at`）新增图片数，供仪表盘按日聚合 |
 
 ## 错误
 
@@ -48,6 +51,7 @@
 | `BatchCreate(ctx, logs []*model.Log) error` | 批量落库日志，供 `LogService` 的异步 flusher 调用，单次 flush 的全部日志一条 SQL 写入 |
 | `List(ctx, q model.LogQuery) ([]*model.Log, int, error)` | 按 `LogQuery` 过滤 / 分页返回日志（按 `timestamp` 倒序），同时给出符合过滤条件的总条数（供前端计算总页数） |
 | `CountByRange(ctx, start, end time.Time) (int, error)` | 统计 `[start, end)` 时间区间的日志条数，供直方图按日聚合 |
+| `Count(ctx) (int64, error)` | 日志总量，供仪表盘统计 |
 | `ClearAll(ctx) (int64, error)` | 清空全部日志，返回实际删除条数 |
 
 实现见 [`entdao/log.go`](./entdao/log.md)。特性级说明见 [`LOG.md`](../../LOG.md)。

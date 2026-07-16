@@ -28,7 +28,7 @@
       v-else-if="total === 0"
       class="flex h-[240px] items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white/60"
     >
-      <span class="text-sm text-gray-400">近 14 天暂无日志</span>
+      <span class="text-sm text-gray-400">{{ emptyText }}</span>
     </div>
 
     <!-- 直方图 + 趋势线 -->
@@ -38,7 +38,7 @@
       viewBox="0 0 700 240"
       preserveAspectRatio="xMidYMid meet"
       role="img"
-      aria-label="近 14 天日志量直方图"
+      :aria-label="titleText"
     >
       <!-- 网格线 + Y 轴刻度 -->
       <g v-for="(g, i) in gridLines" :key="`g-${i}`">
@@ -95,7 +95,7 @@
       <!-- X 轴日期标签（隔行显示，避免拥挤） -->
       <text
         v-for="(b, i) in bars"
-        v-show="i % 2 === 0 || i === bars.length - 1"
+        v-show="i % labelStep === 0 || i === bars.length - 1"
         :key="`x-${i}`"
         :x="b.cx"
         :y="VB_H - 10"
@@ -107,7 +107,7 @@
     <!-- 图例 -->
     <div class="mt-2 flex items-center justify-end gap-4 text-xs text-gray-500">
       <span class="flex items-center gap-1.5">
-        <span class="inline-block h-2.5 w-2.5 rounded-sm bg-iris-violet"></span>日志量
+        <span class="inline-block h-2.5 w-2.5 rounded-sm bg-iris-violet"></span>{{ legendText }}
       </span>
       <span class="flex items-center gap-1.5">
         <span class="inline-block h-0.5 w-4 bg-iris-gold"></span>7 日均值
@@ -119,12 +119,22 @@
 <script setup lang="ts">
 import type { HistogramBucket } from '~/composables/useLogs'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   buckets: HistogramBucket[]
   total: number
   loading: boolean
   error: string | null
-}>()
+  /** 空态文案，默认为日志中心原文案；仪表盘图片趋势可传「近 30 天暂无新增图片」。 */
+  emptyText?: string
+  /** aria-label 文案，默认为日志中心原文案。 */
+  titleText?: string
+  /** 柱状图图例文案，默认「日志量」；仪表盘图片趋势可传「新增图片」。 */
+  legendText?: string
+}>(), {
+  emptyText: '近 14 天暂无日志',
+  titleText: '近 14 天日志量直方图',
+  legendText: '日志量',
+})
 const emit = defineEmits<{ retry: [] }>()
 
 // SVG 视口与内边距常量。
@@ -164,6 +174,10 @@ const bars = computed(() =>
     }
   }),
 )
+
+// X 轴日期标签隔行步长：按桶数自适应，使标签数稳定在约 8 个以内，避免 30 天时拥挤。
+// 14 天时 step=2 与历史行为一致；30 天时 step=4。
+const labelStep = computed(() => Math.max(1, Math.ceil((props.buckets.length || 1) / 8)))
 
 // 7 日移动平均：窗口不足 7 时取已有天均值，使趋势线从首日即横跨全宽。
 const trend = computed(() => {

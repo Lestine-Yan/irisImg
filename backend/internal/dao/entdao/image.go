@@ -2,6 +2,7 @@ package entdao
 
 import (
 	"context"
+	"time"
 
 	"github.com/Lestine-Yan/irisImg/backend/ent"
 	"github.com/Lestine-Yan/irisImg/backend/ent/image"
@@ -100,6 +101,53 @@ func (d *imageDAO) countImages(ctx context.Context, q model.ImageListQuery) (int
 		query = query.Where(image.KeyIDEQ(*q.KeyID))
 	}
 	return query.Count(ctx)
+}
+
+// Count 返回图片总量（无过滤）。
+func (d *imageDAO) Count(ctx context.Context) (int64, error) {
+	n, err := d.client.Image.Query().Count(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return int64(n), nil
+}
+
+// TotalSize 返回全部图片 size 字段之和（字节）。
+//
+// 用 ent.Sum 聚合一条 SQL 完成。ent 的 Scan 底层是 sql.ScanSlice，只接受 slice 目标，
+// 故扫描到 []struct{ Total *int64 }；空表时 SQL SUM 返回 NULL（单行单列），*int64 接收为 nil，
+// 兜底返回 0。ent.As 别名 total 配合 struct 的 sql tag 精确映射列名。
+// 用 *int64 直接承接 NULL 而非「先 Count 判空」，避免 Count 与 SUM 之间的 TOCTOU 窗口
+// （并发清空图片表会使 SUM 返回 NULL，[]int64 无法承接 NULL 而报错 500），
+// 也省去一次冗余 Count 往返。全项目首个聚合查询。
+func (d *imageDAO) TotalSize(ctx context.Context) (int64, error) {
+	var v []struct {
+		Total *int64 `sql:"total"`
+	}
+	if err := d.client.Image.Query().
+		Aggregate(ent.As(ent.Sum(image.FieldSize), "total")).
+		Scan(ctx, &v); err != nil {
+		return 0, err
+	}
+	if len(v) == 0 || v[0].Total == nil {
+		return 0, nil // 空表 SUM 返回 NULL
+	}
+	return *v[0].Total, nil
+}
+
+// CountByRange 统计 [start, end) 时间区间（按 created_at）新增的图片数，供仪表盘按日聚合。
+//
+// 时区对齐：modernc.org/sqlite 把 time.Time 按 t.String() 文本绑定、SQLite 按字节序比较，
+// 存储用 time.Now()（本地时区），查询参数须用同一时区偏移才能保证字节序与时刻序一致。
+// 此处照搬 entdao/log.go:buildLogPreds 的 .In(time.Local) 写法。
+func (d *imageDAO) CountByRange(ctx context.Context, start, end time.Time) (int64, error) {
+	n, err := d.client.Image.Query().
+		Where(image.CreatedAtGTE(start.In(time.Local)), image.CreatedAtLT(end.In(time.Local))).
+		Count(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return int64(n), nil
 }
 
 func (d *imageDAO) Delete(ctx context.Context, id int) error {

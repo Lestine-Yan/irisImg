@@ -110,6 +110,15 @@ func (d *logDAO) CountByRange(ctx context.Context, start, end time.Time) (int, e
 		Count(ctx)
 }
 
+// Count 返回日志总量，供仪表盘统计。
+func (d *logDAO) Count(ctx context.Context) (int64, error) {
+	n, err := d.client.AccessLog.Query().Count(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return int64(n), nil
+}
+
 // ClearAll 清空全部日志，返回删除条数。
 func (d *logDAO) ClearAll(ctx context.Context) (int64, error) {
 	n, err := d.client.AccessLog.Delete().Exec(ctx)

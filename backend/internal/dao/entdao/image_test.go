@@ -225,6 +225,73 @@ func TestImageDAO_ListFilterAndOrder(t *testing.T) {
 	}
 }
 
+// TestImageDAO_CountTotalSizeCountByRange 覆盖仪表盘用到的三个聚合方法，
+// 重点验证空表 SUM 返回 NULL 时 TotalSize 兜底为 0（不报错）--全项目首个 ent 聚合查询。
+func TestImageDAO_CountTotalSizeCountByRange(t *testing.T) {
+	d := newTestDAO(t)
+	ctx := context.Background()
+	impl := d.(*imageDAO)
+
+	// 空表：Count=0、TotalSize=0（SUM 返回 NULL 的兜底，关键）、CountByRange=0。
+	if n, err := d.Count(ctx); err != nil || n != 0 {
+		t.Fatalf("empty Count = %d err %v, want 0", n, err)
+	}
+	if n, err := d.TotalSize(ctx); err != nil || n != 0 {
+		t.Fatalf("empty TotalSize = %d err %v, want 0 (NULL guard)", n, err)
+	}
+
+	// 写入 3 张图：sizes 100/200/300，created_at 分别为今天/昨天/前天（控制时间以测区间）。
+	now := time.Now()
+	loc := now.Location()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, loc)
+	records := []struct {
+		hash string
+		size int64
+		t    time.Time
+	}{
+		{"h1", 100, today},
+		{"h2", 200, today.AddDate(0, 0, -1)},
+		{"h3", 300, today.AddDate(0, 0, -2)},
+	}
+	for _, r := range records {
+		if _, err := impl.client.Image.Create().
+			SetFilename(r.hash + ".png").
+			SetStoredPath("p/" + r.hash).
+			SetURL("/i/" + r.hash).
+			SetSize(r.size).
+			SetMimeType("image/png").
+			SetWidth(1).
+			SetHeight(1).
+			SetHash(r.hash).
+			SetCreatedAt(r.t).
+			Save(ctx); err != nil {
+			t.Fatalf("create %s: %v", r.hash, err)
+		}
+	}
+
+	if n, err := d.Count(ctx); err != nil || n != 3 {
+		t.Fatalf("Count = %d err %v, want 3", n, err)
+	}
+	if n, err := d.TotalSize(ctx); err != nil || n != 600 {
+		t.Fatalf("TotalSize = %d err %v, want 600", n, err)
+	}
+
+	// CountByRange：今天左闭右开应只命中 h1。
+	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	dayEnd := dayStart.AddDate(0, 0, 1)
+	if n, err := d.CountByRange(ctx, dayStart, dayEnd); err != nil || n != 1 {
+		t.Fatalf("today CountByRange = %d err %v, want 1", n, err)
+	}
+	// 近 3 天区间 [today-2, today+1) 命中全部 3 张。
+	if n, err := d.CountByRange(ctx, dayStart.AddDate(0, 0, -2), dayEnd); err != nil || n != 3 {
+		t.Fatalf("3-day CountByRange = %d err %v, want 3", n, err)
+	}
+	// 未来区间应为 0。
+	if n, err := d.CountByRange(ctx, dayEnd, dayEnd.AddDate(0, 0, 1)); err != nil || n != 0 {
+		t.Fatalf("future CountByRange = %d err %v, want 0", n, err)
+	}
+}
+
 // TestImageDAO_ListAndDeleteByKeyID 覆盖按密钥批量查询与删除：
 //   - ListByKeyID 只返回该密钥的图片；
 //   - DeleteByKeyID 删除该密钥全部图片并返回计数，不影响其他密钥的图片。

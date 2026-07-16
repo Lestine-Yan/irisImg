@@ -45,6 +45,8 @@ frontend/                                  docs/frontend/
     │   │   ├── LogsHistogram.vue           │   │   ├── components/logs/LogsHistogram.md
     │   │   ├── LogsTable.vue               │   │   ├── components/logs/LogsTable.md
     │   │   └── LogsPurgeDialog.vue         │   │   └── components/logs/LogsPurgeDialog.md
+    │   ├── dashboard/
+    │   │   └── StatCard.vue               │   │   └── components/dashboard/StatCard.md
     │   └── settings/
     │       ├── ConfigSection.vue           │       ├── components/settings/ConfigSection.md
     │       └── ConfigItem.vue              │       └── components/settings/ConfigItem.md
@@ -54,6 +56,7 @@ frontend/                                  docs/frontend/
     │   ├── useApi.ts                       │   ├── composables/useApi.md
     │   ├── useImages.ts                    │   ├── composables/useImages.md
     │   ├── useLogs.ts                      │   ├── composables/useLogs.md
+    │   ├── useDashboard.ts                 │   ├── composables/useDashboard.md
     │   └── useSystemConfig.ts              │   └── composables/useSystemConfig.md
     ├── middleware/
     │   └── auth.ts                         │   └── middleware/auth.md
@@ -69,15 +72,16 @@ frontend/                                  docs/frontend/
 
 - **根配置**：`nuxt.config.ts` 为 Nuxt 入口（SPA 模式 `ssr: false`、模块、runtimeConfig）；`tailwind.config.ts` 定义 iris 全局色系；`assets/css/tailwind.css` 引入 Tailwind 三层。
 - **layouts/**：Nuxt 布局。`default.vue` 是后台默认布局，左侧 `AppSidebar` + 右侧内容区，并在挂载后统一 `fetchMe()` 刷新用户信息。
-- **pages/**：Nuxt 文件路由，每个 `.vue` 对应一个 URL。`index.vue` 是登录落地页（`layout: false`）；`dashboard.vue`、`content/`、`logs/`、`apikeys/`、`settings/` 是后台五个模块的占位页，均通过 `middleware: 'auth'` 保护。
+- **pages/**：Nuxt 文件路由，每个 `.vue` 对应一个 URL。`index.vue` 是登录落地页（`layout: false`）；`dashboard.vue` 是后台默认着陆页（仪表盘：统计卡片 + 近 30 天新增图片趋势 + 四中心快捷入口）；`content/`、`logs/`、`apikeys/`、`settings/` 是其余四个后台模块，均通过 `middleware: 'auth'` 保护。
 - **components/login/**：登录页专用展示组件。`GeometricBackground.vue` 负责 SVG 背景；`LoginHero.vue` 负责左侧品牌字标；`LoginForm.vue` 负责右侧登录表单与校验。
 - **components/layout/**：后台布局专用组件。`AppSidebar.vue` 负责侧边栏（logo + 导航 + 用户区）；`UserBadge.vue` 负责底部当前用户展示与退出登录。
 - **components/content/**：内容中心专用组件。`ImageCard.vue` 是图片网格单元；`ImageDetailDialog.vue` 是图片详情弹窗；`UploadPanel.vue` 是拖拽上传栏（JWT 后台直传）。
 - **components/ui/**：跨页面复用的基础组件。`BaseDialog.vue` 是弹窗外壳（Teleport + 遮罩 + ESC），供各业务弹窗复用。
 - **components/apikeys/**：APIkey 管理页专用组件。`ApiKeyTable.vue` 是密钥列表表格（四态 + 行操作图标）；`CreateKeyDialog.vue` / `RenameKeyDialog.vue` / `ResetKeyDialog.vue` / `RevokeDeleteDialog.vue` 是各操作弹窗；`PlaintextKeyDialog.vue` 是一次性明文展示（创建/重置共用）。
 - **components/logs/**：日志中心专用组件。`LogsHistogram.vue` 是按时间维度的日志直方图；`LogsTable.vue` 是日志列表表格（筛选条件 + 分页）；`LogsPurgeDialog.vue` 是批量清理确认弹窗。
+- **components/dashboard/**：仪表盘专用组件。`StatCard.vue` 是统计卡片（标题 + 大数字 + iris 图标徽章）。
 - **components/settings/**：系统配置页专用组件。`ConfigSection.vue` 是分组卡片（标题 + `dl` 列表）；`ConfigItem.vue` 是键值行（标签 + 值）。
-- **composables/**：自动导入的组合函数。`useAuth.ts` 维护 token 与登录态；`useApi.ts` 封装 `$fetch`，统一处理响应体、鉴权头与 401 跳转；`useImages.ts` 封装内容中心的图片列表请求、后台直传上传与 URL / 格式化工具；`useApiKeys.ts` 封装 APIkey 管理的列表 / 创建 / 重命名 / 重置 / 吊销 / 删除接口；`useLogs.ts` 封装日志中心的列表查询、直方图聚合与批量清理接口；`useSystemConfig.ts` 封装系统配置只读接口（`GET /system/config`）。
+- **composables/**：自动导入的组合函数。`useAuth.ts` 维护 token 与登录态；`useApi.ts` 封装 `$fetch`，统一处理响应体、鉴权头与 401 跳转；`useImages.ts` 封装内容中心的图片列表请求、后台直传上传与 URL / 格式化工具；`useApiKeys.ts` 封装 APIkey 管理的列表 / 创建 / 重命名 / 重置 / 吊销 / 删除接口；`useLogs.ts` 封装日志中心的列表查询、直方图聚合与批量清理接口；`useDashboard.ts` 封装仪表盘聚合统计接口（`GET /admin/dashboard`）；`useSystemConfig.ts` 封装系统配置只读接口（`GET /system/config`）。
 - **middleware/**：路由中间件。`auth.ts` 是客户端命名守卫，未登录访问后台页面时跳转 `/`。
 - **plugins/**：客户端插件。`auth.client.ts` 在应用启动时从 `localStorage` 恢复 token。
 
