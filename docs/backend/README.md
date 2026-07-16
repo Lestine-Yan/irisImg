@@ -23,6 +23,7 @@ backend/                                  docs/backend/
 │   │   ├── apikey.go                        ├── apikey.md
 │   │   ├── image.go                         ├── image.md
 │   │   ├── log.go                           ├── log.md
+│   │   ├── dashboard.go                     ├── dashboard.md
 │   │   └── system.go                        └── system.md
 │   ├── dao/                              └── internal/dao/
 │   │   ├── dao.go                            ├── dao.md
@@ -45,6 +46,7 @@ backend/                                  docs/backend/
 │   │   ├── image.go                         ├── image.md
 │   │   ├── apikey.go                        ├── apikey.md
 │   │   ├── log.go                           ├── log.md
+│   │   ├── dashboard.go                     ├── dashboard.md
 │   │   └── system.go                        └── system.md
 │   ├── pkg/                              └── internal/pkg/
 │   │   ├── jwt/jwt.go                       ├── jwt.md
@@ -60,10 +62,11 @@ backend/                                  docs/backend/
 │       ├── apikey.go                        ├── apikey.md
 │       ├── image.go                         ├── image.md
 │       ├── log.go                           ├── log.md
+│       ├── dashboard.go                     ├── dashboard.md
 │       └── system.go                        └── system.md
 ```
 
-> 特性级说明（跨多文件）：持久化方案见 [`DATABASE.md`](./DATABASE.md)，登录链路见 [`AUTH.md`](./AUTH.md)，API 密钥鉴权见 [`APIKEY.md`](./APIKEY.md)，图片上传 / 静态反代约定见 [`IMAGE.md`](./IMAGE.md)，操作日志与请求追踪见 [`LOG.md`](./LOG.md)。
+> 特性级说明（跨多文件）：持久化方案见 [`DATABASE.md`](./DATABASE.md)，登录链路见 [`AUTH.md`](./AUTH.md)，API 密钥鉴权见 [`APIKEY.md`](./APIKEY.md)，图片上传 / 静态反代约定见 [`IMAGE.md`](./IMAGE.md)，操作日志与请求追踪见 [`LOG.md`](./LOG.md)，仪表盘聚合统计见 [`DASHBOARD.md`](./DASHBOARD.md)。
 
 ## 分层说明
 

@@ -18,6 +18,7 @@
 | `BatchCreate` | 空切片直接返回 nil；否则对每条日志复用 `newCreateBuilder` 构造 builder，`AccessLog.CreateBulk(...).Save(ctx)` 批量落库，供 `LogService` 异步 flusher 调用 |
 | `List` | `buildLogPreds(q)` 翻译过滤条件；先 `Count` 取总数，再 `Order(ent.Desc(accesslog.FieldTimestamp))` 按 timestamp 倒序分页（`q.Offset`/`q.Limit` 为正才生效），逐行经 `toLogModel` 返回 |
 | `CountByRange` | `Where(accesslog.TimestampGTE(start), accesslog.TimestampLT(end)).Count(ctx)`，统计 [start, end) 区间条数，供直方图按日聚合 |
+| `Count` | `AccessLog.Query().Count(ctx)` 返回日志总量（`int` -> `int64`），供仪表盘统计 |
 | `ClearAll` | `AccessLog.Delete().Exec(ctx)` 清空全部日志，返回删除条数（`int64`） |
 
 ## 辅助函数
@@ -45,7 +46,7 @@
 
 ## 错误与转换
 
-- 与同包 [`image.go`](image.md) / [`apikey.go`](apikey.md) 不同，本文件不使用 `wrapErr`：日志查询无「不存在」语义，`Create` / `BatchCreate` / `List` / `CountByRange` / `ClearAll` 直接透传底层 Ent 错误。
+- 与同包 [`image.go`](image.md) / [`apikey.go`](apikey.md) 不同，本文件不使用 `wrapErr`：日志查询无「不存在」语义，`Create` / `BatchCreate` / `List` / `CountByRange` / `Count` / `ClearAll` 直接透传底层 Ent 错误。
 - `toLogModel` 见上节，承担 Ent -> model 的字段映射。
 
 ## 调用关系

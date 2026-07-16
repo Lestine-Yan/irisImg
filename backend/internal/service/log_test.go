@@ -16,6 +16,7 @@ type mockLogDAO struct {
 	countByRng  func(start, end time.Time) int
 	cleared     int64
 	clearCalled bool
+	total       int64 // Count 返回值，供仪表盘等需要日志总量的场景
 }
 
 func (m *mockLogDAO) Create(_ context.Context, l *model.Log) (*model.Log, error) {
@@ -39,6 +40,10 @@ func (m *mockLogDAO) CountByRange(_ context.Context, start, end time.Time) (int,
 		return m.countByRng(start, end), nil
 	}
 	return 0, nil
+}
+
+func (m *mockLogDAO) Count(_ context.Context) (int64, error) {
+	return m.total, nil
 }
 
 func (m *mockLogDAO) ClearAll(_ context.Context) (int64, error) {

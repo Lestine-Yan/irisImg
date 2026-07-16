@@ -54,6 +54,9 @@ func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, log
 	systemSvc := service.NewSystemService(cfg)
 	systemAPI := api.NewSystemAPI(systemSvc)
 
+	dashboardSvc := service.NewDashboardService(imageDAO, apiKeyDAO, logDAO)
+	dashboardAPI := api.NewDashboardAPI(dashboardSvc)
+
 	// 按密钥维度限流的内存令牌桶，默认阈值来自配置。
 	rateStore := ratelimit.NewStore(cfg.APIKey.RateLimitPerMinute)
 
@@ -100,6 +103,10 @@ func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, log
 			// 系统配置只读接口：受 JWT 保护，返回当前 config 的非敏感快照。
 			// 不支持修改 / 热更新，配置变更需改 config 文件并重启。
 			protected.GET("/system/config", systemAPI.Config)
+
+			// 仪表盘统计接口：受 JWT 保护，只读聚合，一次性返回首页所需的图片总量 / 存储大小 /
+			// APIkey 计数 / 日志总量 / 近 N 天上传趋势。无需 HTTPSOnly 与二次确认。
+			protected.GET("/admin/dashboard", dashboardAPI.Overview)
 		}
 
 		// 图片接口：由 API 密钥鉴权中间件保护（独立于 JWT）。

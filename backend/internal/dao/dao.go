@@ -29,6 +29,13 @@ type ImageDAO interface {
 	Delete(ctx context.Context, id int) error
 	// DeleteByKeyID 批量删除指定密钥关联的全部图片记录，返回实际删除条数。
 	DeleteByKeyID(ctx context.Context, keyID int) (int, error)
+	// Count 返回图片总量（无过滤），供仪表盘统计。
+	Count(ctx context.Context) (int64, error)
+	// TotalSize 返回全部图片 size 字段之和（字节）；空表 SUM 返回 NULL，兜底为 0。
+	// 取自 DB 聚合而非文件系统遍历，images 表为单一事实来源。
+	TotalSize(ctx context.Context) (int64, error)
+	// CountByRange 统计 [start, end) 时间区间（按 created_at）新增的图片数，供仪表盘按日聚合。
+	CountByRange(ctx context.Context, start, end time.Time) (int64, error)
 }
 
 // APIKeyDAO 抽象 API 密钥的持久化操作。
@@ -67,6 +74,8 @@ type LogDAO interface {
 	List(ctx context.Context, q model.LogQuery) (items []*model.Log, total int, err error)
 	// CountByRange 统计 [start, end) 时间区间的日志条数，供直方图按日聚合。
 	CountByRange(ctx context.Context, start, end time.Time) (int, error)
+	// Count 返回日志总量，供仪表盘统计。
+	Count(ctx context.Context) (int64, error)
 	// ClearAll 清空全部日志，返回删除条数。
 	ClearAll(ctx context.Context) (int64, error)
 }
