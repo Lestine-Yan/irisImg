@@ -120,3 +120,30 @@ func Load(path string) (*Config, error) {
 	Global = cfg
 	return cfg, nil
 }
+
+// 默认/已知不安全凭证集合,release 模式下命中即拒绝启动(fail-closed)。
+// config.yaml.example 的默认值即取自此处,故「拷贝模板未改即上线」会被直接拦下。
+var insecurePasswords = map[string]bool{"admin123": true, "": true}
+var insecureSecrets = map[string]bool{"please-change-me-to-a-long-random-string": true, "": true}
+
+// Validate 在生产模式(release)下强制校验安全相关配置,拒绝以默认/空口令或弱 JWT 密钥启动,
+// 闭合「拷贝模板未改口令即上线」的攻击链。debug/test 模式放过,保持开发开箱即跑。
+// 用户名 admin 本身合法(只要密码非默认),故仅校验密码与密钥。
+func (c *Config) Validate() error {
+	if c.Server.Mode != "release" {
+		return nil
+	}
+	if c.Auth.Username == "" {
+		return fmt.Errorf("生产模式(release)要求 auth.username 非空")
+	}
+	if insecurePasswords[c.Auth.Password] {
+		return fmt.Errorf("生产模式(release)拒绝默认/空密码:请修改 auth.password(勿用 admin123)")
+	}
+	if insecureSecrets[c.Auth.JWT.Secret] {
+		return fmt.Errorf("生产模式(release)拒绝默认/空 JWT 密钥:请将 auth.jwt.secret 改为 32 位以上随机串")
+	}
+	if len(c.Auth.JWT.Secret) < 32 {
+		return fmt.Errorf("auth.jwt.secret 长度 %d < 32,不满足生产安全要求", len(c.Auth.JWT.Secret))
+	}
+	return nil
+}

@@ -9,3 +9,6 @@ backend/data/
 *.db
 *.db-shm
 *.db-wal
+
+# release 构建产物
+dist/

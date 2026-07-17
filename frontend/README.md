@@ -78,12 +78,12 @@ pnpm dev
 
 后端默认监听 `http://localhost:8080`，所有业务接口挂在 `/api/v1` 下。
 
-`nuxt.config.ts` 已通过 `runtimeConfig` 暴露 API 基址：
+`nuxt.config.ts` 已通过 `runtimeConfig` 暴露 API 基址（`sanitizeApiBase` 用于规避 Git Bash/MSYS2 路径转换污染，详见 [`docs/deploy.md`](../docs/deploy.md)「Git Bash 构建坑」）：
 
 ```ts
 runtimeConfig: {
   public: {
-    apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080/api/v1',
+    apiBase: sanitizeApiBase(process.env.NUXT_PUBLIC_API_BASE) || 'http://localhost:8080/api/v1',
   },
 }
 ```

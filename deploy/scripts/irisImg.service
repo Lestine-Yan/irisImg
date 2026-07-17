@@ -1,0 +1,54 @@
+# irisImg systemd 服务单元
+#
+# 安装：
+#   sudo cp scripts/irisImg.service /etc/systemd/system/irisImg.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now irisImg
+# 日志：journalctl -u irisImg -f
+#
+# 如部署路径不是 /opt/irisImg，需同步修改 WorkingDirectory / ExecStart / User / ReadWritePaths。
+# 首次部署须先 `cp config/config.yaml.example config/config.yaml` 并改密码/密钥，
+# 否则 ExecStartPre 预检失败、单元在 StartLimit 内反复重启后进入 failed。
+
+[Unit]
+Description=irisImg image hosting backend
+After=network.target
+# 限制重启频率:缺配置等启动失败时 60s 内最多重试 5 次,之后进入 failed 而非无限 crash-loop。
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=irisimg
+WorkingDirectory=/opt/irisImg
+Environment=IRIS_CONFIG=config/config.yaml
+# 配置存在性预检:缺 config.yaml 时直接失败并把 cp 指引写进 journal(与 start.sh 一致),
+# 避免后端读到不存在的配置而 log.Fatalf、被 on-failure 反复重拉却无任何可操作提示。
+ExecStartPre=/bin/bash -c 'test -f "$IRIS_CONFIG" || { echo "错误:配置文件 $IRIS_CONFIG 不存在,首次部署请先: cp config/config.yaml.example config/config.yaml 并修改密码/密钥" >&2; exit 1; }'
+ExecStart=/opt/irisImg/irisImg
+Restart=on-failure
+RestartSec=5
+
+# 权限硬化:8080 为非特权端口,无需任何 capability;仅 data/ 可写(落库/落盘/日志),
+# 二进制与 config.yaml 保持只读,防止后端被攻破后改写自身或配置实现持久化。
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ReadWritePaths=/opt/irisImg/data
+# Go 运行时一般兼容 @system-service;若启动失败可先注释下面两行定位。
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+
+[Install]
+WantedBy=multi-user.target
