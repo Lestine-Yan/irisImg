@@ -1,0 +1,34 @@
+# irisImg Nginx 示例配置 —— HTTP 最简版（便于先跑通）
+#
+# 注意：HTTP 模式下请把 config.yaml 的 apikey.https_only 改为 false，
+# 否则密钥创建/重置/吊销等敏感接口会因 X-Forwarded-Proto != https 被拒。
+# 生产请改用 irisImg.conf（HTTPS）并保持 https_only=true。
+
+server {
+    listen 80;
+    server_name _;   # 或你的域名/IP
+
+    root /opt/irisImg/web;
+    index index.html;
+    client_max_body_size 25m;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    location /imgs/ {
+        alias /opt/irisImg/data/imgs/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+}

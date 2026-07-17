@@ -147,7 +147,7 @@ client           api.ImageAPI             service.ImageService           dao.Ima
 
 - 想用独立图片域名（如 `https://img.example.com`）：把 `public_base_url` 配上（**结尾不带斜杠**），并在那个域名同样反代到 `root_dir`。
 - 备份 / 迁移时同步处理 `root_dir` 与数据库；hash 文件名让"按需补图"也很简单。
-- **本次未提供 Nginx 配置**，仅在文档里约定路径，等部署时再写。
+- **Nginx 配置模板已随仓库 `deploy/nginx/` 提供**：`irisImg.conf.example`（HTTPS 生产形态，SNI 分流）与 `irisImg.http.conf.example`（HTTP 最简版），首次部署 `cp` 去后缀使用；release 包内同名 `.example`。整体部署与反代约定详见 [`deploy.md`](../deploy.md)。
 
 ## 6. 常见排错
 
@@ -164,6 +164,5 @@ client           api.ImageAPI             service.ImageService           dao.Ima
 
 ## 7. 不在本次范围
 
-- Nginx 配置文件本身（仅在本文档里约定路径）。
 - `GET /api/v1/images` 对外列表 / 单图查询接口（语义待定，保持 501 占位）。后台列表已通过 `GET /api/v1/admin/images`（JWT）落地。
 - 缩略图、EXIF 清理、防盗链、对象存储后端。

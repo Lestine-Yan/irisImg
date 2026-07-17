@@ -23,9 +23,9 @@ Config
 | `server.mode` | string | `debug` | Gin 运行模式 (`debug | release | test`) |
 | `app.name` | string | `irisImg` | 应用名（出现在 `/ping` 响应里） |
 | `app.version` | string | `0.1.0` | 版本号 |
-| `auth.username` | string | `admin` | 唯一用户名（部署时务必修改） |
-| `auth.password` | string | `admin123` | 明文密码（部署时务必修改） |
-| `auth.jwt.secret` | string | 占位字符串 | HS256 签名密钥；上线必须替换为足够长的随机字符串 |
+| `auth.username` | string | `admin` | 唯一用户名（release 模式下 `Validate` 要求非空） |
+| `auth.password` | string | `admin123` | 明文密码（release 模式下默认值 `admin123` 与空值会被 `Validate` 拒绝启动） |
+| `auth.jwt.secret` | string | 占位字符串 | HS256 签名密钥；release 模式下默认占位串 / 空 / 长度 <32 会被 `Validate` 拒绝启动 |
 | `auth.jwt.issuer` | string | `irisImg` | 写入 token 的 `iss` 字段 |
 | `auth.jwt.expire_hours` | int | `24` | token 有效期；`<=0` 时 jwt 包会回退到 24 小时 |
 | `database.driver` | string | `sqlite` | 数据库后端，目前仅支持 `sqlite` |
@@ -57,6 +57,12 @@ Config
 - 读文件、`yaml.Unmarshal`，任一步出错都用 `fmt.Errorf("…: %w", err)` 包装后返回。
 - 解析成功后**同时**把指针赋给包级变量 `Global`，方便不便走依赖注入的小工具（如 `api/ping.go`）直接读取 `app.name / app.version`。
 - 业务代码请优先通过参数接收配置，`Global` 仅作便捷出口。
+
+### `Validate() error`
+
+- 仅在 `server.mode == "release"` 下强制，debug/test 放过（保持开发开箱即跑）。由 [`cmd/server/main.go`](../cmd/server/main.md) 在 logger 构造前调用，失败即 `log.Fatalf` 拒绝启动（fail-closed）。
+- 命中以下任一即返回 error：`auth.username` 为空；`auth.password` 为空或等于默认值 `admin123`；`auth.jwt.secret` 为空、等于默认占位串 `please-change-me-to-a-long-random-string`、或长度 < 32。
+- 闭合「拷贝 `config.yaml.example` 未改口令即上线」的攻击链：生产模板的默认值即取自被拒集合，故未改口令无法以 release 模式启动。用户名 `admin` 本身合法（只要密码非默认），不校验。
 
 ## YAML 示例
 

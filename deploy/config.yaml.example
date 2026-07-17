@@ -1,0 +1,54 @@
+server:
+  # Nginx 同机反代形态下后端只需本机可达,绑定 127.0.0.1 避免后端端口直接暴露公网
+  # (绕过 Nginx 的 TLS / X-Forwarded-Proto / client_max_body_size)。跨机反代才改 0.0.0.0 并配防火墙。
+  host: "127.0.0.1"
+  port: 8080
+  mode: "release"   # 生产环境用 release，关闭 gin 调试输出 + 强制启动安全校验(见 config.Validate)
+
+app:
+  name: "irisImg"
+  version: "0.1.0"
+
+# 持久化配置。当前使用 SQLite（纯 Go 的 modernc.org/sqlite 驱动，无需 CGO）。
+# dsn 相对于后端进程工作目录（即 release 包根目录）。
+database:
+  driver: "sqlite"
+  dsn: "data/irisImg.db?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(on)"
+  auto_migrate: true
+
+# 个人图床仅服务于本人，用户名/密码直接写在配置里。
+# ⚠️ 部署前务必修改 username / password，并把 jwt.secret 换成足够长的随机字符串！
+auth:
+  username: "admin"            # ⚠️ 改成你自己的用户名
+  password: "admin123"         # ⚠️ 改成强密码
+  jwt:
+    secret: "please-change-me-to-a-long-random-string"   # ⚠️ 必改：32 位以上随机串
+    issuer: "irisImg"
+    expire_hours: 24
+
+# API 密钥鉴权配置。
+# 生产环境（Nginx HTTPS 反代）请保持 https_only=true，后端会校验 X-Forwarded-Proto
+# （Nginx 需透传 proxy_set_header X-Forwarded-Proto $scheme）。
+# 纯 HTTP 临时测试时改为 false，否则密钥创建/重置/吊销等敏感接口会被拒。
+apikey:
+  rate_limit_per_minute: 100
+  https_only: true
+
+# 图片落盘相关配置。相对路径相对于后端进程工作目录（release 包根目录）。
+# Nginx 的 location /imgs/ alias 必须指向同一个 data/imgs 目录。
+storage:
+  root_dir: "data/imgs"
+  public_base_url: ""          # 空 -> 返回 /imgs/<rel>，前端/Nginx 同域代理
+  max_upload_size_mb: 20       # Nginx client_max_body_size 需略大于此值（如 25m）
+  allowed_mime_types:
+    - "image/png"
+    - "image/jpeg"
+    - "image/gif"
+    - "image/webp"
+
+# 结构化日志（zap）配置。output 可改为文件路径（如 data/irisImg.log）。
+logger:
+  level: "info"
+  encoding: "json"
+  output: "stdout"
+  time_format: "iso8601"

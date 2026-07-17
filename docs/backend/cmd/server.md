@@ -4,7 +4,7 @@
 
 ## 关键流程
 
-1. **加载配置**：先读环境变量 `IRIS_CONFIG`，未设置时默认使用 `config/config.yaml`，调用 `config.Load(path)`。失败直接 `log.Fatalf` 退出。
+1. **加载配置**：先读环境变量 `IRIS_CONFIG`，未设置时默认使用 `config/config.yaml`，调用 `config.Load(path)`。失败直接 `log.Fatalf` 退出。紧接着调用 `cfg.Validate()`：release 模式下校验口令/密钥非默认非空、JWT 密钥长度 ≥ 32，失败即 `log.Fatalf("insecure config: …")` 拒绝启动（fail-closed，闭合「拷贝模板未改口令即上线」的攻击链，详见 [`config.Validate`](../config/config.md)）。校验在 logger 构造前，故仍走标准库 `log` 输出到 stderr。
 2. **构造结构化日志**：`logger.New(cfg.Logger)` 初始化 zap 日志器，失败直接 `log.Fatalf`；成功后 `defer lg.Sync()`。此后所有启动期日志（listening / shutting down / exited）统一走 `lg.Info`，不再用标准库 `log`。详见 [`internal/pkg/logger`](../internal/pkg/logger.md)。
 3. **设置 Gin 模式**：`gin.SetMode(cfg.Server.Mode)`，可取 `debug | release | test`。
 4. **打开数据库并迁移**：`entdao.Open(cfg.Database)` 打开 SQLite（纯 Go 驱动，无需 CGO），`defer dbClient.Close()`；再按 `cfg.Database.AutoMigrate` 调 `entdao.Migrate` 建表。失败直接 `log.Fatalf`。详见 [`entdao/db.md`](../internal/dao/entdao/db.md)。

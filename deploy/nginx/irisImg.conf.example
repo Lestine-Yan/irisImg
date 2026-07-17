@@ -1,0 +1,70 @@
+# irisImg Nginx 示例配置 -- HTTPS，443 端口（与其他站点按子域名 SNI 分流）
+#
+# 适用场景：服务器 443 上已有其他站点（如主站），irisImg 用独立子域名（如 img.example.com）
+# 共享 443，靠 SNI（TLS 握手时的 server_name）分流，互不冲突，访问时无需带端口。
+#
+# 部署步骤：
+#   1. 拷到 /etc/nginx/conf.d/irisImg.conf（或宝塔对应站点配置）
+#   2. 全局替换 your-domain.com 为你的子域名（如 img.example.com）
+#   3. 申请该子域名的证书：certbot --nginx -d your-domain.com，或宝塔申请
+#   4. 确认 DNS：该子域名 A 记录指向本服务器
+#   5. nginx -t 测试 && systemctl reload nginx
+#
+# 前置：release 包解压到 /opt/irisImg，后端已由 systemd / start.sh 启动在 127.0.0.1:8080。
+# 原理：nginx 对同端口(443)不同 server_name 的 server block 按 SNI 分流，各站点用各自证书，
+#       互不干扰。80 端口不在此配置内（由主站或宝塔处理 HTTP->HTTPS 跳转）。
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name your-domain.com;
+
+    ssl_certificate     /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    # 安全响应头(HSTS 强制后续访问走 HTTPS、缓解首访降级;nosniff 防 MIME 嗅探;X-Frame-Options 防点击劫持)。
+    # 注意 nginx add_header 继承规则:location 内一旦出现 add_header,server 级不再继承,
+    # 故下方 /imgs/ 块(自带 Cache-Control)需重申这些安全头。
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # 前端 SPA 静态根
+    root /opt/irisImg/web;
+    index index.html;
+    client_max_body_size 25m;
+
+    # 用 HTTP 访问 443 时（443 是 ssl 端口）跳转 HTTPS
+    error_page 497 https://$host$request_uri;
+
+    # SPA 路由刷新兜底
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # 后端 API 反代：保留 /api 前缀转发到 8080
+    # /api/v1/ping -> http://127.0.0.1:8080/api/v1/ping
+    location /api/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;   # 后端 https_only 据此校验
+        proxy_read_timeout 60s;
+    }
+
+    # 图片静态服务：直接 serve 落盘目录（路径须与 config.yaml storage.root_dir 一致）
+    location /imgs/ {
+        alias /opt/irisImg/data/imgs/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        # 本 location 已有 add_header,server 级安全头不再继承,需重申
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    }
+}

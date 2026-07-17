@@ -30,6 +30,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("load config failed: %v", err)
 	}
+	// 生产模式(release)下强制校验安全配置,拒绝以默认/空口令或弱 JWT 密钥启动(fail-closed)。
+	// debug/test 放过,保持开发开箱即跑。校验在 logger 构造前,故仍走标准 log 输出到 stderr。
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("insecure config: %v", err)
+	}
 
 	// 2. 构造结构化日志（zap），其后所有启动日志走 logger
 	lg, err := logger.New(cfg.Logger)
