@@ -118,6 +118,8 @@ sudo systemctl restart irisImg   # nohup 方式则 bash scripts/stop.sh && bash 
 | 启动失败 | `journalctl -u irisImg -n 100` 或看 `data/server.log` |
 | systemctl 反复重启 / failed | 多半漏了步骤 2：确认 `config/config.yaml` 已从 `.example` 复制并改密码/密钥（release 模式默认值会被启动校验拒绝）；`systemctl reset-failed irisImg && systemctl restart irisImg` |
 | 图片 404 | 确认 Nginx `/imgs/` alias 路径与 `storage.root_dir` 一致 |
+| 图片 403 | 落盘文件权限/属主：新版已 0644；旧版本 0600 历史文件需 `find /opt/irisImg/data/imgs -type f -exec chmod 644 {} \;` 批量补权限；确认 Nginx worker（`www`）可遍历目录（0755） |
+| 图片 src 形如 `/img.example.com/imgs/...` | `public_base_url` 配了无协议裸域名；改为 `https://img.example.com` 或留空，并升级到带「自动补协议」的版本 |
 | 密钥接口 403 | HTTPS 模式下 `https_only=true` 需 Nginx 透传 `X-Forwarded-Proto` |
 | 上传 413 | 调大 Nginx `client_max_body_size`（> `max_upload_size_mb`） |
 | SPA 刷新 404 | Nginx `location /` 需 `try_files $uri $uri/ /index.html` |

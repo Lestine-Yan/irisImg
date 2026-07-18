@@ -38,7 +38,7 @@ apikey:
 # Nginx 的 location /imgs/ alias 必须指向同一个 data/imgs 目录。
 storage:
   root_dir: "data/imgs"
-  public_base_url: ""          # 空 -> 返回 /imgs/<rel>，前端/Nginx 同域代理
+  public_base_url: ""          # 示例https://example.com/imgs; 空 -> 返回 /imgs/<rel> 同域代理；非空须带 https:// 协议（裸域名会自动补 https://），结尾不带斜杠
   max_upload_size_mb: 20       # Nginx client_max_body_size 需略大于此值（如 25m）
   allowed_mime_types:
     - "image/png"

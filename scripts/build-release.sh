@@ -53,9 +53,12 @@ cd "$ROOT_DIR"
 cp deploy/config.yaml.example "$PKG/config/config.yaml.example"
 cp deploy/nginx/irisImg.conf.example "$PKG/nginx/"
 cp deploy/nginx/irisImg.http.conf.example "$PKG/nginx/"
-cp deploy/scripts/start.sh "$PKG/scripts/"
-cp deploy/scripts/stop.sh "$PKG/scripts/"
-cp deploy/scripts/irisImg.service "$PKG/scripts/"
+# 随包脚本必须 LF 行尾:Windows 开发机 git autocrlf=true 会让 working tree 的 .sh/.service
+# 变成 CRLF,Linux 上 `#!/usr/bin/env bash\r` 会报 "/usr/bin/env: 'bash\r': No such file or directory"。
+# 源文件已由 .gitattributes 钉为 LF,此处拷贝时再剥一次 CR 兜底,防意外污染。
+for f in start.sh stop.sh irisImg.service; do
+  sed 's/\r$//' "deploy/scripts/$f" > "$PKG/scripts/$f"
+done
 cp deploy/README.md "$PKG/README.md"
 touch "$PKG/data/.gitkeep"
 

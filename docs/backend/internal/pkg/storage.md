@@ -36,6 +36,7 @@ type Saver struct {
 
 - 校验 `root_dir` 非空，`os.MkdirAll` 出存储根目录（提前暴露权限/路径问题）。
 - `public_base_url` 允许结尾带或不带 `/`，统一去掉尾斜杠后内部存储，拼接时由 `PublicURL` 补。
+- **裸域名容错**：`public_base_url` 非空且不含 `://`（如 `img.example.com/imgs`）时自动补 `https://` 前缀，避免前端把无协议值当相对路径解析（拼成 `/img.example.com/imgs/...`）。已带 `http://`/`https://` 的原样保留。
 
 ### `RelPath(hash, ext string, t time.Time) string`
 
@@ -46,12 +47,13 @@ type Saver struct {
 - 写到 `<root>/<YYYY>/<MM>/<hash>.<ext>`。
 - 目标文件已存在 → 直接复用、不报错（**幂等**，作为 service 秒传判断之外的二次保险）。
 - 否则先写到**同目录临时文件**，再 `os.Rename` 原子可见；中途失败会清理临时文件。
+- **落盘权限 0644**：`os.CreateTemp` 以 0600 创建临时文件、`os.Rename` 只改名不改权限，故 Rename 后显式 `os.Chmod(abs, 0o644)`，保证生产环境 Nginx（`www` 用户，作为 other）能跨用户读取，否则会 403。秒传兜底分支（Rename 失败但文件已存在）也幂等 Chmod 一次，纠正旧版本落盘的 0600 历史文件。
 - 返回的相对路径**始终使用正斜杠**，方便直接交给 `PublicURL`。
 
 ### `(s *Saver) PublicURL(rel string) string`
 
 - `publicBaseURL == ""` → `/imgs/<rel>`（前端 / Nginx 同域反代）。
-- 非空 → `<base>/<rel>`（独立图片域名场景）。
+- 非空 → `<base>/<rel>`（独立图片域名场景）。`base` 已由 `NewSaver` 规范化为带协议（裸域名补 `https://`），故此处产出的总是浏览器可直接加载的绝对地址或同域相对地址。
 
 ### `(s *Saver) Delete(rel string) error`
 

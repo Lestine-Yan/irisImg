@@ -33,6 +33,11 @@ type Saver struct {
 // 相对 URL 前缀。Nginx 反代本地图片目录时挂在该路径下，配置侧无需另外配。
 const relURLPrefix = "/imgs"
 
+// fileMode 是落盘图片文件的权限：0644（属主可读写，group/other 只读）。
+// os.CreateTemp 创建的临时文件默认 0600，而 os.Rename 只改名不改权限，故最终落盘文件仍是 0600；
+// 生产环境 nginx(www) 作为 other 无法读取会直接 403。这里显式 Chmod 为 0644 保证 web server 跨用户可读。
+const fileMode os.FileMode = 0o644
+
 // NewSaver 基于配置构造 Saver，并提前 MkdirAll 出 rootDir 以便快速暴露权限问题。
 func NewSaver(cfg config.StorageConfig) (*Saver, error) {
 	root := strings.TrimSpace(cfg.RootDir)
@@ -45,6 +50,12 @@ func NewSaver(cfg config.StorageConfig) (*Saver, error) {
 
 	// public_base_url 允许尾部带或不带斜杠，统一去掉，拼接时由我们补。
 	base := strings.TrimRight(strings.TrimSpace(cfg.PublicBaseURL), "/")
+	// 容错裸域名：非空且无协议前缀时自动补 https://。
+	// 否则前端会把无协议的值当相对路径解析（如 "img.example.com/imgs" -> "/img.example.com/imgs/..."），
+	// 导致图片 src 错乱。已带 http:// / https:// 的原样保留。
+	if base != "" && !strings.Contains(base, "://") {
+		base = "https://" + base
+	}
 
 	return &Saver{rootDir: root, publicBaseURL: base}, nil
 }
@@ -104,9 +115,17 @@ func (s *Saver) Save(content []byte, hash, ext string, t time.Time) (string, err
 		// Rename 在 Windows 下偶发目标已存在时失败：兜底再 Stat 一次，
 		// 命中说明已被并发上传写过，按秒传处理。
 		if info, statErr := os.Stat(abs); statErr == nil && !info.IsDir() {
+			// 旧版本落盘为 0600，此处幂等纠正为 0644，避免历史文件被 nginx 跨用户读取时 403。
+			_ = os.Chmod(abs, fileMode)
 			return rel, nil
 		}
 		return "", fmt.Errorf("重命名落盘文件失败: %w", err)
+	}
+
+	// os.CreateTemp 以 0600 创建临时文件，os.Rename 只改名不改权限，故最终落盘文件仍是 0600。
+	// 生产环境 nginx(www) 作为 other 无法读取会 403，这里显式改为 0644 保证 web server 跨用户可读。
+	if err := os.Chmod(abs, fileMode); err != nil {
+		return "", fmt.Errorf("设置文件权限失败: %w", err)
 	}
 
 	return rel, nil

@@ -38,7 +38,7 @@
 storage:
   root_dir: "data/imgs"             # 落盘根目录；相对路径相对进程 cwd，生产建议改绝对路径
   public_base_url: ""               # 空 → 返回 /imgs/<rel>，前端/Nginx 同域反代
-                                    # 非空 → 例如 "https://img.example.com"（结尾不带 /）
+                                    # 非空 → 例如 "https://img.example.com"（须带协议，裸域名会自动补 https://；结尾不带 /）
   max_upload_size_mb: 20            # 单次上传字节上限（MiB），<=0 回退 20
   allowed_mime_types:               # 真实 MIME 白名单（后端嗅探，不信任客户端 Content-Type）
     - "image/png"
@@ -160,7 +160,8 @@ client           api.ImageAPI             service.ImageService           dao.Ima
 | 413 `CodePayloadTooLarge` | 文件大于 `max_upload_size_mb` |
 | 400 + "不支持的图片类型" | 内容嗅探结果不在 `allowed_mime_types`，伪造 Content-Type 无效 |
 | 上传成功但 `width=0,height=0` | 是 webp/avif 等标准库未注册解码器的格式；不影响存储与 URL |
-| 上传成功但 URL 拼接异常 | 检查 `public_base_url` 是否带了尾斜杠（应当不带） |
+| 上传成功但 URL 拼接异常 | `public_base_url` 不应带尾斜杠；裸域名（无 `https://`）会被自动补 `https://`，留空则走 `/imgs/<rel>` 同域反代。若前端 src 形如 `/img.example.com/imgs/...`，说明 `public_base_url` 配了无协议裸域名且未升级到带补协议的版本 |
+| 直接访问 `/imgs/<rel>` 返回 403 | 落盘文件权限/属主问题：新版已 `chmod 0644`；旧版本落盘为 0600，Nginx worker（如 `www`）作为 other 无法读取。历史文件需 `find <root_dir> -type f -exec chmod 644 {} \;` 批量补权限，并确认目录 0755 可被 Nginx worker 遍历 |
 
 ## 7. 不在本次范围
 

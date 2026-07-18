@@ -22,7 +22,7 @@
 把后端返回的图片 URL 解析成浏览器可加载的完整地址：
 
 - 后端 `storage.public_base_url` 为空时，`url` 形如 `/imgs/2026/07/<hash>.png`（相对路径）。前端 SPA 跑在另一端口（如 :3000），需拼上后端 origin（从 `runtimeConfig.public.apiBase` 去掉 `/api/v1` 推导）。
-- `url` 已是 `http(s)://` 绝对地址时原样返回。
+- `url` 已是 `http(s)://` 绝对地址时原样返回。后端 `NewSaver` 会对裸域名 `public_base_url` 自动补 `https://`，故非空配置产出的 `url` 总是带协议的绝对地址，能命中本分支原样返回；若后端意外返回无协议的裸域名，本函数会把它误当相对路径拼成 `/img.example.com/...`，故配置务必带协议或留空。
 
 ### `formatBytes(n)` / `formatDate(s)`
 

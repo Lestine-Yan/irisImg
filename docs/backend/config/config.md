@@ -34,7 +34,7 @@ Config
 | `apikey.rate_limit_per_minute` | int | `100` | 单密钥默认限流阈值（次/分钟）；`<=0` 回退 100。密钥自身 `rate_limit` 为 0 时沿用此值 |
 | `apikey.https_only` | bool | `false` | 为 true 时密钥管理等敏感接口要求 HTTPS（后端通过 `X-Forwarded-Proto` 二次校验 Nginx 反代）；本地开发置 false |
 | `storage.root_dir` | string | `data/imgs` | 图片落盘根目录（相对路径相对进程工作目录，部署建议改为绝对路径）。启动时 `MkdirAll` |
-| `storage.public_base_url` | string | `""` | 对外访问 URL 前缀。空 -> 返回 `/imgs/<rel>`（前端/Nginx 同域反代）；非空（如 `https://img.example.com`，结尾不带斜杠）-> 返回绝对地址 |
+| `storage.public_base_url` | string | `""` | 对外访问 URL 前缀。空 -> 返回 `/imgs/<rel>`（前端/Nginx 同域反代）；非空（如 `https://img.example.com`，结尾不带斜杠）-> 返回绝对地址。**裸域名（无 `http(s)://`）会被 `NewSaver` 自动补 `https://`**，但建议显式带协议或留空，避免依赖隐式行为 |
 | `storage.max_upload_size_mb` | int | `20` | 单次上传字节上限（MiB）；`<=0` 回退 20 |
 | `storage.allowed_mime_types` | []string | `image/png, image/jpeg, image/gif, image/webp` | 真实 MIME 白名单。后端用 `http.DetectContentType` 嗅探，不信任客户端 `Content-Type` |
 | `logger.level` | string | `info` | 日志级别 (`debug | info | warn | error`) |
@@ -107,7 +107,7 @@ apikey:
 # root_dir 相对路径相对于后端进程工作目录，默认 data/imgs；
 # 部署到服务器时一般改成绝对路径，并交给 Nginx 在同样的路径上做静态反代。
 # public_base_url 为空时返回的 URL 是相对路径（前端/Nginx 同域代理即可）；
-# 部署独立图片域名时填 https://img.example.com 这类绝对前缀，结尾不要带斜杠。
+# 部署独立图片域名时填 https://img.example.com 这类绝对前缀（须带协议，裸域名会自动补 https://），结尾不要带斜杠。
 # max_upload_size_mb 限制单次上传字节数；allowed_mime_types 是真实 MIME 白名单
 # （后端用 http.DetectContentType 嗅探，不信任客户端 Content-Type）。
 storage:
