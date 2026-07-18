@@ -1,0 +1,7 @@
+# irisImg 在 Windows 开发、Linux 部署。本机 git core.autocrlf=true 会让 checkout 出来的
+# .sh / .service 变成 CRLF，Linux 上执行 `#!/usr/bin/env bash\r` 会报
+# "/usr/bin/env: 'bash\r': No such file or directory"。故强制这些会被 Linux 直接执行的
+# 脚本 / systemd 单元文件在 checkout 时保持 LF 行尾。scripts/build-release.sh 另在打包时
+# 兜底剥 CR，双保险。
+*.sh text eol=lf
+*.service text eol=lf

@@ -36,7 +36,7 @@ apikey:
 # root_dir 相对路径相对于后端进程工作目录，默认 data/imgs；
 # 部署到服务器时一般改成绝对路径，并交给 Nginx 在同样的路径上做静态反代。
 # public_base_url 为空时返回的 URL 是相对路径（前端/Nginx 同域代理即可）；
-# 部署独立图片域名时填 https://img.example.com 这类绝对前缀，结尾不要带斜杠。
+# 部署独立图片域名时填 https://img.example.com 这类绝对前缀（须带协议，裸域名会自动补 https://），结尾不要带斜杠。
 # max_upload_size_mb 限制单次上传字节数；allowed_mime_types 是真实 MIME 白名单
 # （后端用 http.DetectContentType 嗅探，不信任客户端 Content-Type）。
 storage:

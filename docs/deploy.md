@@ -51,10 +51,22 @@ irisImg/
 
 手动构建的等价规避：在 PowerShell / cmd 里执行（不做路径转换），或 `MSYS_NO_PATHCONV=1 NUXT_PUBLIC_API_BASE=/api/v1 pnpm generate`。
 
+### 随包脚本 CRLF 行尾坑
+
+Windows 开发机 `git core.autocrlf=true` 会让 checkout 出来的 `.sh` / `.service` 变成 CRLF 行尾。若直接打包到 Linux，`#!/usr/bin/env bash\r` 里的 `\r` 被当作命令名的一部分，执行报 `/usr/bin/env: 'bash\r': No such file or directory`；`systemd` 加载 `.service` 也可能因 CRLF 解析异常。
+
+防护（`scripts/build-release.sh` 已内置，三层）：
+
+1. 仓库根 `.gitattributes` 强制 `*.sh` / `*.service` 在 checkout 时保持 `eol=lf`，不受 `autocrlf` 影响。
+2. `build-release.sh` 拷贝 `deploy/scripts/{start,stop}.sh` 与 `irisImg.service` 进包时用 `sed 's/\r$//'` 剥 CR，兜底防源文件意外被污染。
+3. 打包时 `tar --mode='0755'` 统一强制执行位（脚本与二进制都覆盖）。
+
+手动排查：`file deploy/scripts/*.sh` 若报 `with CRLF line terminators` 即中招；`sed -i 's/\r$//' <file>` 修复。
+
 ## Nginx 反代约定
 
 - `location /api/`：`proxy_pass http://127.0.0.1:8080;`（**无尾斜杠**，保留 `/api` 前缀），透传 `X-Forwarded-Proto` 供后端 `apikey.https_only` 校验。
-- `location /imgs/`：`alias <root>/data/imgs/;`，路径须与 `storage.root_dir` 一致。
+- `location /imgs/`：`alias <root>/data/imgs/;`，路径须与 `storage.root_dir` 一致。落盘文件权限须为 0644（新版 `storage.Saver` 已自动 `chmod`），目录 0755，且 Nginx worker 用户（如 `www`）需对 `<root>/data/imgs/` 及其子目录有可遍历位；旧版本落盘为 0600，升级后历史文件需 `find <root>/data/imgs -type f -exec chmod 644 {} \;` 批量补权限，否则跨用户读取 403。
 - `location /`：`try_files $uri $uri/ /index.html;` 兜底 SPA 路由刷新。
 - `client_max_body_size` 需大于 `storage.max_upload_size_mb`（默认 20MB，Nginx 示例取 25m）。
 
@@ -65,6 +77,7 @@ irisImg/
 - `server.mode: release`
 - `auth.username` / `auth.password` / `auth.jwt.secret` 必改
 - `apikey.https_only: true`（需 HTTPS 反代透传 `X-Forwarded-Proto`）
-- `storage.root_dir` 与 Nginx `/imgs/` alias 指向同一物理目录
+- `storage.root_dir` 与 Nginx `/imgs/` alias 指向同一物理目录，落盘文件 0644、目录 0755 保证 Nginx 跨用户可读
+- `storage.public_base_url` 留空（同域 `/imgs/` 反代，最简）或填带协议的绝对前缀（如 `https://img.example.com`）；裸域名会被自动补 `https://`，但不建议依赖
 
 部署清单与排错见随 release 包分发的 `deploy/README.md`。

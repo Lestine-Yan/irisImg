@@ -3,6 +3,7 @@ package storage
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -98,6 +99,9 @@ func TestSaver_PublicURL(t *testing.T) {
 		{"absolute base", "https://img.example.com", "2026/06/abc.png", "https://img.example.com/2026/06/abc.png"},
 		{"trim trailing slash", "https://img.example.com/", "2026/06/abc.png", "https://img.example.com/2026/06/abc.png"},
 		{"leading slash on rel", "https://img.example.com", "/2026/06/abc.png", "https://img.example.com/2026/06/abc.png"},
+		{"bare domain gets https", "img.example.com", "2026/06/abc.png", "https://img.example.com/2026/06/abc.png"},
+		{"bare domain with path gets https", "img.example.com/imgs", "2026/06/abc.png", "https://img.example.com/imgs/2026/06/abc.png"},
+		{"http scheme preserved", "http://img.example.com", "2026/06/abc.png", "http://img.example.com/2026/06/abc.png"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -113,5 +117,65 @@ func TestNewSaver_EmptyRootDir(t *testing.T) {
 	_, err := NewSaver(config.StorageConfig{RootDir: ""})
 	if err == nil || !strings.Contains(err.Error(), "root_dir") {
 		t.Fatalf("expected root_dir error, got %v", err)
+	}
+}
+
+// TestNewSaver_NormalizesBaseURL 验证裸域名 public_base_url 会被自动补 https://，
+// 已带 http(s):// 的原样保留，空仍为空。防止前端把无协议值当相对路径解析导致 src 错乱。
+func TestNewSaver_NormalizesBaseURL(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string // 期望的内部 base；空表示走相对路径 /imgs
+	}{
+		{"empty stays empty", "", ""},
+		{"bare domain gets https", "img.example.com", "https://img.example.com"},
+		{"bare domain with path", "img.example.com/imgs", "https://img.example.com/imgs"},
+		{"trailing slash trimmed then normalized", "img.example.com/", "https://img.example.com"},
+		{"https preserved", "https://img.example.com", "https://img.example.com"},
+		{"http preserved", "http://img.example.com", "http://img.example.com"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s, err := NewSaver(config.StorageConfig{RootDir: filepath.Join(t.TempDir(), "imgs"), PublicBaseURL: c.in})
+			if err != nil {
+				t.Fatalf("new saver: %v", err)
+			}
+			// 用 PublicURL 间接验证内部 publicBaseURL：空 -> "/imgs/x"，非空 -> "<base>/x"。
+			got := s.PublicURL("x")
+			want := c.want + "/x"
+			if c.want == "" {
+				want = "/imgs/x"
+			}
+			if got != want {
+				t.Fatalf("PublicURL(x) = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+// TestSaver_Save_FileMode 验证落盘文件权限为 0644（属主 rw、group/other r）。
+// os.CreateTemp 默认 0600，若不显式 Chmod，生产环境 nginx(www) 跨用户读取会 403。
+func TestSaver_Save_FileMode(t *testing.T) {
+	// Windows 不支持 Unix 权限位，os.Stat 对可读写文件恒返回 0666，无法验证 0644。
+	// 生产为 Linux，os.Chmod(0644) 在那里才真正生效，故本用例仅在非 Windows 上断言。
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix 权限位在 Windows 上无意义，跳过；生产 Linux 上 os.Chmod 0644 生效")
+	}
+	s := newSaver(t, "")
+	rel, err := s.Save([]byte("hello"), "abc", "png", fixed)
+	if err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	if rel != "2026/06/abc.png" {
+		t.Fatalf("rel = %q", rel)
+	}
+	abs := filepath.Join(s.RootDir(), "2026", "06", "abc.png")
+	info, err := os.Stat(abs)
+	if err != nil {
+		t.Fatalf("stat written file: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o644 {
+		t.Fatalf("file mode = %o, want 0644 (nginx 跨用户可读)", got)
 	}
 }
