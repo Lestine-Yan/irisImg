@@ -42,6 +42,8 @@ Config
 | `logger.output` | string | `stdout` | 输出目标 (`stdout | stderr | <文件路径>`) |
 | `logger.time_format` | string | `iso8601` | 时间字段格式 (`iso8601 | rfc3339 | epoch`) |
 
+> 上表默认值（除 `database.dsn` / `storage.root_dir` 等 fail-fast 字段与 `auth` 安全字段外）由 `ApplyDefaults` 在 `Load` 阶段集中补齐，消费方不再各自兜底。机制与边界见下文 [`ApplyDefaults`](#applydefaults)。
+
 > `database` 由 [`internal/dao/entdao`](../internal/dao/entdao/db.md) 消费。DSN 默认带 `busy_timeout` / `journal_mode(WAL)` / `foreign_keys(on)` 三个 pragma；其中 `foreign_keys` 是 Ent 自动迁移的前置要求（缺省时代码会自动补上）。`data/` 下的数据库文件不要提交仓库。
 
 > `apikey` 段由 [`router`](../internal/router/router.md) 消费：`rate_limit_per_minute` 注入 [`ratelimit.Store`](../internal/pkg/ratelimit.md)，`https_only` 注入 [`middleware.HTTPSOnly`](../internal/middleware/https.md)。特性级说明见 [`APIKEY.md`](../APIKEY.md)。
@@ -55,8 +57,35 @@ Config
 ### `Load(path string) (*Config, error)`
 
 - 读文件、`yaml.Unmarshal`，任一步出错都用 `fmt.Errorf("…: %w", err)` 包装后返回。
-- 解析成功后**同时**把指针赋给包级变量 `Global`，方便不便走依赖注入的小工具（如 `api/ping.go`）直接读取 `app.name / app.version`。
+- 解析成功后调用 `ApplyDefaults()` 补齐缺省字段（单一事实源），再把指针赋给包级变量 `Global`，方便不便走依赖注入的小工具（如 `api/ping.go`）直接读取 `app.name / app.version`。
 - 业务代码请优先通过参数接收配置，`Global` 仅作便捷出口。
+
+### `ApplyDefaults()`
+
+把缺失（零值）的配置项补齐为合理默认值，建立「缺省默认」的单一事实源。由 `Load` 在 `yaml.Unmarshal` 后调用；导出是为了供测试与未来从 env/flag 加载配置的路径复用。
+
+**兜底范围**（零值时填默认）：
+
+| 字段 | 默认 |
+| --- | --- |
+| `server.host` / `server.port` / `server.mode` | `0.0.0.0` / `8080` / `debug` |
+| `app.name` / `app.version` | `irisImg` / `0.1.0` |
+| `database.driver` | `sqlite` |
+| `auth.jwt.issuer` / `auth.jwt.expire_hours` | `irisImg` / `24` |
+| `apikey.rate_limit_per_minute` | `100` |
+| `storage.max_upload_size_mb` | `20` |
+| `storage.allowed_mime_types` | `[png, jpeg, gif, webp]` |
+| `logger.level` / `logger.encoding` / `logger.output` / `logger.time_format` | `info` / `json` / `stdout` / `iso8601` |
+
+**刻意不兜底**：
+
+- **fail-fast 字段** `database.dsn` / `storage.root_dir`：空值时由 [`entdao.Open`](../internal/dao/entdao/db.md) / [`storage.NewSaver`](../internal/pkg/storage.md) 返回 error、`main.go` `log.Fatalf` 拒绝启动。错配会把数据/图片写到错误位置，比启动失败更难诊断，故强制显式配置而非静默填默认。
+- **安全字段** `auth.username` / `auth.password` / `auth.jwt.secret`：绝不兜底默认值，否则会绕过 `Validate` 的 fail-closed（release 模式拒绝默认/空口令与弱密钥启动）。
+- **bool 字段** `database.auto_migrate` / `apikey.https_only`：零值无法区分「缺失」与「显式 false」，兜底会覆盖用户意图。`auto_migrate` 依赖 `config.yaml` 模板带 `true`。
+
+> `storage.allowed_mime_types` 用 `== nil` 判断而非 `len == 0`，区分「缺失/null」（补默认白名单，修复旧配置缺该键时上传被全拒的静默 bug）与「显式空列表」（保留空，尊重用户「禁止所有上传」的意图）。
+
+与 `Validate` 的关系：`Load -> ApplyDefaults ->`（`main` 调）`Validate`，二者职责互补不重叠。
 
 ### `Validate() error`
 

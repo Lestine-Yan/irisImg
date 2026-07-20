@@ -117,6 +117,10 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
+	// 补齐缺省字段的合理默认值（单一事实源），再对外暴露。
+	// 不碰 fail-fast 字段（DSN/RootDir）与安全字段（口令/密钥），详见 ApplyDefaults。
+	cfg.ApplyDefaults()
+
 	Global = cfg
 	return cfg, nil
 }
@@ -146,4 +150,91 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("auth.jwt.secret 长度 %d < 32,不满足生产安全要求", len(c.Auth.JWT.Secret))
 	}
 	return nil
+}
+
+// defaultAllowedMimeTypes 是 storage.allowed_mime_types 缺省时的默认白名单，
+// 与 config.yaml 模板保持一致。集中在此作为单一事实源，避免消费方各自兜底导致默认值漂移。
+var defaultAllowedMimeTypes = []string{
+	"image/png",
+	"image/jpeg",
+	"image/gif",
+	"image/webp",
+}
+
+// ApplyDefaults 把缺失（零值）的配置项补齐为合理默认值，建立「缺省默认」的单一事实源。
+//
+// 设计边界——以下字段刻意不兜底：
+//   - fail-fast 字段（database.dsn / storage.root_dir）：空值时由 entdao.Open / NewSaver
+//     返回 error、main.go log.Fatalf 拒绝启动。错配会把数据/图片写到错误位置，比启动
+//     失败更难诊断，故强制显式配置而非静默填默认。
+//   - 安全字段（auth.username / auth.password / auth.jwt.secret）：绝不兜底默认值，否则
+//     会绕过 Validate 的 fail-closed（release 模式拒绝默认/空口令与弱密钥启动）。
+//   - bool 字段（database.auto_migrate / apikey.https_only）：零值无法区分「缺失」与
+//     「显式 false」，兜底会覆盖用户意图。auto_migrate 依赖 config.yaml 模板带 true。
+//
+// AllowedMimeTypes 用 == nil 判断而非 len==0：区分「缺失/null」（补默认白名单）与
+// 「显式空列表」（保留空，尊重用户「禁止所有上传」的意图）。
+//
+// 由 Load 在 yaml.Unmarshal 后调用；导出是为了供测试与未来从 env/flag 加载配置的路径复用。
+// 与 Validate 的关系：Load -> ApplyDefaults ->（main 调）Validate，二者职责互补不重叠。
+func (c *Config) ApplyDefaults() {
+	// Server
+	if c.Server.Host == "" {
+		c.Server.Host = "0.0.0.0"
+	}
+	if c.Server.Port <= 0 {
+		c.Server.Port = 8080
+	}
+	if c.Server.Mode == "" {
+		c.Server.Mode = "debug"
+	}
+
+	// App
+	if c.App.Name == "" {
+		c.App.Name = "irisImg"
+	}
+	if c.App.Version == "" {
+		c.App.Version = "0.1.0"
+	}
+
+	// Database（DSN / AutoMigrate 不兜底，见方法注释）
+	if c.Database.Driver == "" {
+		c.Database.Driver = "sqlite"
+	}
+
+	// Auth（Username / Password / Secret 不兜底，见方法注释）
+	if c.Auth.JWT.Issuer == "" {
+		c.Auth.JWT.Issuer = "irisImg"
+	}
+	if c.Auth.JWT.ExpireHours <= 0 {
+		c.Auth.JWT.ExpireHours = 24
+	}
+
+	// APIKey（HTTPSOnly 是 bool，零值 false 即合法默认，不兜底）
+	if c.APIKey.RateLimitPerMinute <= 0 {
+		c.APIKey.RateLimitPerMinute = 100
+	}
+
+	// Storage（RootDir fail-fast 不兜底；PublicBaseURL 空串是合法语义不兜底）
+	if c.Storage.MaxUploadSizeMB <= 0 {
+		c.Storage.MaxUploadSizeMB = 20
+	}
+	if c.Storage.AllowedMimeTypes == nil {
+		c.Storage.AllowedMimeTypes = defaultAllowedMimeTypes
+	}
+
+	// Logger：与 internal/pkg/logger 的 parseLevel / openWriteSyncer / timeEncoder
+	// 兜底逻辑保持一致，此处集中后那些构造期兜底降级为防御性二次校验。
+	if c.Logger.Level == "" {
+		c.Logger.Level = "info"
+	}
+	if c.Logger.Encoding != "console" {
+		c.Logger.Encoding = "json"
+	}
+	if c.Logger.Output == "" {
+		c.Logger.Output = "stdout"
+	}
+	if c.Logger.TimeFormat != "epoch" && c.Logger.TimeFormat != "rfc3339" {
+		c.Logger.TimeFormat = "iso8601"
+	}
 }

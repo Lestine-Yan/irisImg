@@ -24,7 +24,7 @@ type SystemService struct {
 
 ### `Config() model.SystemConfigResponse`
 
-返回当前系统配置的只读视图，完成 `config.Config -> model.SystemConfigResponse` 的字段映射。关键处理：
+返回当前系统配置的只读视图，完成 `config.Config -> model.SystemConfigResponse` 的纯字段映射。关键处理：
 
 1. **dsn 剥离**：`database.path` 由 `cfg.Database.DSN` 经 `strings.IndexByte(dbPath, '?')` 找到首个 `?`，截取其前的部分得到纯文件路径。例如 `data/irisImg.db?_pragma=busy_timeout(5000)` -> `data/irisImg.db`。若 DSN 不含 `?` 则原样返回，使前端展示纯文件路径而非带 pragma 的连接串。
 
@@ -35,30 +35,11 @@ type SystemService struct {
     }
     ```
 
-2. **nil 兜底**：`cfg.Storage.AllowedMimeTypes` 为 `nil` 时返回 `[]string{}`，避免 JSON 序列化为 `null`（前端拿到 `null` 而非 `[]` 会增加判空负担）。
+2. **字段直传**：`Server`（`Host` / `Port`）、`APIKey`（`RateLimitPerMinute` / `HTTPSOnly`）、`Storage`（`RootDir` / `PublicBaseURL` / `MaxUploadSizeMB` / `AllowedMimeTypes`）与 `Database.Driver` 从 config 透传。本方法**不做任何默认值兜底**--缺省默认（`RateLimitPerMinute` / `MaxUploadSizeMB` / `AllowedMimeTypes` 等）由 [`config.ApplyDefaults`](../../config/config.md#applydefaults) 在 `Load` 阶段统一补齐，此处直接透传补齐后的值，保证前端展示与实际生效阈值一致。
 
-    ```go
-    mimes := cfg.Storage.AllowedMimeTypes
-    if mimes == nil {
-        mimes = []string{}
-    }
-    ```
+3. **脱敏**：`config.Auth` 段（含 `password` 与 `jwt.secret`）**不参与映射**，响应体中不出现这些机密。
 
-3. **默认值兜底**：`cfg.APIKey.RateLimitPerMinute <= 0` 时回退 `100`（与 [`ratelimit`](../pkg/ratelimit.md) 包 `NewStore` 的默认一致），`cfg.Storage.MaxUploadSizeMB <= 0` 时回退 `20`（与 [`image.go`](image.md) 的 `ImageService` 默认一致）。0 / 负数表示未配置，若原样透传会让前端展示误导性的 `0`；回退后展示的是实际生效阈值而非 0。
-
-    ```go
-    rateLimit := cfg.APIKey.RateLimitPerMinute
-    if rateLimit <= 0 {
-        rateLimit = 100 // 与 ratelimit.NewStore 的默认一致
-    }
-    maxUpload := cfg.Storage.MaxUploadSizeMB
-    if maxUpload <= 0 {
-        maxUpload = 20 // 与 ImageService 的默认一致
-    }
-    ```
-
-4. **字段直传**：`Server`（`Host` / `Port`）、`APIKey`（兜底后的 `RateLimitPerMinute` / `HTTPSOnly`）、`Storage`（`RootDir` / `PublicBaseURL` / 兜底后的 `MaxUploadSizeMB` / 处理后的 `AllowedMimeTypes`）与 `Database.Driver` 从 config 透传；其中 `RateLimitPerMinute` 与 `MaxUploadSizeMB` 透传的是上一步兜底后的值，而非 config 原值。
-5. **脱敏**：`config.Auth` 段（含 `password` 与 `jwt.secret`）**不参与映射**，响应体中不出现这些机密。
+> 旧的 `RateLimitPerMinute <= 0 -> 100`、`MaxUploadSizeMB <= 0 -> 20`、`AllowedMimeTypes == nil -> []` 三段兜底已上移至 `config.ApplyDefaults`，避免默认值散落多处导致展示与生效不一致。
 
 由于是纯内存映射、无 IO，本方法不返回 error。
 
@@ -75,11 +56,11 @@ router ──(NewSystemService)──────────►│
 
 ## 测试
 
-`system_test.go` 以表驱动测试覆盖 `Config()` 的关键字段映射与兜底逻辑：
+`system_test.go` 以表驱动测试覆盖 `Config()` 的纯字段映射：
 
-- `TestSystemService_Config`：端到端验证 `config -> DTO` 映射--host/port 透传、dsn 剥离 `?` 得纯路径、`0` 值回退生效默认（限速 `100` / 上传 `20` MiB）、`nil` `AllowedMimeTypes` 兜底为非 nil 空切片（避免 JSON `null`）。
+- `TestSystemService_Config`：端到端验证 `config -> DTO` 映射--host/port 透传、dsn 剥离 `?` 得纯路径、`cfg.ApplyDefaults()` 兜底后的字段（限速 `100` / 上传 `20` MiB / 默认 MIME 白名单）被原样直传。本用例先调 `ApplyDefaults` 模拟 `Load` 阶段，验证 system.go 不再自身兜底。
 - `TestSystemService_ConfigDSNStripping`：表驱动覆盖 dsn 剥离 `?` 的四条边界--无 `?` / `?` 在中部 / `?` 在首位 / 空 dsn。
-- `TestSystemService_ConfigExplicitValues`：显式非零值（限速 `30` / 上传 `5` MiB / 非空 MIME 列表 / `HTTPSOnly=true`）不被默认覆盖。
+- `TestSystemService_ConfigExplicitValues`：显式非零值（限速 `30` / 上传 `5` MiB / 非空 MIME 列表 / `HTTPSOnly=true`）经 `ApplyDefaults` 不被覆盖，原样直传。
 
 ## 修改建议
 
