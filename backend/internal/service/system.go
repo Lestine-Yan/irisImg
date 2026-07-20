@@ -22,29 +22,17 @@ func NewSystemService(cfg *config.Config) *SystemService {
 
 // Config 返回当前系统配置的只读视图。
 //
+// 纯字段映射 + dsn 脱敏，不做任何默认值兜底--缺省默认由 config.ApplyDefaults
+// 在 Load 阶段统一补齐（RateLimitPerMinute / MaxUploadSizeMB / AllowedMimeTypes 等），
+// 此处直接透传补齐后的值，保证前端展示与实际生效阈值一致。
 // database.path 由 database.dsn 剥离首个 ? 之后的查询参数得到，
 // 使前端展示纯文件路径而非带 pragma 的连接串。
-// AllowedMimeTypes 为空时返回空切片而非 nil，避免 JSON 序列化为 null。
 // auth 段（含密码与 jwt secret）刻意不暴露。
 func (s *SystemService) Config() model.SystemConfigResponse {
 	cfg := s.cfg
 	dbPath := cfg.Database.DSN
 	if i := strings.IndexByte(dbPath, '?'); i >= 0 {
 		dbPath = dbPath[:i]
-	}
-	mimes := cfg.Storage.AllowedMimeTypes
-	if mimes == nil {
-		mimes = []string{}
-	}
-	// 0 / 负数表示未配置：回退到与 ImageService / ratelimit 一致的生效默认值，
-	// 使前端展示的是实际生效阈值，而非误导性的 0。
-	rateLimit := cfg.APIKey.RateLimitPerMinute
-	if rateLimit <= 0 {
-		rateLimit = 100 // 与 ratelimit.NewStore 的默认一致
-	}
-	maxUpload := cfg.Storage.MaxUploadSizeMB
-	if maxUpload <= 0 {
-		maxUpload = 20 // 与 ImageService 的默认一致
 	}
 	return model.SystemConfigResponse{
 		Server: model.ServerConfigView{
@@ -56,14 +44,14 @@ func (s *SystemService) Config() model.SystemConfigResponse {
 			Path:   dbPath,
 		},
 		APIKey: model.APIKeyConfigView{
-			RateLimitPerMinute: rateLimit,
+			RateLimitPerMinute: cfg.APIKey.RateLimitPerMinute,
 			HTTPSOnly:          cfg.APIKey.HTTPSOnly,
 		},
 		Storage: model.StorageConfigView{
 			RootDir:          cfg.Storage.RootDir,
 			PublicBaseURL:    cfg.Storage.PublicBaseURL,
-			MaxUploadSizeMB:  maxUpload,
-			AllowedMimeTypes: mimes,
+			MaxUploadSizeMB:  cfg.Storage.MaxUploadSizeMB,
+			AllowedMimeTypes: cfg.Storage.AllowedMimeTypes,
 		},
 	}
 }
