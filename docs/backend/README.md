@@ -56,7 +56,8 @@ backend/                                  docs/backend/
 │   │   ├── storage/storage.go               ├── storage.md
 │   │   └── logger/logger.go                 └── logger.md
 │   ├── router/                           └── internal/router/
-│   │   └── router.go                        └── router.md
+│   │   ├── router.go                        ├── router.md
+│   │   └── static.go                        └── static.md
 │   └── service/                          └── internal/service/
 │       ├── auth.go                          ├── auth.md
 │       ├── apikey.go                        ├── apikey.md

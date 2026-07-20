@@ -36,7 +36,14 @@ func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, log
 
 	// 静态图片服务：开发期由后端直接 serve 落盘目录，前端可加载 /imgs/<rel> 缩略图与大图。
 	// 生产建议由 Nginx 反代 /imgs/（见 docs/backend/IMAGE.md），此处兜底，不影响 Nginx 优先拦截。
-	r.Static("/imgs", cfg.Storage.RootDir)
+	//
+	// 带「图片扩展名白名单」前置过滤（serveImages）：仅放行 .png/.jpg/.jpeg/.gif/.webp 等，
+	// 拒绝 .yaml/.db/.go。即便 storage.root_dir 被误配成工作目录或 backend/ 本身，未认证访客
+	// 也无法经 /imgs 下载 config.yaml / irisImg.db / 源码。.. 逃逸防护复用 http.FileServer。
+	// 详见 static.go 与 docs/backend/internal/router/static.md。
+	imgServe := serveImages(cfg.Storage.RootDir, allowedImageExtensions(cfg.Storage.AllowedMimeTypes))
+	r.GET("/imgs/*filepath", imgServe)
+	r.HEAD("/imgs/*filepath", imgServe)
 
 	// 依赖装配：config -> jwt.Manager / service -> api
 	jwtMgr := jwt.NewManager(cfg.Auth.JWT)

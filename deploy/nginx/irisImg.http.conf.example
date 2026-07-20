@@ -27,6 +27,14 @@ server {
     }
 
     location /imgs/ {
+        # 仅放行图片扩展名（与后端 serveImages 白名单对齐的纵深防御）：
+        # 即便 storage.root_dir 误配或目录混入非图片文件，也无法经 /imgs/ 下载
+        # .yaml/.db/.go 等。扩展名须与 config.yaml storage.allowed_mime_types 对齐，
+        # 新增图片类型时这里与后端 internal/router/static.go 的 imageMimeExt 都要改。
+        # if + return 是 nginx if 指令的少数 100% 安全用法。
+        if ($uri !~* \.(png|jpg|jpeg|gif|webp)$) {
+            return 404;
+        }
         alias /opt/irisImg/data/imgs/;
         expires 30d;
         add_header Cache-Control "public, immutable";

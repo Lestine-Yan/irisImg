@@ -11,7 +11,7 @@
   - `middleware.Recovery(lg, logSvc)` 捕获 panic 并经 `logSvc` 异步落库一条 panic 事件。
   - `middleware.CORS()` 兜底跨域，生产应替换为收紧策略（见 [`cors.md`](../middleware/cors.md)）。
   - `middleware.Logger(lg, logSvc)` 输出 zap 结构化访问日志，同时把访问记录交 `logSvc` 异步落库。
-- `r.Static("/imgs", cfg.Storage.RootDir)`：开发期由后端直接 serve 图片落盘目录，供前端加载 `/imgs/<rel>`；生产环境建议由 Nginx 反代 `/imgs/`（见 [`IMAGE.md`](../../IMAGE.md)），此处仅兜底。
+- `r.GET/HEAD("/imgs/*filepath", serveImages(...))`：开发期由后端直接 serve 图片落盘目录，供前端加载 `/imgs/<rel>`；生产环境建议由 Nginx 反代 `/imgs/`（见 [`IMAGE.md`](../../IMAGE.md)），此处仅兜底。**带图片扩展名白名单前置过滤**（[`serveImages`](./static.md)，由 `cfg.Storage.AllowedMimeTypes` 折算）：仅放行 `.png/.jpg/.jpeg/.gif/.webp` 等，拒绝 `.yaml/.db/.go`，即便 `root_dir` 被误配成工作目录也不会未认证暴露 config/数据库/源码；`..` 逃逸防护复用 `http.FileServer`。
 - `imageDAO` / `apiKeyDAO` / `logDAO` 由调用方基于已打开的数据库注入（见 [`dao.md`](../dao/dao.md)）。
 - `saver` 由调用方基于 `cfg.Storage` 提前构造（见 [`pkg/storage.md`](../pkg/storage.md)），启动期 `MkdirAll` 暴露路径/权限问题。
 - `lg` 是贯穿全链路的 zap 结构化日志器，供中间件、service、api 共享。
@@ -33,7 +33,8 @@
 ## 路由地图
 
 ```
-/imgs/*filepath                  静态        r.Static(cfg.Storage.RootDir)  （开发期 serve，生产由 Nginx 反代）
+/imgs/*filepath                   GET/HEAD    serveImages(cfg.Storage.RootDir, 扩展名白名单)
+                                              （开发期 serve，生产由 Nginx 反代；仅放行图片扩展名）
 
 /api/v1
 ├── GET  /ping                   公开        api.Ping

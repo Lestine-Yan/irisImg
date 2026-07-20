@@ -120,6 +120,56 @@ func TestNewSaver_EmptyRootDir(t *testing.T) {
 	}
 }
 
+// TestNewSaver_RejectsDangerousRoot 验证 NewSaver 在启动期 fail-fast 拒绝把
+// storage.root_dir 配成后端工作目录本身或其祖先（含 "." / ".."）。
+// 这类配置会让 /imgs 静态服务把 config.yaml / irisImg.db / 源码暴露给未认证访客。
+func TestNewSaver_RejectsDangerousRoot(t *testing.T) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	cases := []struct {
+		name string
+		root string
+	}{
+		{"cwd itself", cwd},
+		{"dot equals cwd", "."},
+		{"parent of cwd", ".."},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := NewSaver(config.StorageConfig{RootDir: c.root})
+			if err == nil {
+				t.Fatalf("expected dangerous root %q to be rejected", c.root)
+			}
+			if !strings.Contains(err.Error(), "工作目录") {
+				t.Fatalf("error should mention 工作目录, got %v", err)
+			}
+		})
+	}
+}
+
+// TestNewSaver_AcceptsSafeRoot 验证「cwd 之下的独立子目录」（默认 data/imgs 形态）
+// 与「cwd 之外的专用目录」均放行--这是安全且常见的部署形态，不应被 fail-fast 误伤。
+func TestNewSaver_AcceptsSafeRoot(t *testing.T) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	// cwd 之下的独立子目录：默认 config.yaml 的 data/imgs 即此形态。
+	subDir := filepath.Join(cwd, "testdata_safe_imgs")
+	t.Cleanup(func() { _ = os.RemoveAll(subDir) })
+	if _, err := NewSaver(config.StorageConfig{RootDir: subDir}); err != nil {
+		t.Fatalf("subdir-under-cwd should be accepted, got %v", err)
+	}
+
+	// cwd 之外的临时目录：生产 /var/lib/irisImg/imgs 形态。
+	external := filepath.Join(t.TempDir(), "imgs")
+	if _, err := NewSaver(config.StorageConfig{RootDir: external}); err != nil {
+		t.Fatalf("external dir should be accepted, got %v", err)
+	}
+}
+
 // TestNewSaver_NormalizesBaseURL 验证裸域名 public_base_url 会被自动补 https://，
 // 已带 http(s):// 的原样保留，空仍为空。防止前端把无协议值当相对路径解析导致 src 错乱。
 func TestNewSaver_NormalizesBaseURL(t *testing.T) {

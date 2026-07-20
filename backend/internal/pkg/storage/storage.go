@@ -44,6 +44,13 @@ func NewSaver(cfg config.StorageConfig) (*Saver, error) {
 	if root == "" {
 		return nil, errors.New("storage.root_dir 不能为空")
 	}
+	// 拒绝把存储根目录配成「会暴露进程工作目录」的危险路径：root 是 cwd 本身或其祖先
+	// （含 "." / ".." / "/" 等）时，/imgs 静态服务会把 config.yaml / irisImg.db / 源码
+	// 未认证暴露出去。即便 serveImages 有扩展名白名单兜底，这里也在启动期 fail-fast，
+	// 把用户误配扼杀在启动阶段。
+	if err := guardRootDir(root); err != nil {
+		return nil, err
+	}
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return nil, fmt.Errorf("创建存储根目录失败: %w", err)
 	}
@@ -58,6 +65,43 @@ func NewSaver(cfg config.StorageConfig) (*Saver, error) {
 	}
 
 	return &Saver{rootDir: root, publicBaseURL: base}, nil
+}
+
+// guardRootDir 拒绝 storage.root_dir 指向后端工作目录本身或其祖先的危险配置。
+//
+// 一旦 root 是 cwd 或 cwd 的祖先（如 root_dir 配成 "." / ".." / "/" / 工作目录父级），
+// /imgs 静态服务即会把工作目录下的 config.yaml / irisImg.db / 源码暴露给未认证访客。
+// serveImages 的扩展名白名单是兜底，这里在启动期 fail-fast 把误配扼杀得更早、错误更明确。
+//
+// 判定依据：filepath.Rel(absRoot, absCwd) 得到「cwd 相对 root 的路径」，
+// 不以 ".." 开头（含 "."）说明 cwd 落在 root 之内或等于 root -> root 是 cwd 本身/祖先 -> 拒绝。
+// 取不到 cwd 或无法定位时保守放行（扩展名白名单仍是兜底）。
+func guardRootDir(root string) error {
+	absRoot, err := filepath.Abs(filepath.Clean(root))
+	if err != nil {
+		return nil
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil
+	}
+	absCwd, err := filepath.Abs(filepath.Clean(cwd))
+	if err != nil {
+		return nil
+	}
+	rel, err := filepath.Rel(absRoot, absCwd)
+	if err != nil {
+		// 跨盘符等无法计算相对路径的情况，保守放行，交由扩展名白名单兜底。
+		return nil
+	}
+	sep := string(filepath.Separator)
+	outside := rel == ".." || strings.HasPrefix(rel, ".."+sep)
+	if !outside {
+		return fmt.Errorf("storage.root_dir（%s）不能是后端工作目录（%s）本身或其祖先："+
+			"/imgs 静态服务会未认证暴露工作目录下的 config.yaml / 数据库 / 源码；"+
+			"请改为工作目录之外的专用目录（如 /var/lib/irisImg/imgs）或工作目录之下的独立子目录（如 data/imgs）", absRoot, absCwd)
+	}
+	return nil
 }
 
 // RelPath 根据时间与文件名计算用于落盘的相对路径（"YYYY/MM/<hash>.<ext>"）。

@@ -30,6 +30,7 @@
 | 控制器 | `internal/api/image.go` |
 | 统一响应 | `internal/pkg/response/response.go`（`CodePayloadTooLarge` / `PayloadTooLarge`） |
 | 路由装配 | `internal/router/router.go` |
+| 静态服务 | `internal/router/static.go`（`/imgs` 扩展名白名单 handler，纵深防御） |
 | 启动入口 | `cmd/server/main.go`（启动期构造 `storage.Saver`） |
 
 ## 2. 配置
@@ -128,7 +129,7 @@ client           api.ImageAPI             service.ImageService           dao.Ima
 
 ## 5. 部署与 Nginx 反代约定
 
-- **开发期**：后端 `router` 已注册 `r.Static("/imgs", storage.root_dir)`，前端直接通过后端 origin（如 `http://localhost:8080/imgs/...`）即可加载图片，无需 Nginx。前端 `useImages.resolveImageUrl` 会把相对 URL 拼成完整地址。
+- **开发期**：后端 `router` 已注册 `/imgs/*filepath`（GET/HEAD），由 [`serveImages`](./internal/router/static.md) 服务 `storage.root_dir`，前端直接通过后端 origin（如 `http://localhost:8080/imgs/...`）即可加载图片，无需 Nginx。**带图片扩展名白名单**（由 `storage.allowed_mime_types` 折算，仅放行 `.png/.jpg/.jpeg/.gif/.webp` 等）：即便 `root_dir` 被误配成工作目录，未认证访客也无法经 `/imgs` 下载 `config.yaml` / `irisImg.db` / 源码；目录列表与 `..` 逃逸同样被挡回 404。启动期另有 [`storage.NewSaver`](./internal/pkg/storage.md) 的 `guardRootDir` 拒绝 `root_dir` 指向 cwd 本身/祖先的误配。前端 `useImages.resolveImageUrl` 会把相对 URL 拼成完整地址。
 - `storage.root_dir` 与 Nginx `location /imgs/` 暴露的物理路径**必须一致**。例如：
 
   ```yaml
@@ -139,6 +140,11 @@ client           api.ImageAPI             service.ImageService           dao.Ima
 
   ```nginx
   location /imgs/ {
+    # 仅放行图片扩展名（与后端 serveImages 白名单对齐的纵深防御）：
+    # 即便 root_dir 误配或目录混入非图片文件，也无法经 /imgs/ 下载 .yaml/.db/.go 等。
+    if ($uri !~* \.(png|jpg|jpeg|gif|webp)$) {
+      return 404;
+    }
     alias /var/lib/irisImg/imgs/;
     expires 30d;
     add_header Cache-Control "public, immutable";
@@ -147,7 +153,7 @@ client           api.ImageAPI             service.ImageService           dao.Ima
 
 - 想用独立图片域名（如 `https://img.example.com`）：把 `public_base_url` 配上（**结尾不带斜杠**），并在那个域名同样反代到 `root_dir`。
 - 备份 / 迁移时同步处理 `root_dir` 与数据库；hash 文件名让"按需补图"也很简单。
-- **Nginx 配置模板已随仓库 `deploy/nginx/` 提供**：`irisImg.conf.example`（HTTPS 生产形态，SNI 分流）与 `irisImg.http.conf.example`（HTTP 最简版），首次部署 `cp` 去后缀使用；release 包内同名 `.example`。整体部署与反代约定详见 [`deploy.md`](../deploy.md)。
+- **Nginx 配置模板已随仓库 `deploy/nginx/` 提供**：`irisImg.conf.example`（HTTPS 生产形态，SNI 分流）与 `irisImg.http.conf.example`（HTTP 最简版），首次部署 `cp` 去后缀使用；release 包内同名 `.example`。**模板的 `/imgs/` 块已内置图片扩展名白名单**（`if ($uri !~* \.(png|jpg|jpeg|gif|webp)$) return 404`），与后端 [`serveImages`](./internal/router/static.md) 形成前后端双重纵深防御；扩展 `storage.allowed_mime_types` 新增图片类型时，Nginx 正则与后端 `imageMimeExt` 都要同步。整体部署与反代约定详见 [`deploy.md`](../deploy.md)。
 
 ## 6. 常见排错
 
@@ -162,6 +168,8 @@ client           api.ImageAPI             service.ImageService           dao.Ima
 | 上传成功但 `width=0,height=0` | 是 webp/avif 等标准库未注册解码器的格式；不影响存储与 URL |
 | 上传成功但 URL 拼接异常 | `public_base_url` 不应带尾斜杠；裸域名（无 `https://`）会被自动补 `https://`，留空则走 `/imgs/<rel>` 同域反代。若前端 src 形如 `/img.example.com/imgs/...`，说明 `public_base_url` 配了无协议裸域名且未升级到带补协议的版本 |
 | 直接访问 `/imgs/<rel>` 返回 403 | 落盘文件权限/属主问题：新版已 `chmod 0644`；旧版本落盘为 0600，Nginx worker（如 `www`）作为 other 无法读取。历史文件需 `find <root_dir> -type f -exec chmod 644 {} \;` 批量补权限，并确认目录 0755 可被 Nginx worker 遍历 |
+| 直接访问 `/imgs/<rel>` 返回 404 | 末段扩展名不在白名单（如 `.yaml`/`.db`/`.go`/无扩展名/目录）。这是 [`serveImages`](./internal/router/static.md) 的纵深防御：即便 `root_dir` 误配，也只放行图片扩展名 |
+| 启动报 `storage.root_dir 不能是后端工作目录本身或其祖先` | `root_dir` 配成了 `.` / `..` / `/` / cwd 或其父级，会被 [`storage.NewSaver`](./internal/pkg/storage.md) 启动期 fail-fast 拒绝；改为 cwd 之外的专用目录或 cwd 之下的独立子目录（如 `data/imgs`） |
 
 ## 7. 不在本次范围
 
