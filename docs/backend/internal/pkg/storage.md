@@ -34,9 +34,19 @@ type Saver struct {
 
 ### `NewSaver(cfg config.StorageConfig) (*Saver, error)`
 
-- 校验 `root_dir` 非空，`os.MkdirAll` 出存储根目录（提前暴露权限/路径问题）。
+- 校验 `root_dir` 非空。
+- **启动期 fail-fast 拒绝危险 root**：调用 `guardRootDir` 拒绝把 `root_dir` 配成后端工作目录本身或其祖先（含 `.` / `..` / `/` / 工作目录父级）。这类配置会让 `/imgs` 静态服务把 `config.yaml` / `irisImg.db` / 源码暴露给未认证访客；即便 [`serveImages`](../router/static.md) 有扩展名白名单兜底，这里把误配扼杀在启动阶段、错误更明确。
+- `os.MkdirAll` 出存储根目录（提前暴露权限/路径问题）。
 - `public_base_url` 允许结尾带或不带 `/`，统一去掉尾斜杠后内部存储，拼接时由 `PublicURL` 补。
 - **裸域名容错**：`public_base_url` 非空且不含 `://`（如 `img.example.com/imgs`）时自动补 `https://` 前缀，避免前端把无协议值当相对路径解析（拼成 `/img.example.com/imgs/...`）。已带 `http://`/`https://` 的原样保留。
+
+### `guardRootDir(root string) error`
+
+判定 `root` 是否为后端工作目录（cwd）本身或其祖先：
+
+- `filepath.Rel(absRoot, absCwd)` 得到「cwd 相对 root 的路径」；不以 `..` 开头（含 `.`）说明 cwd 落在 root 之内或等于 root -> root 是 cwd 本身/祖先 -> 返回 error。
+- 取不到 cwd 或无法计算相对路径（如跨盘符）时保守放行，交由扩展名白名单兜底。
+- 安全形态均放行：cwd 之下的独立子目录（默认 `data/imgs`）、cwd 之外的专用目录（生产 `/var/lib/irisImg/imgs`）。
 
 ### `RelPath(hash, ext string, t time.Time) string`
 

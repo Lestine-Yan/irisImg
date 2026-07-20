@@ -58,6 +58,15 @@ server {
 
     # 图片静态服务：直接 serve 落盘目录（路径须与 config.yaml storage.root_dir 一致）
     location /imgs/ {
+        # 仅放行图片扩展名（与后端 serveImages 白名单对齐的纵深防御）：
+        # 即便 storage.root_dir 误配成工作目录、或目录里混入非图片文件，也无法经 /imgs/
+        # 下载 .yaml/.db/.go 等敏感文件。扩展名须与 config.yaml storage.allowed_mime_types
+        # 对齐，新增图片类型时这里与后端 internal/router/static.go 的 imageMimeExt 都要改。
+        # 用 $uri（已归一化、无 query string）避免带参数的图片请求被误杀。
+        # if + return 是 nginx if 指令的少数 100% 安全用法（见 nginx IfIsEvil）。
+        if ($uri !~* \.(png|jpg|jpeg|gif|webp)$) {
+            return 404;
+        }
         alias /opt/irisImg/data/imgs/;
         expires 30d;
         add_header Cache-Control "public, immutable";

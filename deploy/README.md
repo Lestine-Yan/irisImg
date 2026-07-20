@@ -98,7 +98,7 @@ sudo nginx -t && sudo systemctl reload nginx
 
 - 后端工作目录 = release 根目录（`/opt/irisImg`），`config/data/imgs` 均为相对路径
 - Nginx `/api/` -> 后端 `127.0.0.1:8080`（保留 /api 前缀）
-- Nginx `/imgs/` -> `/opt/irisImg/data/imgs/`（与 `storage.root_dir` 一致）
+- Nginx `/imgs/` -> `/opt/irisImg/data/imgs/`（与 `storage.root_dir` 一致）；**带图片扩展名白名单**（仅放行 `.png/.jpg/.jpeg/.gif/.webp`，与后端 `serveImages` 对齐）：即便 `root_dir` 误配或目录混入非图片文件，也无法经 `/imgs/` 下载 `.yaml/.db/.go` 等敏感文件
 
 ## 升级
 
@@ -117,7 +117,7 @@ sudo systemctl restart irisImg   # nohup 方式则 bash scripts/stop.sh && bash 
 | --- | --- |
 | 启动失败 | `journalctl -u irisImg -n 100` 或看 `data/server.log` |
 | systemctl 反复重启 / failed | 多半漏了步骤 2：确认 `config/config.yaml` 已从 `.example` 复制并改密码/密钥（release 模式默认值会被启动校验拒绝）；`systemctl reset-failed irisImg && systemctl restart irisImg` |
-| 图片 404 | 确认 Nginx `/imgs/` alias 路径与 `storage.root_dir` 一致 |
+| 图片 404 | 确认 Nginx `/imgs/` alias 路径与 `storage.root_dir` 一致；或请求的末段扩展名不在白名单（`.yaml/.db/.go`/无扩展名/目录均 404，这是 `/imgs/` 扩展名白名单的纵深防御） |
 | 图片 403 | 落盘文件权限/属主：新版已 0644；旧版本 0600 历史文件需 `find /opt/irisImg/data/imgs -type f -exec chmod 644 {} \;` 批量补权限；确认 Nginx worker（`www`）可遍历目录（0755） |
 | 图片 src 形如 `/img.example.com/imgs/...` | `public_base_url` 配了无协议裸域名；改为 `https://img.example.com` 或留空，并升级到带「自动补协议」的版本 |
 | 密钥接口 403 | HTTPS 模式下 `https_only=true` 需 Nginx 透传 `X-Forwarded-Proto` |
