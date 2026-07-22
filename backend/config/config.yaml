@@ -2,6 +2,11 @@ server:
   host: "0.0.0.0"
   port: 8080
   mode: "debug"   # debug | release | test
+  # 受信任反代网段：HTTPSOnly 仅对来自此列表的请求认 X-Forwarded-Proto，否则只认 c.Request.TLS。
+  # 同机反代默认本地回环；跨机反代追加反代所在 CIDR（如 10.0.0.0/8）。非法值启动期 fail-fast。
+  trusted_proxies:
+    - "127.0.0.1/8"
+    - "::1"
 
 app:
   name: "irisImg"
@@ -48,6 +53,12 @@ storage:
     - "image/jpeg"
     - "image/gif"
     - "image/webp"
+
+# 跨域配置。生产同域部署（apiBase 相对路径）无跨域需求，留空关闭；开发联调填 ["*"]。
+# release 模式下 Validate 拒绝 "*"，强制配确切域名或留空。
+cors:
+  allow_origins:
+    - "*"
 
 # 结构化日志（zap）配置。
 # level: debug|info|warn|error；encoding: json|console；

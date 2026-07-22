@@ -6,13 +6,14 @@
 
 ```text
 Config
-├── Server   (ServerConfig)        host / port / mode
+├── Server   (ServerConfig)        host / port / mode / trusted_proxies
 ├── App      (AppConfig)           name / version
 ├── Auth     (AuthConfig)          username / password
 │   └── JWT  (JWTConfig)           secret / issuer / expire_hours
 ├── Database (DatabaseConfig)      driver / dsn / auto_migrate
 ├── APIKey   (APIKeyConfig)        rate_limit_per_minute / https_only
 ├── Storage  (StorageConfig)       root_dir / public_base_url / max_upload_size_mb / allowed_mime_types
+├── CORS     (CORSConfig)          allow_origins
 └── Logger   (LoggerConfig)        level / encoding / output / time_format
 ```
 
@@ -21,6 +22,7 @@ Config
 | `server.host` | string | `0.0.0.0` | 监听地址 |
 | `server.port` | int | `8080` | 监听端口 |
 | `server.mode` | string | `debug` | Gin 运行模式 (`debug | release | test`) |
+| `server.trusted_proxies` | []string | `[127.0.0.1/8, ::1]` | 受信任反代 CIDR 网段；HTTPSOnly 仅对来自此列表的请求认 `X-Forwarded-Proto`，否则只认 `c.Request.TLS`。跨机反代追加反代 CIDR。空列表退化为只认 TLS。详见 [`middleware/https`](../internal/middleware/https.md) |
 | `app.name` | string | `irisImg` | 应用名（出现在 `/ping` 响应里） |
 | `app.version` | string | `0.1.0` | 版本号 |
 | `auth.username` | string | `admin` | 唯一用户名（release 模式下 `Validate` 要求非空） |
@@ -37,6 +39,7 @@ Config
 | `storage.public_base_url` | string | `""` | 对外访问 URL 前缀。空 -> 返回 `/imgs/<rel>`（前端/Nginx 同域反代）；非空（如 `https://img.example.com`，结尾不带斜杠）-> 返回绝对地址。**裸域名（无 `http(s)://`）会被 `NewSaver` 自动补 `https://`**，但建议显式带协议或留空，避免依赖隐式行为 |
 | `storage.max_upload_size_mb` | int | `20` | 单次上传字节上限（MiB）；`<=0` 回退 20 |
 | `storage.allowed_mime_types` | []string | `image/png, image/jpeg, image/gif, image/webp` | 真实 MIME 白名单。后端用 `http.DetectContentType` 嗅探，不信任客户端 `Content-Type` |
+| `cors.allow_origins` | []string | `["*"]` | 跨域来源白名单。nil 补 `["*"]`（开发）；显式空 `[]` 关闭跨域（生产同域）。release 模式 `Validate` 拒 `*`。详见 [`middleware/cors`](../internal/middleware/cors.md) |
 | `logger.level` | string | `info` | 日志级别 (`debug | info | warn | error`) |
 | `logger.encoding` | string | `json` | 输出编码 (`json | console`) |
 | `logger.output` | string | `stdout` | 输出目标 (`stdout | stderr | <文件路径>`) |
@@ -69,12 +72,14 @@ Config
 | 字段 | 默认 |
 | --- | --- |
 | `server.host` / `server.port` / `server.mode` | `0.0.0.0` / `8080` / `debug` |
+| `server.trusted_proxies` | `[127.0.0.1/8, ::1]` |
 | `app.name` / `app.version` | `irisImg` / `0.1.0` |
 | `database.driver` | `sqlite` |
 | `auth.jwt.issuer` / `auth.jwt.expire_hours` | `irisImg` / `24` |
 | `apikey.rate_limit_per_minute` | `100` |
 | `storage.max_upload_size_mb` | `20` |
 | `storage.allowed_mime_types` | `[png, jpeg, gif, webp]` |
+| `cors.allow_origins` | `["*"]` |
 | `logger.level` / `logger.encoding` / `logger.output` / `logger.time_format` | `info` / `json` / `stdout` / `iso8601` |
 
 **刻意不兜底**：
@@ -90,8 +95,9 @@ Config
 ### `Validate() error`
 
 - 仅在 `server.mode == "release"` 下强制，debug/test 放过（保持开发开箱即跑）。由 [`cmd/server/main.go`](../cmd/server/main.md) 在 logger 构造前调用，失败即 `log.Fatalf` 拒绝启动（fail-closed）。
-- 命中以下任一即返回 error：`auth.username` 为空；`auth.password` 为空或等于默认值 `admin123`；`auth.jwt.secret` 为空、等于默认占位串 `please-change-me-to-a-long-random-string`、或长度 < 32。
+- 命中以下任一即返回 error：`auth.username` 为空；`auth.password` 为空或等于默认值 `admin123`；`auth.jwt.secret` 为空、等于默认占位串 `please-change-me-to-a-long-random-string`、或长度 < 32；`cors.allow_origins` 含 `*`（强制配确切域名或留空关闭跨域）。
 - 闭合「拷贝 `config.yaml.example` 未改口令即上线」的攻击链：生产模板的默认值即取自被拒集合，故未改口令无法以 release 模式启动。用户名 `admin` 本身合法（只要密码非默认），不校验。
+- 闭合「通配 CORS 上线」攻击链：`Allow-Origin: *` 配合 `Authorization` 透传是定时炸弹（引入 cookie 鉴权即升高危），release 拒 `*` 强制生产配确切域名或留空。
 
 ## YAML 示例
 
@@ -102,6 +108,9 @@ server:
   host: "0.0.0.0"
   port: 8080
   mode: "debug"   # debug | release | test
+  trusted_proxies:   # 受信任反代网段，HTTPSOnly 仅对此列表的请求认 X-Forwarded-Proto
+    - "127.0.0.1/8"
+    - "::1"
 
 app:
   name: "irisImg"
@@ -148,6 +157,12 @@ storage:
     - "image/jpeg"
     - "image/gif"
     - "image/webp"
+
+# 跨域配置。生产同域部署无跨域需求，留空关闭；开发联调填 ["*"]。
+# release 模式下 Validate 拒绝 "*"，强制配确切域名或留空。
+cors:
+  allow_origins:
+    - "*"
 
 # 结构化日志（zap）配置。
 # level: debug|info|warn|error；encoding: json|console；

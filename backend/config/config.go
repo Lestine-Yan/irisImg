@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -15,6 +16,7 @@ type Config struct {
 	Database DatabaseConfig `yaml:"database"`
 	APIKey   APIKeyConfig   `yaml:"apikey"`
 	Storage  StorageConfig  `yaml:"storage"`
+	CORS     CORSConfig     `yaml:"cors"`
 	Logger   LoggerConfig   `yaml:"logger"`
 }
 
@@ -22,6 +24,11 @@ type ServerConfig struct {
 	Host string `yaml:"host"`
 	Port int    `yaml:"port"`
 	Mode string `yaml:"mode"`
+	// TrustedProxies 是受信任反代的 CIDR 网段列表（如 "127.0.0.1/8"、"::1"、"10.0.0.0/8"）。
+	// HTTPSOnly 仅当请求的 TCP 对端（RemoteAddr）落在此列表内时，才信任其携带的
+	// X-Forwarded-Proto 头；否则只认 c.Request.TLS。默认本地回环（同机反代），
+	// 跨机反代需追加反代所在 CIDR。启动期由 ParseCIDRList 解析、非法值 fail-fast。
+	TrustedProxies []string `yaml:"trusted_proxies"`
 }
 
 type AppConfig struct {
@@ -87,6 +94,18 @@ type StorageConfig struct {
 	AllowedMimeTypes []string `yaml:"allowed_mime_types"`
 }
 
+// CORSConfig 描述跨域中间件的允许来源。
+//
+// 生产同域部署（apiBase 为相对路径 /api/v1）无跨域需求：AllowOrigins 留空即关闭跨域
+// （不写任何 CORS 头，浏览器默认拒绝跨域读）。开发联调填 ["*"] 或确切 localhost origin。
+// release 模式下 Validate 拒绝 "*"，强制生产配确切域名或留空，闭合「通配 CORS 上线」攻击链。
+type CORSConfig struct {
+	// AllowOrigins 是允许跨域的 Origin 白名单。
+	// nil -> ApplyDefaults 兜底 ["*"]（开发开箱即用）；显式空切片 [] -> 关闭跨域（生产同域）。
+	// 用 == nil 区分「缺失」（补默认）与「显式空」（保留），与 AllowedMimeTypes 一致。
+	AllowOrigins []string `yaml:"allow_origins"`
+}
+
 // Global 是加载后的全局配置，便于其他包直接引用。
 var Global *Config
 
@@ -149,6 +168,13 @@ func (c *Config) Validate() error {
 	if len(c.Auth.JWT.Secret) < 32 {
 		return fmt.Errorf("auth.jwt.secret 长度 %d < 32,不满足生产安全要求", len(c.Auth.JWT.Secret))
 	}
+	// CORS：release 拒绝通配 "*"，强制配确切域名或留空关闭跨域（同域部署无需 CORS）。
+	// 闭合「通配 CORS 上线」攻击链：Allow-Origin:* 配合 Authorization 透传是定时炸弹。
+	for _, o := range c.CORS.AllowOrigins {
+		if o == "*" {
+			return fmt.Errorf("生产模式(release)拒绝通配 CORS(allow_origins: *)，请配置确切域名或留空关闭跨域")
+		}
+	}
 	return nil
 }
 
@@ -188,6 +214,11 @@ func (c *Config) ApplyDefaults() {
 	if c.Server.Mode == "" {
 		c.Server.Mode = "debug"
 	}
+	// TrustedProxies：nil 补本地回环（同机反代默认形态）；显式空列表保留（HTTPSOnly 退化为
+	// 只认 c.Request.TLS）。用 == nil 区分「缺失」与「显式空」，与 AllowedMimeTypes 一致。
+	if c.Server.TrustedProxies == nil {
+		c.Server.TrustedProxies = []string{"127.0.0.1/8", "::1"}
+	}
 
 	// App
 	if c.App.Name == "" {
@@ -223,6 +254,11 @@ func (c *Config) ApplyDefaults() {
 		c.Storage.AllowedMimeTypes = defaultAllowedMimeTypes
 	}
 
+	// CORS：nil 补 ["*"]（开发开箱即用）；显式空列表保留（关闭跨域，生产同域部署用）。
+	if c.CORS.AllowOrigins == nil {
+		c.CORS.AllowOrigins = []string{"*"}
+	}
+
 	// Logger：与 internal/pkg/logger 的 parseLevel / openWriteSyncer / timeEncoder
 	// 兜底逻辑保持一致，此处集中后那些构造期兜底降级为防御性二次校验。
 	if c.Logger.Level == "" {
@@ -237,4 +273,31 @@ func (c *Config) ApplyDefaults() {
 	if c.Logger.TimeFormat != "epoch" && c.Logger.TimeFormat != "rfc3339" {
 		c.Logger.TimeFormat = "iso8601"
 	}
+}
+
+// ParseCIDRList 把 CIDR 字符串列表解析成 []*net.IPNet，供 main.go 在启动期 fail-fast
+// 解析 server.trusted_proxies。任一非法返回带位置的 error；空入参返回 (nil, nil)
+// （HTTPSOnly 此时退化为只认 c.Request.TLS，仍安全）。
+func ParseCIDRList(cidrs []string) ([]*net.IPNet, error) {
+	if len(cidrs) == 0 {
+		return nil, nil
+	}
+	nets := make([]*net.IPNet, 0, len(cidrs))
+	for i, c := range cidrs {
+		_, ipNet, err := net.ParseCIDR(c)
+		if err != nil {
+			// 兼容裸 IP：如 "127.0.0.1" -> /32、"::1" -> /128，方便配置回环地址。
+			if ip := net.ParseIP(c); ip != nil {
+				mask := net.CIDRMask(32, 32)
+				if ip.To4() == nil {
+					mask = net.CIDRMask(128, 128)
+				}
+				ipNet = &net.IPNet{IP: ip, Mask: mask}
+			} else {
+				return nil, fmt.Errorf("解析 trusted_proxies[%d] %q 失败: %w", i, c, err)
+			}
+		}
+		nets = append(nets, ipNet)
+	}
+	return nets, nil
 }

@@ -37,5 +37,20 @@ if [[ -f data/irisImg.pid ]] && kill -0 "$(cat data/irisImg.pid)" 2>/dev/null; t
 fi
 
 nohup ./irisImg > data/server.log 2>&1 &
-echo $! > data/irisImg.pid
-echo "irisImg started, pid=$(cat data/irisImg.pid), log=data/server.log"
+pid=$!
+echo "$pid" > data/irisImg.pid
+
+# 启动存活探测：后端启动期 fail-closed（配置读/解析失败、release 模式默认口令/弱 JWT 密钥/
+# 通配 CORS、非法 server.trusted_proxies、DB 打不开等）会 log.Fatalf + Exit 1。nohup & 异步
+# 启动，此处轮询最多 ~2s：进程在此期间退出则回显日志尾部并 exit 1，避免误报 "started"
+# 的假成功窗口（错误原本只进 data/server.log，终端看不到）。
+for _ in $(seq 1 20); do
+  kill -0 "$pid" 2>/dev/null || {
+    echo "错误：irisImg 启动失败（进程已退出），日志末尾如下：" >&2
+    tail -n 30 data/server.log >&2
+    rm -f data/irisImg.pid
+    exit 1
+  }
+  sleep 0.1
+done
+echo "irisImg started, pid=$pid, log=data/server.log"
