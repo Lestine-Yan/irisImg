@@ -1,7 +1,9 @@
 package config
 
 import (
+	"net"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -92,6 +94,14 @@ func TestApplyDefaults(t *testing.T) {
 			t.Errorf("storage.allowed_mime_types = %v, want %v (nil 补默认白名单)",
 				c.Storage.AllowedMimeTypes, defaultAllowedMimeTypes)
 		}
+		// TrustedProxies nil 补本地回环
+		if !reflect.DeepEqual(c.Server.TrustedProxies, []string{"127.0.0.1/8", "::1"}) {
+			t.Errorf("server.trusted_proxies = %v, want [127.0.0.1/8 ::1]", c.Server.TrustedProxies)
+		}
+		// CORS.AllowOrigins nil 补 ["*"]
+		if !reflect.DeepEqual(c.CORS.AllowOrigins, []string{"*"}) {
+			t.Errorf("cors.allow_origins = %v, want [*]", c.CORS.AllowOrigins)
+		}
 		if c.Logger.Level != "info" || c.Logger.Encoding != "json" ||
 			c.Logger.Output != "stdout" || c.Logger.TimeFormat != "iso8601" {
 			t.Errorf("logger = %+v, want info/json/stdout/iso8601", c.Logger)
@@ -101,7 +111,7 @@ func TestApplyDefaults(t *testing.T) {
 	t.Run("显式非零值保留", func(t *testing.T) {
 		mimes := []string{"image/png", "image/bmp"}
 		c := &Config{
-			Server:   ServerConfig{Host: "127.0.0.1", Port: 9000, Mode: "release"},
+			Server:   ServerConfig{Host: "127.0.0.1", Port: 9000, Mode: "release", TrustedProxies: []string{"10.0.0.0/8"}},
 			App:      AppConfig{Name: "myImg", Version: "2.0.0"},
 			Database: DatabaseConfig{Driver: "sqlite", DSN: "/data/x.db", AutoMigrate: false},
 			Auth: AuthConfig{
@@ -116,6 +126,7 @@ func TestApplyDefaults(t *testing.T) {
 				MaxUploadSizeMB:  5,
 				AllowedMimeTypes: mimes,
 			},
+			CORS:   CORSConfig{AllowOrigins: []string{"https://myImg.example.com"}},
 			Logger: LoggerConfig{Level: "debug", Encoding: "console", Output: "stderr", TimeFormat: "epoch"},
 		}
 		c.ApplyDefaults()
@@ -141,6 +152,12 @@ func TestApplyDefaults(t *testing.T) {
 		if c.Storage.RootDir != "/data/imgs" || c.Storage.PublicBaseURL != "https://img.example.com" ||
 			c.Storage.MaxUploadSizeMB != 5 || !reflect.DeepEqual(c.Storage.AllowedMimeTypes, mimes) {
 			t.Errorf("storage 被覆盖: %+v", c.Storage)
+		}
+		if !reflect.DeepEqual(c.Server.TrustedProxies, []string{"10.0.0.0/8"}) {
+			t.Errorf("server.trusted_proxies 被覆盖: %v", c.Server.TrustedProxies)
+		}
+		if !reflect.DeepEqual(c.CORS.AllowOrigins, []string{"https://myImg.example.com"}) {
+			t.Errorf("cors.allow_origins 被覆盖: %v", c.CORS.AllowOrigins)
 		}
 		if c.Logger.Level != "debug" || c.Logger.Encoding != "console" ||
 			c.Logger.Output != "stderr" || c.Logger.TimeFormat != "epoch" {
@@ -179,6 +196,128 @@ func TestApplyDefaults(t *testing.T) {
 		}
 		if c.Logger.TimeFormat != "iso8601" {
 			t.Errorf("time_format = %q, want iso8601 (非法值归默认)", c.Logger.TimeFormat)
+		}
+	})
+
+	t.Run("CORS AllowOrigins nil 补默认 显式空列表保留", func(t *testing.T) {
+		// nil -> ["*"]（开发开箱即用）
+		c1 := &Config{}
+		c1.ApplyDefaults()
+		if !reflect.DeepEqual(c1.CORS.AllowOrigins, []string{"*"}) {
+			t.Errorf("nil CORS = %v, want [*]", c1.CORS.AllowOrigins)
+		}
+		// 显式空列表 -> 保留空（关闭跨域，生产同域部署用）
+		c2 := &Config{CORS: CORSConfig{AllowOrigins: []string{}}}
+		c2.ApplyDefaults()
+		if len(c2.CORS.AllowOrigins) != 0 {
+			t.Errorf("显式空 CORS = %v, want 空", c2.CORS.AllowOrigins)
+		}
+	})
+
+	t.Run("TrustedProxies nil 补默认 显式空列表保留", func(t *testing.T) {
+		// nil -> 本地回环（同机反代默认）
+		c1 := &Config{}
+		c1.ApplyDefaults()
+		if !reflect.DeepEqual(c1.Server.TrustedProxies, []string{"127.0.0.1/8", "::1"}) {
+			t.Errorf("nil TrustedProxies = %v, want [127.0.0.1/8 ::1]", c1.Server.TrustedProxies)
+		}
+		// 显式空列表 -> 保留空（HTTPSOnly 退化为只认 TLS）
+		c2 := &Config{Server: ServerConfig{TrustedProxies: []string{}}}
+		c2.ApplyDefaults()
+		if len(c2.Server.TrustedProxies) != 0 {
+			t.Errorf("显式空 TrustedProxies = %v, want 空", c2.Server.TrustedProxies)
+		}
+	})
+}
+
+// TestConfig_ValidateCORS 覆盖 release 模式拒绝通配 CORS(*)，强制配确切域名或留空关闭跨域。
+// debug/test 放过 *（开发开箱即用）。闭合「通配 CORS 上线」攻击链。
+func TestConfig_ValidateCORS(t *testing.T) {
+	strongSecret := "01234567890123456789012345678901abcdef"
+	cases := []struct {
+		name    string
+		mode    string
+		origins []string
+		wantErr bool
+	}{
+		{"release + * 拒", "release", []string{"*"}, true},
+		{"release + 确切域名 过", "release", []string{"https://img.example.com"}, false},
+		{"release + 空(关闭跨域) 过", "release", []string{}, false},
+		{"release + 多域名含* 拒", "release", []string{"https://a.com", "*"}, true},
+		{"debug + * 过(开发友好)", "debug", []string{"*"}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			cfg := &Config{
+				Server: ServerConfig{Mode: c.mode},
+				Auth: AuthConfig{
+					Username: "admin",
+					Password: "real-pass-9x",
+					JWT:      JWTConfig{Secret: strongSecret},
+				},
+				CORS: CORSConfig{AllowOrigins: c.origins},
+			}
+			err := cfg.Validate()
+			gotErr := err != nil
+			if gotErr != c.wantErr {
+				t.Fatalf("Validate() err=%v, wantErr=%v", err, c.wantErr)
+			}
+		})
+	}
+}
+
+// TestParseCIDRList 覆盖 trusted_proxies 解析：空入参返回 nil、合法 CIDR 可匹配、
+// 非法 CIDR 报错带位置（供 main.go 启动期 fail-fast）。
+func TestParseCIDRList(t *testing.T) {
+	t.Run("空入参返回nil", func(t *testing.T) {
+		got, err := ParseCIDRList(nil)
+		if err != nil || got != nil {
+			t.Errorf("got=%v err=%v, want nil,nil", got, err)
+		}
+	})
+
+	t.Run("合法CIDR可匹配", func(t *testing.T) {
+		got, err := ParseCIDRList([]string{"127.0.0.1/8", "10.0.0.0/8", "::1/128"})
+		if err != nil {
+			t.Fatalf("err=%v", err)
+		}
+		if len(got) != 3 {
+			t.Fatalf("len=%d, want 3", len(got))
+		}
+		if !got[0].Contains(net.ParseIP("127.5.5.5")) {
+			t.Error("127.0.0.1/8 应包含 127.5.5.5")
+		}
+		if got[0].Contains(net.ParseIP("8.8.8.8")) {
+			t.Error("127.0.0.1/8 不应包含 8.8.8.8")
+		}
+	})
+
+	t.Run("裸IP兼容为单主机网段", func(t *testing.T) {
+		got, err := ParseCIDRList([]string{"127.0.0.1", "::1"})
+		if err != nil {
+			t.Fatalf("err=%v", err)
+		}
+		if len(got) != 2 {
+			t.Fatalf("len=%d, want 2", len(got))
+		}
+		if !got[0].Contains(net.ParseIP("127.0.0.1")) {
+			t.Error("127.0.0.1 应匹配裸 IP 127.0.0.1")
+		}
+		if got[0].Contains(net.ParseIP("127.0.0.2")) {
+			t.Error("裸 IP 127.0.0.1 不应匹配 127.0.0.2（/32 单主机）")
+		}
+		if !got[1].Contains(net.ParseIP("::1")) {
+			t.Error("::1 应匹配裸 IP ::1")
+		}
+	})
+
+	t.Run("非法CIDR报错带位置", func(t *testing.T) {
+		_, err := ParseCIDRList([]string{"127.0.0.1/8", "not-a-cidr"})
+		if err == nil {
+			t.Fatal("want error for invalid CIDR")
+		}
+		if !strings.Contains(err.Error(), "[1]") {
+			t.Errorf("error 应含位置[1], got: %v", err)
 		}
 	})
 }

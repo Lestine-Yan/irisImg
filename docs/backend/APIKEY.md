@@ -118,7 +118,7 @@ client       middleware.APIKeyAuth      service.Authenticate      ratelimit.Stor
 ## 8. HTTPS 强制
 
 - 部署形态：Nginx 统一 HTTPS 反代，后端本地监听 HTTP。
-- [`HTTPSOnly(enabled)`](./internal/middleware/https.md) 校验 `c.Request.TLS != nil || X-Forwarded-Proto == "https"`。
+- [`HTTPSOnly(enabled, trustedProxies)`](./internal/middleware/https.md) 校验 `c.Request.TLS != nil || (来自可信反代 && X-Forwarded-Proto == "https")`：仅当 TCP 对端属于 `server.trusted_proxies` 网段时才认 `X-Forwarded-Proto`，否则只认 `c.Request.TLS`。
 - 配置 `apikey.https_only`：本地 `false`、生产 `true`。仅挂在 `/apikeys` 管理组上（在 JWT 之后）。
 
 ## 9. 与 JWT 鉴权的区别
@@ -186,5 +186,5 @@ curl -X DELETE http://localhost:8080/api/v1/apikeys/1 -H "Authorization: Bearer 
 ## 13. 安全注意事项
 
 - 明文密钥等价口令，泄露需立即吊销重建；库里只存哈希，泄露库文件不会直接暴露明文。
-- 生产务必 `https_only: true` 并让 Nginx **覆盖** `X-Forwarded-Proto`（否则该头可被伪造）。
+- 生产务必 `https_only: true`。后端仅对 `server.trusted_proxies` 网段内的请求信任 `X-Forwarded-Proto`（默认本地回环，跨机反代需追加反代 CIDR）；不可信 peer 只认 `c.Request.TLS`，伪造该头无效。仍建议 Nginx 用 `proxy_set_header X-Forwarded-Proto $scheme` 覆盖该头作纵深防御。
 - 内存限流不抗多实例与重启；对抗滥用建议叠加反代层（Nginx/网关）限流。

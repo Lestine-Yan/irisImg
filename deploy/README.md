@@ -73,6 +73,8 @@ cd /opt/irisImg && bash scripts/start.sh
 # 停止：bash scripts/stop.sh
 ```
 
+`start.sh` 启动后会轮询进程存活约 2s：若后端因配置不安全（默认口令 / 弱 JWT 密钥 / 通配 CORS / 非法 `trusted_proxies`）或 DB 打不开等 fail-closed 退出，脚本自动回显 `data/server.log` 末尾并 `exit 1`，不再误报 "started"。
+
 验证：`curl http://127.0.0.1:8080/api/v1/ping` 应返回 pong。
 
 ### 4. 配置 Nginx
@@ -115,7 +117,7 @@ sudo systemctl restart irisImg   # nohup 方式则 bash scripts/stop.sh && bash 
 
 | 现象 | 排查 |
 | --- | --- |
-| 启动失败 | `journalctl -u irisImg -n 100` 或看 `data/server.log` |
+| 启动失败 | nohup：`start.sh` 启动后探测进程存活，若启动期 fail-closed（默认口令 / 弱 JWT 密钥 / 通配 CORS / 非法 `trusted_proxies` / DB 打不开等）退出，自动回显 `data/server.log` 末尾并 `exit 1`；systemd：`journalctl -u irisImg -n 100` |
 | systemctl 反复重启 / failed | 多半漏了步骤 2：确认 `config/config.yaml` 已从 `.example` 复制并改密码/密钥（release 模式默认值会被启动校验拒绝）；`systemctl reset-failed irisImg && systemctl restart irisImg` |
 | 图片 404 | 确认 Nginx `/imgs/` alias 路径与 `storage.root_dir` 一致；或请求的末段扩展名不在白名单（`.yaml/.db/.go`/无扩展名/目录均 404，这是 `/imgs/` 扩展名白名单的纵深防御） |
 | 图片 403 | 落盘文件权限/属主：新版已 0644；旧版本 0600 历史文件需 `find /opt/irisImg/data/imgs -type f -exec chmod 644 {} \;` 批量补权限；确认 Nginx worker（`www`）可遍历目录（0755） |

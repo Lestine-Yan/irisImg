@@ -67,8 +67,16 @@ func main() {
 		log.Fatalf("init storage failed: %v", err)
 	}
 
+	// 6.1 解析受信任反代网段（server.trusted_proxies），非法 CIDR fail-fast 拒绝启动。
+	// 供 HTTPSOnly 中间件校验 RemoteAddr：仅可信 peer 才认 X-Forwarded-Proto，
+	// 否则只认 c.Request.TLS，避免后端端口误暴露公网时伪造头绕过 HTTPS 校验。
+	trustedProxies, err := config.ParseCIDRList(cfg.Server.TrustedProxies)
+	if err != nil {
+		log.Fatalf("parse trusted_proxies failed: %v", err)
+	}
+
 	// 7. 构建路由（注入 DAO / Saver / logger 依赖），取回 logSvc 供优雅关闭 flush
-	r, logSvc := router.New(cfg, imageDAO, apiKeyDAO, logDAO, saver, lg)
+	r, logSvc := router.New(cfg, imageDAO, apiKeyDAO, logDAO, saver, trustedProxies, lg)
 
 	// 8. 启动 HTTP 服务，并支持优雅关闭
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)

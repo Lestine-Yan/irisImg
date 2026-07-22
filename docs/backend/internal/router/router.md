@@ -4,12 +4,12 @@
 
 ## 函数
 
-### `New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, logDAO dao.LogDAO, saver *storage.Saver, lg *logger.Logger) (*gin.Engine, *service.LogService)`
+### `New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, logDAO dao.LogDAO, saver *storage.Saver, trustedProxies []*net.IPNet, lg *logger.Logger) (*gin.Engine, *service.LogService)`
 
 - 使用 `gin.New()` 而非 `gin.Default()`，自己挂中间件以保留控制权。中间件链按顺序为 `RequestID -> Recovery -> CORS -> Logger`：
   - `middleware.RequestID()` 最先挂载，为每个请求生成/透传 request id，后续中间件与 handler 均可取用。
   - `middleware.Recovery(lg, logSvc)` 捕获 panic 并经 `logSvc` 异步落库一条 panic 事件。
-  - `middleware.CORS()` 兜底跨域，生产应替换为收紧策略（见 [`cors.md`](../middleware/cors.md)）。
+  - `middleware.CORS(cfg.CORS.AllowOrigins)` 跨域中间件，按 [`cors.allow_origins`](../config/config.md) 白名单收紧：开发 `*`、生产留空关闭或配确切域名（release 模式 [`Validate`](../config/config.md) 拒 `*`）。见 [`cors.md`](../middleware/cors.md)。
   - `middleware.Logger(lg, logSvc)` 输出 zap 结构化访问日志，同时把访问记录交 `logSvc` 异步落库。
 - `r.GET/HEAD("/imgs/*filepath", serveImages(...))`：开发期由后端直接 serve 图片落盘目录，供前端加载 `/imgs/<rel>`；生产环境建议由 Nginx 反代 `/imgs/`（见 [`IMAGE.md`](../../IMAGE.md)），此处仅兜底。**带图片扩展名白名单前置过滤**（[`serveImages`](./static.md)，由 `cfg.Storage.AllowedMimeTypes` 折算）：仅放行 `.png/.jpg/.jpeg/.gif/.webp` 等，拒绝 `.yaml/.db/.go`，即便 `root_dir` 被误配成工作目录也不会未认证暴露 config/数据库/源码；`..` 逃逸防护复用 `http.FileServer`。
 - `imageDAO` / `apiKeyDAO` / `logDAO` 由调用方基于已打开的数据库注入（见 [`dao.md`](../dao/dao.md)）。
@@ -27,7 +27,7 @@
 - `logSvc` 同时作为 **LogRecorder** 注入到 `authAPI` / `apiKeyAPI` / `imageAPI`，使这些 handler 能在登录、密钥增删改、图片上传等业务节点发射结构化业务事件，统一由 `logSvc` 异步落库。
 - **路由注册**：所有业务接口挂在 `/api/v1` 下。
   - 公开：`GET /ping`、`POST /auth/login`
-  - 受保护（`middleware.JWTAuth(jwtMgr)`）：`GET /auth/me`、`GET /admin/images`（后台图片列表）、`POST /admin/images`（后台直传上传，`key_id` 留空），均供内容中心；其下再套 `keys := protected.Group("/apikeys", middleware.HTTPSOnly(cfg.APIKey.HTTPSOnly))` 挂密钥管理接口（**JWT + HTTPS** 双重保护），其中吊销（`POST /:id/revoke`）与删除（`DELETE /:id`）为敏感操作，handler 内部还会校验请求体携带的账号密码做二次确认；再套 `logs := protected.Group("/admin/logs", middleware.HTTPSOnly(cfg.APIKey.HTTPSOnly))` 挂日志中心接口（**JWT + HTTPS** 双重保护），其中清理（`DELETE ""`）为敏感操作，handler 内部同样校验账号密码做二次确认。`GET /system/config` 同样挂在 protected 下（**仅 JWT**，未套 HTTPSOnly），返回当前 config 的非敏感只读快照（auth 段不暴露）。`GET /admin/dashboard` 同样挂在 protected 下（**仅 JWT**，未套 HTTPSOnly），一次性返回仪表盘聚合统计（图片总量 / 存储占用 / APIkey 计数 / 日志总量 / 近 N 天上传趋势，见 [`DASHBOARD.md`](../../DASHBOARD.md)）。`/admin/images` 与对外 `/images`（API Key 鉴权）路径不同，避免同方法同路径重复注册冲突。
+  - 受保护（`middleware.JWTAuth(jwtMgr)`）：`GET /auth/me`、`GET /admin/images`（后台图片列表）、`POST /admin/images`（后台直传上传，`key_id` 留空），均供内容中心；其下再套 `keys := protected.Group("/apikeys", middleware.HTTPSOnly(cfg.APIKey.HTTPSOnly, trustedProxies))` 挂密钥管理接口（**JWT + HTTPS** 双重保护），其中吊销（`POST /:id/revoke`）与删除（`DELETE /:id`）为敏感操作，handler 内部还会校验请求体携带的账号密码做二次确认；再套 `logs := protected.Group("/admin/logs", middleware.HTTPSOnly(cfg.APIKey.HTTPSOnly, trustedProxies))` 挂日志中心接口（**JWT + HTTPS** 双重保护），其中清理（`DELETE ""`）为敏感操作，handler 内部同样校验账号密码做二次确认。`GET /system/config` 同样挂在 protected 下（**仅 JWT**，未套 HTTPSOnly），返回当前 config 的非敏感只读快照（auth 段不暴露）。`GET /admin/dashboard` 同样挂在 protected 下（**仅 JWT**，未套 HTTPSOnly），一次性返回仪表盘聚合统计（图片总量 / 存储占用 / APIkey 计数 / 日志总量 / 近 N 天上传趋势，见 [`DASHBOARD.md`](../../DASHBOARD.md)）。`/admin/images` 与对外 `/images`（API Key 鉴权）路径不同，避免同方法同路径重复注册冲突。
   - API 密钥保护（`middleware.APIKeyAuth(apiKeySvc, rateStore)`，独立于 JWT）：`images` 组。
 
 ## 路由地图

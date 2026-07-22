@@ -74,9 +74,10 @@ Windows 开发机 `git core.autocrlf=true` 会让 checkout 出来的 `.sh` / `.s
 
 ## 配置要点（生产）
 
-- `server.mode: release`
+- `server.mode: release`；`server.trusted_proxies` 默认本地回环（同机反代），跨机反代需追加反代所在 CIDR（HTTPSOnly 仅对来自此列表的请求认 `X-Forwarded-Proto`）
 - `auth.username` / `auth.password` / `auth.jwt.secret` 必改
-- `apikey.https_only: true`（需 HTTPS 反代透传 `X-Forwarded-Proto`）
+- `apikey.https_only: true`（后端据 `server.trusted_proxies` + `X-Forwarded-Proto` 校验 HTTPS；Nginx 仍建议 `proxy_set_header X-Forwarded-Proto $scheme` 覆盖该头作纵深防御）
+- `cors.allow_origins` 留空（同域部署无跨域需求，最安全）；`*` 会被 release 模式 `Validate` 拒绝启动
 - `storage.root_dir` 与 Nginx `/imgs/` alias 指向同一物理目录，落盘文件 0644、目录 0755 保证 Nginx 跨用户可读
 - `storage.public_base_url` 留空（同域 `/imgs/` 反代，最简）或填带协议的绝对前缀（如 `https://img.example.com`）；裸域名会被自动补 `https://`，但不建议依赖
 

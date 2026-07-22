@@ -4,6 +4,11 @@ server:
   host: "127.0.0.1"
   port: 8080
   mode: "release"   # 生产环境用 release，关闭 gin 调试输出 + 强制启动安全校验(见 config.Validate)
+  # 受信任反代网段：HTTPSOnly 仅对来自此列表的请求认 X-Forwarded-Proto，否则只认 c.Request.TLS。
+  # 同机反代默认本地回环；跨机反代追加反代所在 CIDR（如 10.0.0.0/8）。非法值启动期 fail-fast。
+  trusted_proxies:
+    - "127.0.0.1/8"
+    - "::1"
 
 app:
   name: "irisImg"
@@ -45,6 +50,12 @@ storage:
     - "image/jpeg"
     - "image/gif"
     - "image/webp"
+
+# 跨域配置。生产同域部署（apiBase 相对路径 /api/v1）无跨域需求，留空关闭跨域最安全。
+# 如需独立后端域名跨域访问，填确切 origin（如 ["https://img.example.com"]）。
+# ⚠️ release 模式下 Validate 拒绝 "*"：通配 CORS 配合 Authorization 透传是定时炸弹。
+cors:
+  allow_origins: []   # 生产同域：留空关闭跨域；或填确切域名白名单
 
 # 结构化日志（zap）配置。output 可改为文件路径（如 data/irisImg.log）。
 logger:

@@ -1,6 +1,8 @@
 package router
 
 import (
+	"net"
+
 	"github.com/Lestine-Yan/irisImg/backend/config"
 	"github.com/Lestine-Yan/irisImg/backend/internal/api"
 	"github.com/Lestine-Yan/irisImg/backend/internal/dao"
@@ -19,7 +21,7 @@ import (
 //
 // imageDAO / apiKeyDAO / logDAO 由调用方（main）基于已打开的数据库构造后注入；
 // saver 由调用方基于配置构造；lg 是贯穿全链路的 zap 结构化日志。
-func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, logDAO dao.LogDAO, saver *storage.Saver, lg *logger.Logger) (*gin.Engine, *service.LogService) {
+func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, logDAO dao.LogDAO, saver *storage.Saver, trustedProxies []*net.IPNet, lg *logger.Logger) (*gin.Engine, *service.LogService) {
 	r := gin.New()
 
 	// LogService 先于中间件链构造：Logger / Recovery 中间件需要它异步落库访问日志 / panic。
@@ -30,7 +32,7 @@ func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, log
 	r.Use(
 		middleware.RequestID(),
 		middleware.Recovery(lg, logSvc),
-		middleware.CORS(),
+		middleware.CORS(cfg.CORS.AllowOrigins),
 		middleware.Logger(lg, logSvc),
 	)
 
@@ -82,7 +84,7 @@ func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, log
 
 			// 密钥管理接口：受 JWT 保护 + 强制 HTTPS（生产由配置开启）。
 			// 吊销 / 删除为敏感操作，handler 内部还会校验请求体携带的账号密码做二次确认。
-			keys := protected.Group("/apikeys", middleware.HTTPSOnly(cfg.APIKey.HTTPSOnly))
+			keys := protected.Group("/apikeys", middleware.HTTPSOnly(cfg.APIKey.HTTPSOnly, trustedProxies))
 			{
 				keys.POST("", apiKeyAPI.Create)
 				keys.GET("", apiKeyAPI.List)
@@ -100,7 +102,7 @@ func New(cfg *config.Config, imageDAO dao.ImageDAO, apiKeyDAO dao.APIKeyDAO, log
 
 			// 日志中心接口：受 JWT 保护 + 强制 HTTPS（生产由配置开启）。
 			// 清理日志为敏感操作，handler 内部还会校验请求体携带的账号密码做二次确认。
-			logs := protected.Group("/admin/logs", middleware.HTTPSOnly(cfg.APIKey.HTTPSOnly))
+			logs := protected.Group("/admin/logs", middleware.HTTPSOnly(cfg.APIKey.HTTPSOnly, trustedProxies))
 			{
 				logs.GET("", logAPI.List)
 				logs.GET("/histogram", logAPI.Histogram)
