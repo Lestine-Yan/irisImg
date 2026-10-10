@@ -66,11 +66,13 @@ func (ApiKey) Fields() []ent.Field {
 	}
 }
 
-// Edges 定义关联：一个密钥可以添加多张图片。
+// Edges 定义关联：一个密钥可以添加多张图片与多个音频。
 func (ApiKey) Edges() []ent.Edge {
 	return []ent.Edge{
 		// 该密钥添加的所有图片。
 		edge.To("images", Image.Type),
+		// 该密钥添加的所有音频。
+		edge.To("audios", Audio.Type),
 	}
 }
 

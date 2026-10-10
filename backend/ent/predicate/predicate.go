@@ -12,5 +12,8 @@ type AccessLog func(*sql.Selector)
 // ApiKey is the predicate function for apikey builders.
 type ApiKey func(*sql.Selector)
 
+// Audio is the predicate function for audio builders.
+type Audio func(*sql.Selector)
+
 // Image is the predicate function for image builders.
 type Image func(*sql.Selector)

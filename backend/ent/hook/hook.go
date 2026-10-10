@@ -33,6 +33,18 @@ func (f ApiKeyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ApiKeyMutation", m)
 }
 
+// The AudioFunc type is an adapter to allow the use of ordinary
+// function as Audio mutator.
+type AudioFunc func(context.Context, *ent.AudioMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AudioFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AudioMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AudioMutation", m)
+}
+
 // The ImageFunc type is an adapter to allow the use of ordinary
 // function as Image mutator.
 type ImageFunc func(context.Context, *ent.ImageMutation) (ent.Value, error)

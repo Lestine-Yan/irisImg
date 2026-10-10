@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/Lestine-Yan/irisImg/backend/ent/apikey"
+	"github.com/Lestine-Yan/irisImg/backend/ent/audio"
 	"github.com/Lestine-Yan/irisImg/backend/ent/image"
 	"github.com/Lestine-Yan/irisImg/backend/ent/predicate"
 )
@@ -155,6 +156,21 @@ func (_u *ApiKeyUpdate) AddImages(v ...*Image) *ApiKeyUpdate {
 	return _u.AddImageIDs(ids...)
 }
 
+// AddAudioIDs adds the "audios" edge to the Audio entity by IDs.
+func (_u *ApiKeyUpdate) AddAudioIDs(ids ...int) *ApiKeyUpdate {
+	_u.mutation.AddAudioIDs(ids...)
+	return _u
+}
+
+// AddAudios adds the "audios" edges to the Audio entity.
+func (_u *ApiKeyUpdate) AddAudios(v ...*Audio) *ApiKeyUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAudioIDs(ids...)
+}
+
 // Mutation returns the ApiKeyMutation object of the builder.
 func (_u *ApiKeyUpdate) Mutation() *ApiKeyMutation {
 	return _u.mutation
@@ -179,6 +195,27 @@ func (_u *ApiKeyUpdate) RemoveImages(v ...*Image) *ApiKeyUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveImageIDs(ids...)
+}
+
+// ClearAudios clears all "audios" edges to the Audio entity.
+func (_u *ApiKeyUpdate) ClearAudios() *ApiKeyUpdate {
+	_u.mutation.ClearAudios()
+	return _u
+}
+
+// RemoveAudioIDs removes the "audios" edge to Audio entities by IDs.
+func (_u *ApiKeyUpdate) RemoveAudioIDs(ids ...int) *ApiKeyUpdate {
+	_u.mutation.RemoveAudioIDs(ids...)
+	return _u
+}
+
+// RemoveAudios removes "audios" edges to Audio entities.
+func (_u *ApiKeyUpdate) RemoveAudios(v ...*Audio) *ApiKeyUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAudioIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -315,6 +352,51 @@ func (_u *ApiKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(image.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AudiosCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   apikey.AudiosTable,
+			Columns: []string{apikey.AudiosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(audio.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAudiosIDs(); len(nodes) > 0 && !_u.mutation.AudiosCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   apikey.AudiosTable,
+			Columns: []string{apikey.AudiosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(audio.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AudiosIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   apikey.AudiosTable,
+			Columns: []string{apikey.AudiosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(audio.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -468,6 +550,21 @@ func (_u *ApiKeyUpdateOne) AddImages(v ...*Image) *ApiKeyUpdateOne {
 	return _u.AddImageIDs(ids...)
 }
 
+// AddAudioIDs adds the "audios" edge to the Audio entity by IDs.
+func (_u *ApiKeyUpdateOne) AddAudioIDs(ids ...int) *ApiKeyUpdateOne {
+	_u.mutation.AddAudioIDs(ids...)
+	return _u
+}
+
+// AddAudios adds the "audios" edges to the Audio entity.
+func (_u *ApiKeyUpdateOne) AddAudios(v ...*Audio) *ApiKeyUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAudioIDs(ids...)
+}
+
 // Mutation returns the ApiKeyMutation object of the builder.
 func (_u *ApiKeyUpdateOne) Mutation() *ApiKeyMutation {
 	return _u.mutation
@@ -492,6 +589,27 @@ func (_u *ApiKeyUpdateOne) RemoveImages(v ...*Image) *ApiKeyUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveImageIDs(ids...)
+}
+
+// ClearAudios clears all "audios" edges to the Audio entity.
+func (_u *ApiKeyUpdateOne) ClearAudios() *ApiKeyUpdateOne {
+	_u.mutation.ClearAudios()
+	return _u
+}
+
+// RemoveAudioIDs removes the "audios" edge to Audio entities by IDs.
+func (_u *ApiKeyUpdateOne) RemoveAudioIDs(ids ...int) *ApiKeyUpdateOne {
+	_u.mutation.RemoveAudioIDs(ids...)
+	return _u
+}
+
+// RemoveAudios removes "audios" edges to Audio entities.
+func (_u *ApiKeyUpdateOne) RemoveAudios(v ...*Audio) *ApiKeyUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAudioIDs(ids...)
 }
 
 // Where appends a list predicates to the ApiKeyUpdate builder.
@@ -658,6 +776,51 @@ func (_u *ApiKeyUpdateOne) sqlSave(ctx context.Context) (_node *ApiKey, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(image.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AudiosCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   apikey.AudiosTable,
+			Columns: []string{apikey.AudiosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(audio.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAudiosIDs(); len(nodes) > 0 && !_u.mutation.AudiosCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   apikey.AudiosTable,
+			Columns: []string{apikey.AudiosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(audio.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AudiosIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   apikey.AudiosTable,
+			Columns: []string{apikey.AudiosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(audio.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

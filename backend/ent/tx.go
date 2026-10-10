@@ -16,6 +16,8 @@ type Tx struct {
 	AccessLog *AccessLogClient
 	// ApiKey is the client for interacting with the ApiKey builders.
 	ApiKey *ApiKeyClient
+	// Audio is the client for interacting with the Audio builders.
+	Audio *AudioClient
 	// Image is the client for interacting with the Image builders.
 	Image *ImageClient
 
@@ -151,6 +153,7 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.AccessLog = NewAccessLogClient(tx.config)
 	tx.ApiKey = NewApiKeyClient(tx.config)
+	tx.Audio = NewAudioClient(tx.config)
 	tx.Image = NewImageClient(tx.config)
 }
 

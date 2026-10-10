@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/Lestine-Yan/irisImg/backend/ent/accesslog"
 	"github.com/Lestine-Yan/irisImg/backend/ent/apikey"
+	"github.com/Lestine-Yan/irisImg/backend/ent/audio"
 	"github.com/Lestine-Yan/irisImg/backend/ent/image"
 )
 
@@ -77,6 +78,7 @@ func checkColumn(t, c string) error {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			accesslog.Table: accesslog.ValidColumn,
 			apikey.Table:    apikey.ValidColumn,
+			audio.Table:     audio.ValidColumn,
 			image.Table:     image.ValidColumn,
 		})
 	})

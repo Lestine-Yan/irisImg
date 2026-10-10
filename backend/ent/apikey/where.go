@@ -468,6 +468,29 @@ func HasImagesWith(preds ...predicate.Image) predicate.ApiKey {
 	})
 }
 
+// HasAudios applies the HasEdge predicate on the "audios" edge.
+func HasAudios() predicate.ApiKey {
+	return predicate.ApiKey(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, AudiosTable, AudiosColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAudiosWith applies the HasEdge predicate on the "audios" edge with a given conditions (other predicates).
+func HasAudiosWith(preds ...predicate.Audio) predicate.ApiKey {
+	return predicate.ApiKey(func(s *sql.Selector) {
+		step := newAudiosStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.ApiKey) predicate.ApiKey {
 	return predicate.ApiKey(sql.AndPredicates(predicates...))

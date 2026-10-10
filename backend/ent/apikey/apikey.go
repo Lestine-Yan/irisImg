@@ -33,6 +33,8 @@ const (
 	FieldCreatedAt = "created_at"
 	// EdgeImages holds the string denoting the images edge name in mutations.
 	EdgeImages = "images"
+	// EdgeAudios holds the string denoting the audios edge name in mutations.
+	EdgeAudios = "audios"
 	// Table holds the table name of the apikey in the database.
 	Table = "api_keys"
 	// ImagesTable is the table that holds the images relation/edge.
@@ -42,6 +44,13 @@ const (
 	ImagesInverseTable = "images"
 	// ImagesColumn is the table column denoting the images relation/edge.
 	ImagesColumn = "key_id"
+	// AudiosTable is the table that holds the audios relation/edge.
+	AudiosTable = "audios"
+	// AudiosInverseTable is the table name for the Audio entity.
+	// It exists in this package in order to avoid circular dependency with the "audio" package.
+	AudiosInverseTable = "audios"
+	// AudiosColumn is the table column denoting the audios relation/edge.
+	AudiosColumn = "key_id"
 )
 
 // Columns holds all SQL columns for apikey fields.
@@ -168,10 +177,31 @@ func ByImages(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newImagesStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByAudiosCount orders the results by audios count.
+func ByAudiosCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newAudiosStep(), opts...)
+	}
+}
+
+// ByAudios orders the results by audios terms.
+func ByAudios(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAudiosStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newImagesStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ImagesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, ImagesTable, ImagesColumn),
+	)
+}
+func newAudiosStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AudiosInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, AudiosTable, AudiosColumn),
 	)
 }

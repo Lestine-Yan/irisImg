@@ -17,6 +17,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/Lestine-Yan/irisImg/backend/ent/accesslog"
 	"github.com/Lestine-Yan/irisImg/backend/ent/apikey"
+	"github.com/Lestine-Yan/irisImg/backend/ent/audio"
 	"github.com/Lestine-Yan/irisImg/backend/ent/image"
 )
 
@@ -29,6 +30,8 @@ type Client struct {
 	AccessLog *AccessLogClient
 	// ApiKey is the client for interacting with the ApiKey builders.
 	ApiKey *ApiKeyClient
+	// Audio is the client for interacting with the Audio builders.
+	Audio *AudioClient
 	// Image is the client for interacting with the Image builders.
 	Image *ImageClient
 }
@@ -44,6 +47,7 @@ func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.AccessLog = NewAccessLogClient(c.config)
 	c.ApiKey = NewApiKeyClient(c.config)
+	c.Audio = NewAudioClient(c.config)
 	c.Image = NewImageClient(c.config)
 }
 
@@ -139,6 +143,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		config:    cfg,
 		AccessLog: NewAccessLogClient(cfg),
 		ApiKey:    NewApiKeyClient(cfg),
+		Audio:     NewAudioClient(cfg),
 		Image:     NewImageClient(cfg),
 	}, nil
 }
@@ -161,6 +166,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		config:    cfg,
 		AccessLog: NewAccessLogClient(cfg),
 		ApiKey:    NewApiKeyClient(cfg),
+		Audio:     NewAudioClient(cfg),
 		Image:     NewImageClient(cfg),
 	}, nil
 }
@@ -192,6 +198,7 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	c.AccessLog.Use(hooks...)
 	c.ApiKey.Use(hooks...)
+	c.Audio.Use(hooks...)
 	c.Image.Use(hooks...)
 }
 
@@ -200,6 +207,7 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	c.AccessLog.Intercept(interceptors...)
 	c.ApiKey.Intercept(interceptors...)
+	c.Audio.Intercept(interceptors...)
 	c.Image.Intercept(interceptors...)
 }
 
@@ -210,6 +218,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AccessLog.mutate(ctx, m)
 	case *ApiKeyMutation:
 		return c.ApiKey.mutate(ctx, m)
+	case *AudioMutation:
+		return c.Audio.mutate(ctx, m)
 	case *ImageMutation:
 		return c.Image.mutate(ctx, m)
 	default:
@@ -474,6 +484,22 @@ func (c *ApiKeyClient) QueryImages(_m *ApiKey) *ImageQuery {
 	return query
 }
 
+// QueryAudios queries the audios edge of a ApiKey.
+func (c *ApiKeyClient) QueryAudios(_m *ApiKey) *AudioQuery {
+	query := (&AudioClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(apikey.Table, apikey.FieldID, id),
+			sqlgraph.To(audio.Table, audio.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, apikey.AudiosTable, apikey.AudiosColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *ApiKeyClient) Hooks() []Hook {
 	return c.hooks.ApiKey
@@ -496,6 +522,155 @@ func (c *ApiKeyClient) mutate(ctx context.Context, m *ApiKeyMutation) (Value, er
 		return (&ApiKeyDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown ApiKey mutation op: %q", m.Op())
+	}
+}
+
+// AudioClient is a client for the Audio schema.
+type AudioClient struct {
+	config
+}
+
+// NewAudioClient returns a client for the Audio from the given config.
+func NewAudioClient(c config) *AudioClient {
+	return &AudioClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `audio.Hooks(f(g(h())))`.
+func (c *AudioClient) Use(hooks ...Hook) {
+	c.hooks.Audio = append(c.hooks.Audio, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `audio.Intercept(f(g(h())))`.
+func (c *AudioClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Audio = append(c.inters.Audio, interceptors...)
+}
+
+// Create returns a builder for creating a Audio entity.
+func (c *AudioClient) Create() *AudioCreate {
+	mutation := newAudioMutation(c.config, OpCreate)
+	return &AudioCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Audio entities.
+func (c *AudioClient) CreateBulk(builders ...*AudioCreate) *AudioCreateBulk {
+	return &AudioCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AudioClient) MapCreateBulk(slice any, setFunc func(*AudioCreate, int)) *AudioCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AudioCreateBulk{err: fmt.Errorf("calling to AudioClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AudioCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AudioCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Audio.
+func (c *AudioClient) Update() *AudioUpdate {
+	mutation := newAudioMutation(c.config, OpUpdate)
+	return &AudioUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AudioClient) UpdateOne(_m *Audio) *AudioUpdateOne {
+	mutation := newAudioMutation(c.config, OpUpdateOne, withAudio(_m))
+	return &AudioUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AudioClient) UpdateOneID(id int) *AudioUpdateOne {
+	mutation := newAudioMutation(c.config, OpUpdateOne, withAudioID(id))
+	return &AudioUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Audio.
+func (c *AudioClient) Delete() *AudioDelete {
+	mutation := newAudioMutation(c.config, OpDelete)
+	return &AudioDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AudioClient) DeleteOne(_m *Audio) *AudioDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AudioClient) DeleteOneID(id int) *AudioDeleteOne {
+	builder := c.Delete().Where(audio.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AudioDeleteOne{builder}
+}
+
+// Query returns a query builder for Audio.
+func (c *AudioClient) Query() *AudioQuery {
+	return &AudioQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAudio},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Audio entity by its id.
+func (c *AudioClient) Get(ctx context.Context, id int) (*Audio, error) {
+	return c.Query().Where(audio.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AudioClient) GetX(ctx context.Context, id int) *Audio {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryKey queries the key edge of a Audio.
+func (c *AudioClient) QueryKey(_m *Audio) *ApiKeyQuery {
+	query := (&ApiKeyClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(audio.Table, audio.FieldID, id),
+			sqlgraph.To(apikey.Table, apikey.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, audio.KeyTable, audio.KeyColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *AudioClient) Hooks() []Hook {
+	return c.hooks.Audio
+}
+
+// Interceptors returns the client interceptors.
+func (c *AudioClient) Interceptors() []Interceptor {
+	return c.inters.Audio
+}
+
+func (c *AudioClient) mutate(ctx context.Context, m *AudioMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AudioCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AudioUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AudioUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AudioDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Audio mutation op: %q", m.Op())
 	}
 }
 
@@ -651,9 +826,9 @@ func (c *ImageClient) mutate(ctx context.Context, m *ImageMutation) (Value, erro
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		AccessLog, ApiKey, Image []ent.Hook
+		AccessLog, ApiKey, Audio, Image []ent.Hook
 	}
 	inters struct {
-		AccessLog, ApiKey, Image []ent.Interceptor
+		AccessLog, ApiKey, Audio, Image []ent.Interceptor
 	}
 )
