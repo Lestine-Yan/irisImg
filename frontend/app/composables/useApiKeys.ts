@@ -42,11 +42,12 @@ export interface DestructiveAPIKeyRequest {
   password: string
 }
 
-/** 删除密钥响应，附带被级联删除的图片数量。 */
+/** 删除密钥响应，附带被级联删除的图片与音频数量。 */
 export interface DeleteAPIKeyResult {
   id: number
   deleted: boolean
   images_removed: number
+  audios_removed: number
 }
 
 export interface CreateAPIKeyParams {

@@ -28,8 +28,8 @@
             <span v-if="form.mode === 'purge'" class="h-2 w-2 rounded-full bg-rose-500"></span>
           </span>
           <span>
-            <span class="block text-sm font-medium text-gray-900">删除并清理图片</span>
-            <span class="mt-0.5 block text-xs text-gray-500">永久删除密钥，并删除由该密钥上传的全部图片（文件与记录）。</span>
+            <span class="block text-sm font-medium text-gray-900">删除并清理内容</span>
+            <span class="mt-0.5 block text-xs text-gray-500">永久删除密钥，并删除由该密钥上传的全部图片与音频（文件与记录）。</span>
           </span>
         </button>
       </div>
@@ -45,7 +45,7 @@
         <svg class="mt-0.5 h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v3.75m-9-.75a9 9 0 1118 0 9 9 0 01-18 0zm9 3.75h.008v.008H12v-.008z" />
         </svg>
-        <p>此操作不可撤销：密钥与关联图片将被永久删除。</p>
+        <p>此操作不可撤销：密钥与关联图片、音频将被永久删除。</p>
       </div>
 
       <!-- 账号密码二次确认 -->

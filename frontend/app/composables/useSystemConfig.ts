@@ -17,6 +17,10 @@ export interface SystemConfig {
     public_base_url: string
     max_upload_size_mb: number
     allowed_mime_types: string[]
+    audio_root_dir: string
+    audio_public_base_url: string
+    audio_max_upload_size_mb: number
+    audio_allowed_mime_types: string[]
   }
 }
 
@@ -31,10 +35,13 @@ export function useSystemConfig() {
 
   async function load(): Promise<SystemConfig> {
     const cfg = await get<SystemConfig>('/system/config')
-    // 防御性兜底：后端已保证 allowed_mime_types 非 null，此处再保险，
-    // 避免后端契约变动时模板里 .length / v-for 抛空指针。
+    // 防御性兜底：后端已保证 allowed_mime_types / audio_allowed_mime_types 非 null，
+    // 此处再保险，避免后端契约变动时模板里 .length / v-for 抛空指针。
     if (cfg.storage.allowed_mime_types == null) {
       cfg.storage.allowed_mime_types = []
+    }
+    if (cfg.storage.audio_allowed_mime_types == null) {
+      cfg.storage.audio_allowed_mime_types = []
     }
     return cfg
   }
