@@ -229,3 +229,91 @@ func TestSaver_Save_FileMode(t *testing.T) {
 		t.Fatalf("file mode = %o, want 0644 (nginx 跨用户可读)", got)
 	}
 }
+
+// newAudioSaver 是音频 Saver 的测试辅助（与 newSaver 平行，走 NewAudioSaver / audio_* 配置键）。
+func newAudioSaver(t *testing.T, baseURL string) *Saver {
+	t.Helper()
+	root := filepath.Join(t.TempDir(), "audios")
+	s, err := NewAudioSaver(config.StorageConfig{AudioRootDir: root, AudioPublicBaseURL: baseURL})
+	if err != nil {
+		t.Fatalf("new audio saver: %v", err)
+	}
+	return s
+}
+
+// TestNewAudioSaver_PublicURLPrefix 验证音频 Saver 的相对 URL 前缀是 /audios（而非 /imgs），
+// 且 audio_public_base_url 的规范化语义与图片完全一致。
+func TestNewAudioSaver_PublicURLPrefix(t *testing.T) {
+	cases := []struct {
+		name    string
+		baseURL string
+		rel     string
+		want    string
+	}{
+		{"empty base url", "", "covers/abc.jpg", "/audios/covers/abc.jpg"},
+		{"absolute base", "https://cdn.example.com", "2026/06/abc.mp3", "https://cdn.example.com/2026/06/abc.mp3"},
+		{"trim trailing slash", "https://cdn.example.com/", "a.flac", "https://cdn.example.com/a.flac"},
+		{"bare domain gets https", "cdn.example.com", "a.m4a", "https://cdn.example.com/a.m4a"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s := newAudioSaver(t, c.baseURL)
+			if got := s.PublicURL(c.rel); got != c.want {
+				t.Fatalf("url = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
+// TestNewAudioSaver_EmptyRootDir 验证 audio_root_dir 为空时 fail-fast 报错并指明配置键。
+func TestNewAudioSaver_EmptyRootDir(t *testing.T) {
+	_, err := NewAudioSaver(config.StorageConfig{AudioRootDir: ""})
+	if err == nil || !strings.Contains(err.Error(), "audio_root_dir") {
+		t.Fatalf("expected audio_root_dir error, got %v", err)
+	}
+}
+
+// TestNewAudioSaver_RejectsDangerousRoot 验证 guardRootDir 对音频根目录同样生效。
+func TestNewAudioSaver_RejectsDangerousRoot(t *testing.T) {
+	_, err := NewAudioSaver(config.StorageConfig{AudioRootDir: "."})
+	if err == nil {
+		t.Fatalf("expected dangerous audio root to be rejected")
+	}
+	if !strings.Contains(err.Error(), "工作目录") {
+		t.Fatalf("error should mention 工作目录, got %v", err)
+	}
+}
+
+// TestSaver_SaveFlat 验证平铺落盘：写入调用方给定的相对路径（无年月分桶）、
+// 幂等复用已存在文件、拒绝逃逸路径。供音频内嵌封面 covers/<hash>.<ext> 使用。
+func TestSaver_SaveFlat(t *testing.T) {
+	s := newAudioSaver(t, "")
+
+	if err := s.SaveFlat("covers/abc.jpg", []byte("cover")); err != nil {
+		t.Fatalf("save flat: %v", err)
+	}
+	abs := filepath.Join(s.RootDir(), "covers", "abc.jpg")
+	data, err := os.ReadFile(abs)
+	if err != nil {
+		t.Fatalf("read flat file: %v", err)
+	}
+	if string(data) != "cover" {
+		t.Fatalf("content = %q", string(data))
+	}
+
+	// 幂等：再次写入同路径不报错也不覆盖（同 Save 的秒传语义）。
+	if err := s.SaveFlat("covers/abc.jpg", []byte("ignored")); err != nil {
+		t.Fatalf("second save flat: %v", err)
+	}
+	data, _ = os.ReadFile(abs)
+	if string(data) != "cover" {
+		t.Fatalf("file overwritten unexpectedly: %q", string(data))
+	}
+
+	// 逃逸与非法路径拒绝。
+	for _, bad := range []string{"", "..", "../escape.jpg", "/abs.jpg"} {
+		if err := s.SaveFlat(bad, []byte("x")); err == nil {
+			t.Fatalf("expected %q to be rejected", bad)
+		}
+	}
+}
