@@ -94,6 +94,18 @@ func TestApplyDefaults(t *testing.T) {
 			t.Errorf("storage.allowed_mime_types = %v, want %v (nil 补默认白名单)",
 				c.Storage.AllowedMimeTypes, defaultAllowedMimeTypes)
 		}
+		// Audio*：audio_root_dir 刻意兜底默认值（区别于 root_dir 的 fail-fast），
+		// 保证旧配置缺键时升级即用；大小与白名单同理。
+		if c.Storage.AudioRootDir != "data/audios" {
+			t.Errorf("storage.audio_root_dir = %q, want data/audios (升级兼容兜底)", c.Storage.AudioRootDir)
+		}
+		if c.Storage.AudioMaxUploadSizeMB != 100 {
+			t.Errorf("storage.audio_max_upload_size_mb = %d, want 100", c.Storage.AudioMaxUploadSizeMB)
+		}
+		if !reflect.DeepEqual(c.Storage.AudioAllowedMimeTypes, defaultAudioAllowedMimeTypes) {
+			t.Errorf("storage.audio_allowed_mime_types = %v, want %v (nil 补默认白名单)",
+				c.Storage.AudioAllowedMimeTypes, defaultAudioAllowedMimeTypes)
+		}
 		// TrustedProxies nil 补本地回环
 		if !reflect.DeepEqual(c.Server.TrustedProxies, []string{"127.0.0.1/8", "::1"}) {
 			t.Errorf("server.trusted_proxies = %v, want [127.0.0.1/8 ::1]", c.Server.TrustedProxies)
@@ -125,6 +137,10 @@ func TestApplyDefaults(t *testing.T) {
 				PublicBaseURL:    "https://img.example.com",
 				MaxUploadSizeMB:  5,
 				AllowedMimeTypes: mimes,
+				AudioRootDir:          "/data/audios",
+				AudioPublicBaseURL:    "https://cdn.example.com",
+				AudioMaxUploadSizeMB:  50,
+				AudioAllowedMimeTypes: []string{"audio/mpeg"},
 			},
 			CORS:   CORSConfig{AllowOrigins: []string{"https://myImg.example.com"}},
 			Logger: LoggerConfig{Level: "debug", Encoding: "console", Output: "stderr", TimeFormat: "epoch"},
@@ -152,6 +168,10 @@ func TestApplyDefaults(t *testing.T) {
 		if c.Storage.RootDir != "/data/imgs" || c.Storage.PublicBaseURL != "https://img.example.com" ||
 			c.Storage.MaxUploadSizeMB != 5 || !reflect.DeepEqual(c.Storage.AllowedMimeTypes, mimes) {
 			t.Errorf("storage 被覆盖: %+v", c.Storage)
+		}
+		if c.Storage.AudioRootDir != "/data/audios" || c.Storage.AudioPublicBaseURL != "https://cdn.example.com" ||
+			c.Storage.AudioMaxUploadSizeMB != 50 || !reflect.DeepEqual(c.Storage.AudioAllowedMimeTypes, []string{"audio/mpeg"}) {
+			t.Errorf("storage.audio* 被覆盖: %+v", c.Storage)
 		}
 		if !reflect.DeepEqual(c.Server.TrustedProxies, []string{"10.0.0.0/8"}) {
 			t.Errorf("server.trusted_proxies 被覆盖: %v", c.Server.TrustedProxies)
@@ -184,6 +204,18 @@ func TestApplyDefaults(t *testing.T) {
 		}
 		if len(c2.Storage.AllowedMimeTypes) != 0 {
 			t.Errorf("显式空列表 = %v, want 空切片", c2.Storage.AllowedMimeTypes)
+		}
+
+		// audio_allowed_mime_types 同款 == nil 语义。
+		c3 := &Config{}
+		c3.ApplyDefaults()
+		if !reflect.DeepEqual(c3.Storage.AudioAllowedMimeTypes, defaultAudioAllowedMimeTypes) {
+			t.Errorf("nil audio MIME = %v, want %v", c3.Storage.AudioAllowedMimeTypes, defaultAudioAllowedMimeTypes)
+		}
+		c4 := &Config{Storage: StorageConfig{AudioAllowedMimeTypes: []string{}}}
+		c4.ApplyDefaults()
+		if c4.Storage.AudioAllowedMimeTypes == nil || len(c4.Storage.AudioAllowedMimeTypes) != 0 {
+			t.Errorf("显式空音频列表 = %v, want 空切片", c4.Storage.AudioAllowedMimeTypes)
 		}
 	})
 
