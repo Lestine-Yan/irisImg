@@ -10,15 +10,18 @@
 
 ## 导航项
 
-内置 `navItems` 数组，每项含 `label` / `to` / `icon`（heroicons outline 风格 SVG path 字符串）：
+内置 `navItems` 数组，每项含 `label` / `to` / `icon`（heroicons outline 风格 SVG path 字符串；音频项为 feather music 音符形状——竖线 + 双符头圆，以弧线 path 表达圆）：
 
 | 标签 | 路由 | 图标 |
 |---|---|---|
 | 仪表盘 | `/dashboard` | grid |
-| 内容中心 | `/content` | photo |
+| 图片 | `/content/img` | photo |
+| 音频 | `/content/audio` | music-note（feather） |
 | 日志中心 | `/logs` | document |
 | APIkey 管理 | `/apikeys` | key |
 | 系统配置 | `/settings` | cog |
+
+> 原「内容中心 `/content`」已拆分为图片 / 音频两个平级入口；旧 `/content` 路径经 [`pages/content/index.vue`](../../pages/content/index.md) 重定向到 `/content/img`，重定向瞬间导航无高亮属预期。
 
 ## 视觉
 

@@ -12,6 +12,7 @@ backend/                                  docs/backend/
 │   └── config.yaml                          (字段说明合并到 config.md)
 ├── ent/                                  └── ent/
 │   ├── schema/image.go                      └── schema/image.md
+│   ├── schema/audio.go                      └── schema/audio.md
 │   ├── schema/apikey.go                     └── schema/apikey.md
 │   ├── schema/log.go                        └── schema/log.md
 │   ├── generate.go                          (go:generate 入口，见 DATABASE.md)
@@ -22,6 +23,7 @@ backend/                                  docs/backend/
 │   │   ├── auth.go                          ├── auth.md
 │   │   ├── apikey.go                        ├── apikey.md
 │   │   ├── image.go                         ├── image.md
+│   │   ├── audio.go                         ├── audio.md
 │   │   ├── log.go                           ├── log.md
 │   │   ├── dashboard.go                     ├── dashboard.md
 │   │   └── system.go                        └── system.md
@@ -31,6 +33,7 @@ backend/                                  docs/backend/
 │   │   └── entdao/                           └── entdao/
 │   │       ├── db.go                            ├── db.md
 │   │       ├── image.go                         ├── image.md
+│   │       ├── audio.go                         ├── audio.md
 │   │       ├── apikey.go                        ├── apikey.md
 │   │       └── log.go                           └── log.md
 │   ├── middleware/                       └── internal/middleware/
@@ -44,6 +47,7 @@ backend/                                  docs/backend/
 │   ├── model/                            └── internal/model/
 │   │   ├── auth.go                          ├── auth.md
 │   │   ├── image.go                         ├── image.md
+│   │   ├── audio.go                         ├── audio.md
 │   │   ├── apikey.go                        ├── apikey.md
 │   │   ├── log.go                           ├── log.md
 │   │   ├── dashboard.go                     ├── dashboard.md
@@ -54,6 +58,8 @@ backend/                                  docs/backend/
 │   │   ├── ratelimit/ratelimit.go           ├── ratelimit.md
 │   │   ├── response/response.go             ├── response.md
 │   │   ├── storage/storage.go               ├── storage.md
+│   │   ├── audiometa/audiometa.go            ├── audiometa/audiometa.md
+│   │   ├── audiometa/sniff.go               ├── audiometa/sniff.md
 │   │   └── logger/logger.go                 └── logger.md
 │   ├── router/                           └── internal/router/
 │   │   ├── router.go                        ├── router.md
@@ -62,12 +68,13 @@ backend/                                  docs/backend/
 │       ├── auth.go                          ├── auth.md
 │       ├── apikey.go                        ├── apikey.md
 │       ├── image.go                         ├── image.md
+│       ├── audio.go                         ├── audio.md
 │       ├── log.go                           ├── log.md
 │       ├── dashboard.go                     ├── dashboard.md
 │       └── system.go                        └── system.md
 ```
 
-> 特性级说明（跨多文件）：持久化方案见 [`DATABASE.md`](./DATABASE.md)，登录链路见 [`AUTH.md`](./AUTH.md)，API 密钥鉴权见 [`APIKEY.md`](./APIKEY.md)，图片上传 / 静态反代约定见 [`IMAGE.md`](./IMAGE.md)，操作日志与请求追踪见 [`LOG.md`](./LOG.md)，仪表盘聚合统计见 [`DASHBOARD.md`](./DASHBOARD.md)。
+> 特性级说明（跨多文件）：持久化方案见 [`DATABASE.md`](./DATABASE.md)，登录链路见 [`AUTH.md`](./AUTH.md)，API 密钥鉴权见 [`APIKEY.md`](./APIKEY.md)，图片上传 / 静态反代约定见 [`IMAGE.md`](./IMAGE.md)，音频管理 / 元数据解析 / 封面语义见 [`AUDIO.md`](./AUDIO.md)，操作日志与请求追踪见 [`LOG.md`](./LOG.md)，仪表盘聚合统计见 [`DASHBOARD.md`](./DASHBOARD.md)。
 
 ## 分层说明
 

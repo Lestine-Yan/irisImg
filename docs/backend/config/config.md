@@ -13,6 +13,7 @@ Config
 ├── Database (DatabaseConfig)      driver / dsn / auto_migrate
 ├── APIKey   (APIKeyConfig)        rate_limit_per_minute / https_only
 ├── Storage  (StorageConfig)       root_dir / public_base_url / max_upload_size_mb / allowed_mime_types
+│                                   audio_root_dir / audio_public_base_url / audio_max_upload_size_mb / audio_allowed_mime_types
 ├── CORS     (CORSConfig)          allow_origins
 └── Logger   (LoggerConfig)        level / encoding / output / time_format
 ```
@@ -39,6 +40,10 @@ Config
 | `storage.public_base_url` | string | `""` | 对外访问 URL 前缀。空 -> 返回 `/imgs/<rel>`（前端/Nginx 同域反代）；非空（如 `https://img.example.com`，结尾不带斜杠）-> 返回绝对地址。**裸域名（无 `http(s)://`）会被 `NewSaver` 自动补 `https://`**，但建议显式带协议或留空，避免依赖隐式行为 |
 | `storage.max_upload_size_mb` | int | `20` | 单次上传字节上限（MiB）；`<=0` 回退 20 |
 | `storage.allowed_mime_types` | []string | `image/png, image/jpeg, image/gif, image/webp` | 真实 MIME 白名单。后端用 `http.DetectContentType` 嗅探，不信任客户端 `Content-Type` |
+| `storage.audio_root_dir` | string | `data/audios` | 音频落盘根目录（与图片分目录；内嵌封面平铺存 `covers/` 子目录）。**与 `root_dir` 的 fail-fast 刻意不同**：本键有默认值，旧部署 config 缺键也能升级即用；`NewAudioSaver` 同样拒绝危险目录 |
+| `storage.audio_public_base_url` | string | `""` | 音频对外访问 URL 前缀。空 -> `/audios/<rel>`；规范化规则同 `public_base_url` |
+| `storage.audio_max_upload_size_mb` | int | `100` | 单次音频上传上限（MiB）；`<=0` 回退 100（无损格式体积大）。Nginx `client_max_body_size` 需大于此值（模板按 150m 对齐） |
+| `storage.audio_allowed_mime_types` | []string | `audio/mpeg, audio/mp4, audio/x-m4a, audio/flac` | 音频白名单，匹配**魔数嗅探规范化后**的 MIME（见 [`audiometa.Sniff`](../internal/pkg/audiometa/sniff.md)）；`audio/x-m4a` 仅别名，入库永远存 `audio/mp4` |
 | `cors.allow_origins` | []string | `["*"]` | 跨域来源白名单。nil 补 `["*"]`（开发）；显式空 `[]` 关闭跨域（生产同域）。release 模式 `Validate` 拒 `*`。详见 [`middleware/cors`](../internal/middleware/cors.md) |
 | `logger.level` | string | `info` | 日志级别 (`debug | info | warn | error`) |
 | `logger.encoding` | string | `json` | 输出编码 (`json | console`) |
@@ -51,7 +56,7 @@ Config
 
 > `apikey` 段由 [`router`](../internal/router/router.md) 消费：`rate_limit_per_minute` 注入 [`ratelimit.Store`](../internal/pkg/ratelimit.md)，`https_only` 注入 [`middleware.HTTPSOnly`](../internal/middleware/https.md)。特性级说明见 [`APIKEY.md`](../APIKEY.md)。
 
-> `storage` 段由 [`internal/pkg/storage`](../internal/pkg/storage.md) 与 [`internal/service/image`](../internal/service/image.md) 消费。**部署提示**：`root_dir` 与 Nginx 静态 `location /imgs/` 的物理路径要保持一致；`public_base_url` 若启用，需与 Nginx 暴露的图片域名一致。特性级说明见 [`IMAGE.md`](../IMAGE.md)。
+> `storage` 段由 [`internal/pkg/storage`](../internal/pkg/storage.md) 与 [`internal/service/image`](../internal/service/image.md)、[`internal/service/audio`](../internal/service/audio.md) 消费。**部署提示**：`root_dir` / `audio_root_dir` 与 Nginx 静态 `location /imgs/`、`location /audios/` 的物理路径要保持一致；`public_base_url` / `audio_public_base_url` 若启用，需与 Nginx 暴露的对应域名一致。特性级说明见 [`IMAGE.md`](../IMAGE.md) 与 [`AUDIO.md`](../AUDIO.md)。
 
 > `logger` 段由 [`internal/service/log`](../internal/service/log.md) 消费以初始化 zap。**职责边界**：访问日志的异步落库由 [`LogService`](../internal/service/log.md) 单独控制，**此处仅控制 zap 输出**到 stdout/stderr/文件的部分，用于运维采集。所有字段缺省时按 `info/json/stdout/iso8601` 处理。
 
@@ -79,6 +84,9 @@ Config
 | `apikey.rate_limit_per_minute` | `100` |
 | `storage.max_upload_size_mb` | `20` |
 | `storage.allowed_mime_types` | `[png, jpeg, gif, webp]` |
+| `storage.audio_root_dir` | `data/audios` |
+| `storage.audio_max_upload_size_mb` | `100` |
+| `storage.audio_allowed_mime_types` | `[mpeg, mp4, x-m4a, flac]` |
 | `cors.allow_origins` | `["*"]` |
 | `logger.level` / `logger.encoding` / `logger.output` / `logger.time_format` | `info` / `json` / `stdout` / `iso8601` |
 
@@ -88,7 +96,9 @@ Config
 - **安全字段** `auth.username` / `auth.password` / `auth.jwt.secret`：绝不兜底默认值，否则会绕过 `Validate` 的 fail-closed（release 模式拒绝默认/空口令与弱密钥启动）。
 - **bool 字段** `database.auto_migrate` / `apikey.https_only`：零值无法区分「缺失」与「显式 false」，兜底会覆盖用户意图。`auto_migrate` 依赖 `config.yaml` 模板带 `true`。
 
-> `storage.allowed_mime_types` 用 `== nil` 判断而非 `len == 0`，区分「缺失/null」（补默认白名单，修复旧配置缺该键时上传被全拒的静默 bug）与「显式空列表」（保留空，尊重用户「禁止所有上传」的意图）。
+> `storage.audio_root_dir` 刻意**有**默认值（区别于 `root_dir` 的 fail-fast）：音频是新增能力，旧部署的 config.yaml 没有 audio_* 键，不兜底会在升级后直接启动失败；`data/audios` 是安全默认，无既有数据错配风险。显式配成空串仍会被 `NewAudioSaver` 拒绝。
+
+> `storage.allowed_mime_types` / `storage.audio_allowed_mime_types` 用 `== nil` 判断而非 `len == 0`，区分「缺失/null」（补默认白名单，修复旧配置缺该键时上传被全拒的静默 bug）与「显式空列表」（保留空，尊重用户「禁止所有上传」的意图）。
 
 与 `Validate` 的关系：`Load -> ApplyDefaults ->`（`main` 调）`Validate`，二者职责互补不重叠。
 
@@ -141,13 +151,16 @@ apikey:
   rate_limit_per_minute: 100
   https_only: false
 
-# 图片落盘相关配置。
+# 图片/音频落盘相关配置。
 # root_dir 相对路径相对于后端进程工作目录，默认 data/imgs；
 # 部署到服务器时一般改成绝对路径，并交给 Nginx 在同样的路径上做静态反代。
 # public_base_url 为空时返回的 URL 是相对路径（前端/Nginx 同域代理即可）；
 # 部署独立图片域名时填 https://img.example.com 这类绝对前缀（须带协议，裸域名会自动补 https://），结尾不要带斜杠。
 # max_upload_size_mb 限制单次上传字节数；allowed_mime_types 是真实 MIME 白名单
 # （后端用 http.DetectContentType 嗅探，不信任客户端 Content-Type）。
+# audio_* 为音频（mp3/m4a/flac）的平行配置：分目录存储（内嵌封面平铺 covers/）、
+# 魔数嗅探白名单（audio/x-m4a 仅别名，入库永远存 audio/mp4）、默认上限 100MiB
+# （无损体积大；Nginx client_max_body_size 需大于此值）。旧配置缺这些键时自动取默认值。
 storage:
   root_dir: "data/imgs"
   public_base_url: ""
@@ -157,6 +170,14 @@ storage:
     - "image/jpeg"
     - "image/gif"
     - "image/webp"
+  audio_root_dir: "data/audios"
+  audio_public_base_url: ""
+  audio_max_upload_size_mb: 100
+  audio_allowed_mime_types:
+    - "audio/mpeg"
+    - "audio/mp4"
+    - "audio/x-m4a"
+    - "audio/flac"
 
 # 跨域配置。生产同域部署无跨域需求，留空关闭；开发联调填 ["*"]。
 # release 模式下 Validate 拒绝 "*"，强制配确切域名或留空。

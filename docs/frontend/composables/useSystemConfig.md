@@ -8,7 +8,7 @@
   - `server`：`{ host: string; port: number }`，服务监听地址与端口。
   - `database`：`{ driver: string; path: string }`，数据库驱动与连接 / 文件路径。
   - `apikey`：`{ rate_limit_per_minute: number; https_only: boolean }`，密钥默认限速与 HTTPS 校验开关。
-  - `storage`：`{ root_dir: string; public_base_url: string; max_upload_size_mb: number; allowed_mime_types: string[] }`，存储根目录、公访问基址、单文件上传上限与允许的 MIME 类型白名单。
+  - `storage`：图片与音频两组键——`{ root_dir / public_base_url / max_upload_size_mb / allowed_mime_types }` 与 `{ audio_root_dir / audio_public_base_url / audio_max_upload_size_mb / audio_allowed_mime_types }`，分别对应存储根目录、公访问基址、单文件上传上限与 MIME 白名单。
 
 ## 导出函数
 
@@ -17,7 +17,7 @@
 返回 `{ load }`，走后台 JWT 通道（由 [`useApi`](./useApi.md) 自动附带 `Authorization` 头、自动解包 `data`）。导出名用 `load` 而非 `fetch`，避免遮蔽全局 `fetch`，与 [`useApiKeys`](./useApiKeys.md) 的 `list`、[`useLogs`](./useLogs.md) 的 `list-histogram` 等领域命名一致。
 
 - `load()`：调 [`useApi`](./useApi.md) 的 `get<SystemConfig>('/system/config')`，返回当前运行配置的非敏感快照。接口仅用于只读展示，前端不做任何修改 / 热更新。
-- `load()` 内含防御性兜底：若返回的 `cfg.storage.allowed_mime_types` 为 `null` 则置空数组，避免后端契约变动时模板里 `.length` / `v-for` 抛空指针（后端已保证非 null，此处再保险）。
+- `load()` 内含防御性兜底：若返回的 `cfg.storage.allowed_mime_types` / `cfg.storage.audio_allowed_mime_types` 为 `null` 则置空数组，避免后端契约变动时模板里 `.length` / `v-for` 抛空指针（后端已保证非 null，此处再保险）。
 
 ## 与其它文件的关系
 

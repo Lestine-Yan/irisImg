@@ -1,17 +1,18 @@
 # `frontend/app/pages/settings/index.vue`
 
-系统配置主页，对应路由 `/settings`，后台「系统配置」导航目标。只读展示当前运行配置（服务 / 数据库 / APIKey / 存储），不提供在线修改。
+系统配置主页，对应路由 `/settings`，后台「系统配置」导航目标。只读展示当前运行配置（服务 / 数据库 / APIKey / 存储 / 音频存储），不提供在线修改。
 
 ## 职责
 
 - 顶部标题 + 副标题（「查看当前运行配置（只读）」）。
 - 固定 amber 提示横幅：「生产中无法变更配置，请修改 config 文件并重启以应用。」
 - 数据态下，当 `config.apikey.https_only === false` 时额外显示 rose 警告横幅，提示密钥相关敏感接口未强制 HTTPS，并给出 `apikey.https_only: true` 的配置建议（建议值包在 `<code>` 内，`font-mono` + `px-1.5`，与 [`ApiKeyTable`](../../components/apikeys/ApiKeyTable.md) 的 `code` 风格一致）。
-- 四个 [`SettingsConfigSection`](../../components/settings/ConfigSection.md) 分组（`grid` 响应式 1/2 列）：
+- 五个 [`SettingsConfigSection`](../../components/settings/ConfigSection.md) 分组（`grid` 响应式 1/2 列）：
   - **服务**：监听地址 `host:port`。
   - **数据库**：驱动 `driver`、位置 `path`。
   - **APIKey**：默认限速 `rate_limit_per_minute 次/分钟`、HTTPS 校验徽章（`https_only` 为真显 emerald「已启用」，否则显 rose「未启用」）。
   - **存储**：根目录 `root_dir`、公访问基址 `public_base_url`（未设置时回退「未设置（使用相对路径 /imgs/）」）、上传上限 `max_upload_size_mb MiB`、允许类型 `allowed_mime_types`（`iris-violet` 徽章集合，空时显「无」）。
+  - **音频存储**：与图片存储同款字段——`audio_root_dir`、`audio_public_base_url`（未设置时回退「未设置（使用相对路径 /audios/）」）、`audio_max_upload_size_mb MiB`、`audio_allowed_mime_types` 徽章集合。
 - 组件按目录前缀自动导入：`components/settings/ConfigSection.vue` -> `<SettingsConfigSection />`、`ConfigItem.vue` -> `<SettingsConfigItem />`（文件名未以目录名 `settings` 开头，前缀不去重）。
 
 ## 鉴权逻辑

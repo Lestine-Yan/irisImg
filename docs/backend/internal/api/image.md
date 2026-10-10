@@ -47,7 +47,7 @@ type ImageAPI struct {
 
 **关键实现**：
 
-1. 文件读取与错误映射抽到共享 helper `readUploadFile` / `respondUploadError`（见下文），`Create` 与 `CreateAdmin` 复用，避免两处分支漂移。
+1. 文件读取与错误映射抽到共享 helper `readUploadFile` / `respondUploadError`（见下文），`Create` 与 `CreateAdmin` 复用，避免两处分支漂移；`respondUploadError` 现为 `respondUploadErrorWith(c, err, "图片")` 的薄包装——后者是图片 / 音频共用的参数化错误映射（`label` 只影响文案不影响状态码，音频版见 [`audio.md`](./audio.md)），图片文案保持字节级不变。
 2. `readUploadFile` 先用 `http.MaxBytesReader(...)` 把 `c.Request.Body` 包一层（上限取自 `svc.MaxBytes()`），超大请求体在更早阶段就被拦下；再 `c.FormFile("file")` 解析出 `*multipart.FileHeader`，若被 `MaxBytesReader` 触发，`errors.As(err, *http.MaxBytesError)` 命中 -> 413。
 3. 读完文件全部字节后调 `svc.Upload`，`respondUploadError` 按 sentinel error 分支映射状态码。
 4. `key_id` 取自 `c.GetInt(middleware.ContextKeyAPIKeyID)`（中间件保证一定 >0），透传给 service 落库，记录图片由哪把密钥添加。

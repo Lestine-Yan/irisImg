@@ -26,6 +26,24 @@
 
 统一错误见 [`errors.go`](./errors.md)：各实现需将底层「记录不存在」转换为 `dao.ErrNotFound`。
 
+## 接口：AudioDAO
+
+抽象音频元信息的持久化操作，数据载体为 [`model.Audio`](../model/audio.md)。与 `ImageDAO` 平行（存储字段同构 + 标准音频元数据列），差异点：无仪表盘聚合（v1 刻意只统计图片）；`UpdateCoverURL` 供「详情页改封面」特性。
+
+| 方法 | 说明 |
+|------|------|
+| `Create(ctx, *model.Audio) (*model.Audio, error)` | 落库一条记录（全部元数据字段），回填自增 ID 与创建时间 |
+| `GetByID(ctx, id int) (*model.Audio, error)` | 按主键查询，未找到返回 `ErrNotFound` |
+| `GetByHash(ctx, hash string) (*model.Audio, error)` | 按内容哈希查询（秒传 / 去重），未找到返回 `ErrNotFound` |
+| `List(ctx, q model.AudioListQuery) ([]*model.Audio, int, error)` | 按 `AudioListQuery` 过滤（可选 key_id）/ 排序（asc/desc）/ 分页，返回条目与总数 |
+| `ListByKeyID(ctx, keyID int) ([]*model.Audio, error)` | 返回指定密钥关联的全部音频（不分页），供删除密钥时级联清理使用 |
+| `ListByIDs(ctx, ids []int) ([]*model.Audio, error)` | 按主键集合批量查询**现存**记录（不存在的 ID 静默跳过），供批量删除前取 `StoredPath` 做物理文件清理 |
+| `DeleteByIDs(ctx, ids []int) (int, error)` | 按主键集合批量删除记录，返回实际删除条数 |
+| `DeleteByKeyID(ctx, keyID int) (int, error)` | 批量删除指定密钥关联的全部音频记录，返回删除条数 |
+| `UpdateCoverURL(ctx, id int, coverURL *string) (*model.Audio, error)` | 更新用户覆盖的封面 URL：`nil` 清除覆盖（回到内嵌封面），非 nil 设置值；未找到返回 `ErrNotFound`，成功返回更新后的完整记录 |
+
+实现见 [`entdao/audio.go`](./entdao/audio.md)。特性级说明见 [`AUDIO.md`](../../AUDIO.md)。
+
 ## 接口：APIKeyDAO
 
 抽象 API 密钥的持久化操作，数据载体为 [`model.APIKey`](../model/apikey.md)（库里只存哈希）。
@@ -39,7 +57,7 @@
 | `Revoke(ctx, id int) error` | 标记为已吊销，未找到返回 `ErrNotFound` |
 | `UpdateName(ctx, id int, name string) (*model.APIKey, error)` | 修改密钥标签，未找到返回 `ErrNotFound` |
 | `ResetKey(ctx, id int, keyHash, prefix string) (*model.APIKey, error)` | 重置明文：写入新哈希/前缀并清除吊销，未找到返回 `ErrNotFound` |
-| `Delete(ctx, id int) error` | 物理删除，未找到返回 `ErrNotFound`；调用方需先清理关联图片以免外键约束失败 |
+| `Delete(ctx, id int) error` | 物理删除，未找到返回 `ErrNotFound`；调用方需先清理关联图片与音频以免外键约束失败 |
 | `TouchLastUsed(ctx, id int, t time.Time) error` | 更新最近使用时间 |
 
 实现见 [`entdao/apikey.go`](./entdao/apikey.md)。特性级说明见 [`APIKEY.md`](../../APIKEY.md)。

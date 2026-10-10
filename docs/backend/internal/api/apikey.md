@@ -47,12 +47,12 @@ API 密钥管理接口的 Gin 控制器。控制器层只做参数解析、调�
 
 ### `Delete(c *gin.Context)` -- `DELETE /api/v1/apikeys/:id`
 
-物理删除密钥并级联删除关联图片。同样需 `DestructiveAPIKeyRequest` 二次确认：
+物理删除密钥并级联删除关联图片与音频。同样需 `DestructiveAPIKeyRequest` 二次确认：
 
 1. 解析 ID 与 `DestructiveAPIKeyRequest`。
 2. `authSvc.VerifyCredentials` 失败 -> 403。
-3. 调 `svc.Delete`：返回被删除的图片数量；`ErrKeyNotFound` -> 404；其它 err -> 500。
-4. 成功后调 `record(c, model.EventAPIKeyDelete, model.LevelWarn, "delete apikey #<id>")` 记 `apikey.delete`（warn），返回 `gin.H{"id": id, "deleted": true, "images_removed": removed}`。
+3. 调 `svc.Delete`：返回 `(删除的图片数, 删除的音频数)`；`ErrKeyNotFound` -> 404；其它 err -> 500。
+4. 成功后调 `record(c, model.EventAPIKeyDelete, model.LevelWarn, "delete apikey #<id>: removed <n> images, <m> audios")` 记 `apikey.delete`（warn），返回 `gin.H{"id": id, "deleted": true, "images_removed": ..., "audios_removed": ...}`。
 
 > 路由语义：`POST /:id/revoke` 为软吊销，`DELETE /:id` 为硬删除。旧的 `DELETE /:id`（软吊销）已被 `POST /:id/revoke` 取代。
 
