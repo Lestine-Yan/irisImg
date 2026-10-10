@@ -131,3 +131,112 @@ func TestServeImages(t *testing.T) {
 		})
 	}
 }
+
+// TestAllowedAudioExtensions 覆盖 /audios 白名单的折叠逻辑：
+// 音频 MIME 出音频扩展名，图片白名单折叠出封面扩展名，未知 MIME 一律不服务。
+func TestAllowedAudioExtensions(t *testing.T) {
+	cases := []struct {
+		name      string
+		audioMime []string
+		imageMime []string
+		want      map[string]struct{}
+	}{
+		{
+			name:      "defaults + covers",
+			audioMime: []string{"audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/flac"},
+			imageMime: []string{"image/png", "image/jpeg", "image/gif", "image/webp"},
+			want: map[string]struct{}{
+				"mp3": {}, "m4a": {}, "flac": {},
+				"png": {}, "jpg": {}, "jpeg": {}, "gif": {}, "webp": {},
+			},
+		},
+		{
+			name:      "m4a alias collapses",
+			audioMime: []string{"audio/x-m4a"},
+			imageMime: nil,
+			want:      map[string]struct{}{"m4a": {}},
+		},
+		{
+			name:      "cover follows image whitelist",
+			audioMime: []string{"audio/mpeg"},
+			imageMime: []string{"image/png"},
+			want:      map[string]struct{}{"mp3": {}, "png": {}},
+		},
+		{
+			name:      "unknown mime ignored",
+			audioMime: []string{"video/mp4", "audio/mpeg"},
+			imageMime: []string{"application/pdf"},
+			want:      map[string]struct{}{"mp3": {}},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := allowedAudioExtensions(c.audioMime, c.imageMime)
+			if len(got) != len(c.want) {
+				t.Fatalf("allowedAudioExtensions(%v, %v) = %v, want %v", c.audioMime, c.imageMime, got, c.want)
+			}
+			for k := range c.want {
+				if _, ok := got[k]; !ok {
+					t.Fatalf("allowedAudioExtensions missing %q, got %v", k, got)
+				}
+			}
+		})
+	}
+}
+
+// TestServeAudios 验证 /audios 静态服务：音频与 covers/ 封面放行、
+// 目录里混入的敏感文件一律 404（与 /imgs 同款纵深防御）。
+func TestServeAudios(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	root := t.TempDir()
+	audioDir := filepath.Join(root, "2026", "06")
+	coversDir := filepath.Join(root, "covers")
+	for _, dir := range []string{audioDir, coversDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(audioDir, "abc.mp3"), []byte("mp3-bytes"), 0o644); err != nil {
+		t.Fatalf("write mp3: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(coversDir, "cover.jpg"), []byte("jpg-bytes"), 0o644); err != nil {
+		t.Fatalf("write cover: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "irisImg.db"), []byte("sqlite-bytes"), 0o644); err != nil {
+		t.Fatalf("write db: %v", err)
+	}
+
+	exts := allowedAudioExtensions(
+		[]string{"audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/flac"},
+		[]string{"image/png", "image/jpeg", "image/gif", "image/webp"},
+	)
+	r := gin.New()
+	h := serveFiles("/audios", root, exts)
+	r.GET("/audios/*filepath", h)
+	r.HEAD("/audios/*filepath", h)
+
+	cases := []struct {
+		name   string
+		method string
+		target string
+		want   int
+	}{
+		{"mp3 served", http.MethodGet, "/audios/2026/06/abc.mp3", http.StatusOK},
+		{"cover served", http.MethodGet, "/audios/covers/cover.jpg", http.StatusOK},
+		{"db blocked", http.MethodGet, "/audios/irisImg.db", http.StatusNotFound},
+		{"wav blocked", http.MethodGet, "/audios/2026/06/abc.wav", http.StatusNotFound},
+		{"dir listing blocked", http.MethodGet, "/audios/covers/", http.StatusNotFound},
+		{"head mp3 served", http.MethodHead, "/audios/2026/06/abc.mp3", http.StatusOK},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := httptest.NewRequest(c.method, c.target, nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+			if w.Code != c.want {
+				t.Fatalf("%s %s -> %d, want %d (body=%q)", c.method, c.target, w.Code, c.want, w.Body.String())
+			}
+		})
+	}
+}

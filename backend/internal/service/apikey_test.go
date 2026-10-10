@@ -110,7 +110,7 @@ func (m *mockAPIKeyDAO) TouchLastUsed(_ context.Context, _ int, _ time.Time) err
 
 func TestAPIKeyService_Create(t *testing.T) {
 	m := newMockAPIKeyDAO()
-	svc := NewAPIKeyService(m, nil, nil)
+	svc := NewAPIKeyService(m, nil, nil, nil, nil)
 
 	resp, err := svc.Create(context.Background(), &model.CreateAPIKeyRequest{
 		Name:  "ci",
@@ -132,7 +132,7 @@ func TestAPIKeyService_Create(t *testing.T) {
 }
 
 func TestAPIKeyService_CreateInvalidScope(t *testing.T) {
-	svc := NewAPIKeyService(newMockAPIKeyDAO(), nil, nil)
+	svc := NewAPIKeyService(newMockAPIKeyDAO(), nil, nil, nil, nil)
 	_, err := svc.Create(context.Background(), &model.CreateAPIKeyRequest{Name: "x", Scope: "bogus"})
 	if !errors.Is(err, ErrInvalidScope) {
 		t.Fatalf("expected ErrInvalidScope, got %v", err)
@@ -154,7 +154,7 @@ func TestAPIKeyService_Authenticate(t *testing.T) {
 	m.byHash[revokedHash] = revoked
 	m.byID[valid.ID] = valid
 	m.byID[revoked.ID] = revoked
-	svc := NewAPIKeyService(m, nil, nil)
+	svc := NewAPIKeyService(m, nil, nil, nil, nil)
 	ctx := context.Background()
 
 	t.Run("ok", func(t *testing.T) {
@@ -190,7 +190,7 @@ func TestAPIKeyService_Authenticate(t *testing.T) {
 
 // TestAPIKeyService_Rename 覆盖重命名：返回的展示信息应反映新名字；不存在的密钥返回 ErrKeyNotFound。
 func TestAPIKeyService_Rename(t *testing.T) {
-	svc := NewAPIKeyService(newMockAPIKeyDAO(), nil, nil)
+	svc := NewAPIKeyService(newMockAPIKeyDAO(), nil, nil, nil, nil)
 	ctx := context.Background()
 
 	created, err := svc.Create(ctx, &model.CreateAPIKeyRequest{Name: "old", Scope: model.ScopeReadOnly})
@@ -215,7 +215,7 @@ func TestAPIKeyService_Rename(t *testing.T) {
 //   - 返回的新明文格式合法、且与旧明文不同；
 //   - 重置会取消吊销：先 Revoke 使其无法鉴权，Reset 后新明文可鉴权、旧明文失效。
 func TestAPIKeyService_Reset_Unrevokes(t *testing.T) {
-	svc := NewAPIKeyService(newMockAPIKeyDAO(), nil, nil)
+	svc := NewAPIKeyService(newMockAPIKeyDAO(), nil, nil, nil, nil)
 	ctx := context.Background()
 
 	created, err := svc.Create(ctx, &model.CreateAPIKeyRequest{Name: "k", Scope: model.ScopeReadWrite})
@@ -256,52 +256,84 @@ func TestAPIKeyService_Reset_Unrevokes(t *testing.T) {
 	}
 }
 
-// TestAPIKeyService_Delete_CascadesImages 覆盖删除密钥的级联清理：
-//   - 关联图片的物理文件被删除；
-//   - 图片记录被删除（返回数量正确）；
+// TestAPIKeyService_Delete_CascadesImagesAndAudios 覆盖删除密钥的级联清理：
+//   - 关联图片 / 音频的物理文件被删除；
+//   - 图片 / 音频记录被删除（两个返回数量正确）；
 //   - 密钥记录被删除（再次删除返回 ErrKeyNotFound）。
-func TestAPIKeyService_Delete_CascadesImages(t *testing.T) {
+func TestAPIKeyService_Delete_CascadesImagesAndAudios(t *testing.T) {
 	saver, err := storage.NewSaver(config.StorageConfig{RootDir: filepath.Join(t.TempDir(), "imgs")})
 	if err != nil {
 		t.Fatalf("new saver: %v", err)
 	}
+	audioSaver, err := storage.NewAudioSaver(config.StorageConfig{AudioRootDir: filepath.Join(t.TempDir(), "audios")})
+	if err != nil {
+		t.Fatalf("new audio saver: %v", err)
+	}
 	imgDAO := newMemDAO()
+	audioDAO := newMemAudioDAO()
+
+	keyID := 1
 
 	// 落盘一张图片文件，并登记一条关联 key=1 的图片记录。
 	rel, err := saver.Save([]byte("payload"), "img-hash-1", "bin", time.Unix(0, 0))
 	if err != nil {
 		t.Fatalf("save: %v", err)
 	}
-	keyID := 1
 	imgDAO.byHash["img-hash-1"] = &model.Image{ID: 1, Hash: "img-hash-1", StoredPath: rel, KeyID: &keyID}
 	imgDAO.byID[1] = imgDAO.byHash["img-hash-1"]
+
+	// 落盘一个音频文件（旁边再放一个内嵌封面，验证封面刻意不被清理），并登记一条关联 key=1 的音频记录。
+	audioRel, err := audioSaver.Save([]byte("audio-payload"), "aud-hash-1", "mp3", time.Unix(0, 0))
+	if err != nil {
+		t.Fatalf("save audio: %v", err)
+	}
+	if err := audioSaver.SaveFlat("covers/cover-hash-1.jpg", []byte("cover-bytes")); err != nil {
+		t.Fatalf("save cover: %v", err)
+	}
+	audioDAO.byHash["aud-hash-1"] = &model.Audio{ID: 1, Hash: "aud-hash-1", StoredPath: audioRel, KeyID: &keyID, EmbeddedCoverURL: "/audios/covers/cover-hash-1.jpg"}
+	audioDAO.byID[1] = audioDAO.byHash["aud-hash-1"]
 
 	// 预放一把密钥（id=1）。
 	keyDAO := newMockAPIKeyDAO()
 	keyDAO.byID[1] = &model.APIKey{ID: 1, Name: "k", KeyHash: "kh", Prefix: "p", Scope: model.ScopeReadWrite}
 	keyDAO.byHash["kh"] = keyDAO.byID[1]
 
-	svc := NewAPIKeyService(keyDAO, imgDAO, saver)
+	svc := NewAPIKeyService(keyDAO, imgDAO, audioDAO, saver, audioSaver)
 	ctx := context.Background()
 
-	removed, err := svc.Delete(ctx, 1)
+	removedImages, removedAudios, err := svc.Delete(ctx, 1)
 	if err != nil {
 		t.Fatalf("delete: %v", err)
 	}
-	if removed != 1 {
-		t.Fatalf("expected 1 image removed, got %d", removed)
+	if removedImages != 1 {
+		t.Fatalf("expected 1 image removed, got %d", removedImages)
+	}
+	if removedAudios != 1 {
+		t.Fatalf("expected 1 audio removed, got %d", removedAudios)
 	}
 	// 物理文件应已删除。
 	abs := filepath.Join(saver.RootDir(), filepath.FromSlash(rel))
 	if _, statErr := os.Stat(abs); !errors.Is(statErr, os.ErrNotExist) {
 		t.Fatalf("expected physical file to be deleted: %s (statErr=%v)", abs, statErr)
 	}
-	// 图片记录应已删除。
+	audioAbs := filepath.Join(audioSaver.RootDir(), filepath.FromSlash(audioRel))
+	if _, statErr := os.Stat(audioAbs); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("expected audio file to be deleted: %s (statErr=%v)", audioAbs, statErr)
+	}
+	// 内容寻址共享的内嵌封面应刻意保留（不随音频级联删除）。
+	coverAbs := filepath.Join(audioSaver.RootDir(), "covers", "cover-hash-1.jpg")
+	if _, statErr := os.Stat(coverAbs); statErr != nil {
+		t.Fatalf("expected shared cover file to survive cascade delete: %s (statErr=%v)", coverAbs, statErr)
+	}
+	// 图片 / 音频记录应已删除。
 	if _, ok := imgDAO.byID[1]; ok {
 		t.Fatalf("expected image record to be deleted")
 	}
+	if _, ok := audioDAO.byID[1]; ok {
+		t.Fatalf("expected audio record to be deleted")
+	}
 	// 密钥记录应已删除：再次删除返回 ErrKeyNotFound。
-	if _, err := svc.Delete(ctx, 1); !errors.Is(err, ErrKeyNotFound) {
+	if _, _, err := svc.Delete(ctx, 1); !errors.Is(err, ErrKeyNotFound) {
 		t.Fatalf("expected ErrKeyNotFound on second delete, got %v", err)
 	}
 }
