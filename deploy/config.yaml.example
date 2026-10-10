@@ -39,8 +39,8 @@ apikey:
   rate_limit_per_minute: 100
   https_only: true
 
-# 图片落盘相关配置。相对路径相对于后端进程工作目录（release 包根目录）。
-# Nginx 的 location /imgs/ alias 必须指向同一个 data/imgs 目录。
+# 图片/音频落盘相关配置。相对路径相对于后端进程工作目录（release 包根目录）。
+# Nginx 的 location /imgs/ 与 /audios/ 的 alias 必须指向对应的 data/imgs、data/audios 目录。
 storage:
   root_dir: "data/imgs"
   public_base_url: ""          # 示例https://example.com/imgs; 空 -> 返回 /imgs/<rel> 同域代理；非空须带 https:// 协议（裸域名会自动补 https://），结尾不带斜杠
@@ -50,6 +50,16 @@ storage:
     - "image/jpeg"
     - "image/gif"
     - "image/webp"
+  # 音频（mp3/m4a/flac）分目录存储；内嵌封面抽取后平铺存 covers/ 子目录（内容寻址、不随删除清理）。
+  # 旧配置缺这些键时 ApplyDefaults 自动补默认值（audio_root_dir=data/audios 等），升级不会启动失败。
+  audio_root_dir: "data/audios"
+  audio_public_base_url: ""    # 空 -> 返回 /audios/<rel> 同域代理
+  audio_max_upload_size_mb: 100  # 无损格式体积大默认 100；Nginx client_max_body_size 需大于此值（模板按 150m 对齐）
+  audio_allowed_mime_types:    # 嗅探规范化后的 MIME：mp3→audio/mpeg、m4a→audio/mp4、flac→audio/flac（audio/x-m4a 仅别名）
+    - "audio/mpeg"
+    - "audio/mp4"
+    - "audio/x-m4a"
+    - "audio/flac"
 
 # 跨域配置。生产同域部署（apiBase 相对路径 /api/v1）无跨域需求，留空关闭跨域最安全。
 # 如需独立后端域名跨域访问，填确切 origin（如 ["https://img.example.com"]）。

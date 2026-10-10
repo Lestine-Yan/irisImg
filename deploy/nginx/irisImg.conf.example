@@ -25,7 +25,7 @@ server {
 
     # 安全响应头(HSTS 强制后续访问走 HTTPS、缓解首访降级;nosniff 防 MIME 嗅探;X-Frame-Options 防点击劫持)。
     # 注意 nginx add_header 继承规则:location 内一旦出现 add_header,server 级不再继承,
-    # 故下方 /imgs/ 块(自带 Cache-Control)需重申这些安全头。
+    # 故下方 /imgs/、/audios/ 块(自带 Cache-Control)需重申这些安全头。
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -34,7 +34,9 @@ server {
     # 前端 SPA 静态根
     root /opt/irisImg/web;
     index index.html;
-    client_max_body_size 25m;
+    # 上限须大于 storage.audio_max_upload_size_mb（默认 100，无损格式体积大），
+    # 这里按 150m 对齐；图片上传仍由后端 max_upload_size_mb=20 精确限制。
+    client_max_body_size 150m;
 
     # 用 HTTP 访问 443 时（443 是 ssl 端口）跳转 HTTPS
     error_page 497 https://$host$request_uri;
@@ -53,7 +55,8 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;   # 后端 https_only 据此校验
-        proxy_read_timeout 60s;
+        # 100MB 音频经慢速上行链路上传时可能超过 60s，放宽到 300s（对图片上传无影响）。
+        proxy_read_timeout 300s;
     }
 
     # 图片静态服务：直接 serve 落盘目录（路径须与 config.yaml storage.root_dir 一致）
@@ -68,6 +71,26 @@ server {
             return 404;
         }
         alias /opt/irisImg/data/imgs/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        # 本 location 已有 add_header,server 级安全头不再继承,需重申
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    }
+
+    # 音频静态服务：与 /imgs/ 同款纵深防御（路径须与 config.yaml storage.audio_root_dir 一致）。
+    # 白名单除 mp3/m4a/flac 外还放行图片扩展名——音频内嵌封面抽取后落在
+    # <audio_root>/covers/ 下，与音频文件共用 /audios/ 前缀；扩展名三方对齐：
+    # 本 regex <-> config.yaml storage.audio_allowed_mime_types(+allowed_mime_types 封面)
+    # <-> 后端 internal/router/static.go 的 audioMimeExt。nginx 原生支持 Range 请求，
+    # 音频拖动进度条无需额外配置。
+    location /audios/ {
+        if ($uri !~* \.(mp3|m4a|flac|png|jpg|jpeg|gif|webp)$) {
+            return 404;
+        }
+        alias /opt/irisImg/data/audios/;
         expires 30d;
         add_header Cache-Control "public, immutable";
         # 本 location 已有 add_header,server 级安全头不再继承,需重申
