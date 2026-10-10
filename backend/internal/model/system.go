@@ -36,4 +36,9 @@ type StorageConfigView struct {
 	PublicBaseURL    string   `json:"public_base_url"`    // 图片对外访问基址，空表示走相对路径 /imgs/
 	MaxUploadSizeMB  int      `json:"max_upload_size_mb"`  // 单次上传上限（MiB）
 	AllowedMimeTypes []string `json:"allowed_mime_types"` // 允许上传的 MIME 白名单
+
+	AudioRootDir          string   `json:"audio_root_dir"`          // 音频落盘根目录
+	AudioPublicBaseURL    string   `json:"audio_public_base_url"`  // 音频对外访问基址，空表示走相对路径 /audios/
+	AudioMaxUploadSizeMB  int      `json:"audio_max_upload_size_mb"` // 单次音频上传上限（MiB）
+	AudioAllowedMimeTypes []string `json:"audio_allowed_mime_types"` // 允许上传的音频 MIME 白名单
 }
