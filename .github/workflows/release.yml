@@ -1,0 +1,78 @@
+name: Release
+
+# 推送 v* tag 触发的自动化「构建 + 发布 Release」。
+#
+# 本地发布流程：
+#   git commit -m "chore(release): v0.1.1" -m "<发布说明 markdown>"
+#   git tag v0.1.1
+#   git push origin <branch> v0.1.1
+#
+# 约定：
+# - 发布说明 = tag 指向 commit 的 body（标题空行之后的部分），markdown 原样渲染；
+#   body 为空则直接失败，不会发出无说明的 Release。
+# - 后端 go vet + go test 是发布门禁，任一失败即中止，不发布。
+# - 构建复用 scripts/build-release.sh（ubuntu-latest 上无 MSYS/CRLF 坑，
+#   脚本内的 Windows 防护均为无副作用的 no-op）。
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # 创建 Release 并上传产物所需
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10 # frontend/package.json 未声明 packageManager 字段，需显式指定
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: 后端测试与静态检查（发布门禁）
+        run: |
+          cd backend
+          go vet ./...
+          go test ./...
+
+      - name: 构建 release 包
+        run: VERSION="${GITHUB_REF_NAME#v}" bash scripts/build-release.sh
+
+      - name: 提取发布说明（release commit 的 body）
+        id: notes
+        run: |
+          # checkout 后 HEAD 即 tag 解引用到的 commit，取其 body（%b）作 Release 正文
+          body="$(git log -1 --format=%b HEAD)"
+          if [ -z "$(printf '%s' "$body" | tr -d '[:space:]')" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} 指向的 commit 没有 body，发布说明无处可取。请在 chore(release) commit 的 body 里写发布说明后重新打 tag。"
+            exit 1
+          fi
+          {
+            echo 'body<<RELEASE_NOTES_EOF'
+            printf '%s\n' "$body"
+            echo 'RELEASE_NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: 发布 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/irisImg-*-linux-amd64.tar.gz
+          body: ${{ steps.notes.outputs.body }}
+          fail_on_unmatched_files: true

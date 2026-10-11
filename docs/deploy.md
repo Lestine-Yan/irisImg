@@ -14,6 +14,31 @@ irisImg 为前后端分离的个人图床：
 
 打包脚本：[`scripts/build-release.sh`](../scripts/build-release.sh)，产物输出到 `dist/`（已 gitignore）。
 
+### GitHub Actions 自动发布
+
+推送 `v*` tag 会触发 [`.github/workflows/release.yml`](../.github/workflows/release.yml)，在 ubuntu-latest 上自动「测试 + 构建 + 发布 GitHub Release」：
+
+```bash
+# 本地发布流程（发布说明写在 release commit 的 body 里）
+git commit -m "chore(release): v0.1.1" -m "## 新增
+- xxx
+
+## 修复
+- xxx"
+git tag v0.1.1
+git push origin <branch> v0.1.1
+```
+
+链路与约定：
+
+1. **触发**：仅 `git push origin v<x.y.z>` 形式的 tag 触发，普通 push 不受影响，完全可控。
+2. **发布门禁**：先跑 `go vet ./...` + `go test ./...`（后端），任一失败即中止，不发布。前端无独立测试，`pnpm generate` 构建本身即前端门禁（含 MSYS 污染 grep 校验）。
+3. **构建**：复用 `scripts/build-release.sh`，版本号取自 tag（`v0.1.1` → `0.1.1`）。ubuntu-latest 上无 MSYS 路径转换 / CRLF 行尾问题，脚本内的 Windows 防护均为无副作用的 no-op。
+4. **发布说明**：取 tag 指向 commit 的 **body**（`git log -1 --format=%b`），markdown 原样渲染为 Release 正文；body 为空则 workflow 直接报错中止，不会发出无说明的 Release。说明风格参考 PR squash commit（如 `9586f98`）的分段格式。
+5. **产物**：`dist/irisImg-<version>-linux-amd64.tar.gz` 作为 Release Asset 上传（`fail_on_unmatched_files` 保证产物缺失时发布失败）。
+
+工具链：Go 版本读 `backend/go.mod`，pnpm 10 + Node 22（`frontend/package.json` 未声明 `packageManager`，版本钉在 workflow 里）。
+
 ### 产物结构
 
 ```
