@@ -7,6 +7,7 @@ import (
 
 	"github.com/Lestine-Yan/irisImg/backend/ent/accesslog"
 	"github.com/Lestine-Yan/irisImg/backend/ent/apikey"
+	"github.com/Lestine-Yan/irisImg/backend/ent/audio"
 	"github.com/Lestine-Yan/irisImg/backend/ent/image"
 	"github.com/Lestine-Yan/irisImg/backend/ent/schema"
 )
@@ -61,6 +62,114 @@ func init() {
 	apikeyDescCreatedAt := apikeyFields[7].Descriptor()
 	// apikey.DefaultCreatedAt holds the default value on creation for the created_at field.
 	apikey.DefaultCreatedAt = apikeyDescCreatedAt.Default.(func() time.Time)
+	audioFields := schema.Audio{}.Fields()
+	_ = audioFields
+	// audioDescFilename is the schema descriptor for filename field.
+	audioDescFilename := audioFields[0].Descriptor()
+	// audio.FilenameValidator is a validator for the "filename" field. It is called by the builders before save.
+	audio.FilenameValidator = audioDescFilename.Validators[0].(func(string) error)
+	// audioDescStoredPath is the schema descriptor for stored_path field.
+	audioDescStoredPath := audioFields[1].Descriptor()
+	// audio.StoredPathValidator is a validator for the "stored_path" field. It is called by the builders before save.
+	audio.StoredPathValidator = audioDescStoredPath.Validators[0].(func(string) error)
+	// audioDescURL is the schema descriptor for url field.
+	audioDescURL := audioFields[2].Descriptor()
+	// audio.URLValidator is a validator for the "url" field. It is called by the builders before save.
+	audio.URLValidator = audioDescURL.Validators[0].(func(string) error)
+	// audioDescSize is the schema descriptor for size field.
+	audioDescSize := audioFields[3].Descriptor()
+	// audio.SizeValidator is a validator for the "size" field. It is called by the builders before save.
+	audio.SizeValidator = audioDescSize.Validators[0].(func(int64) error)
+	// audioDescMimeType is the schema descriptor for mime_type field.
+	audioDescMimeType := audioFields[4].Descriptor()
+	// audio.MimeTypeValidator is a validator for the "mime_type" field. It is called by the builders before save.
+	audio.MimeTypeValidator = audioDescMimeType.Validators[0].(func(string) error)
+	// audioDescHash is the schema descriptor for hash field.
+	audioDescHash := audioFields[5].Descriptor()
+	// audio.HashValidator is a validator for the "hash" field. It is called by the builders before save.
+	audio.HashValidator = audioDescHash.Validators[0].(func(string) error)
+	// audioDescFormat is the schema descriptor for format field.
+	audioDescFormat := audioFields[6].Descriptor()
+	// audio.DefaultFormat holds the default value on creation for the format field.
+	audio.DefaultFormat = audioDescFormat.Default.(string)
+	// audioDescTitle is the schema descriptor for title field.
+	audioDescTitle := audioFields[7].Descriptor()
+	// audio.DefaultTitle holds the default value on creation for the title field.
+	audio.DefaultTitle = audioDescTitle.Default.(string)
+	// audioDescArtist is the schema descriptor for artist field.
+	audioDescArtist := audioFields[8].Descriptor()
+	// audio.DefaultArtist holds the default value on creation for the artist field.
+	audio.DefaultArtist = audioDescArtist.Default.(string)
+	// audioDescAlbum is the schema descriptor for album field.
+	audioDescAlbum := audioFields[9].Descriptor()
+	// audio.DefaultAlbum holds the default value on creation for the album field.
+	audio.DefaultAlbum = audioDescAlbum.Default.(string)
+	// audioDescAlbumArtist is the schema descriptor for album_artist field.
+	audioDescAlbumArtist := audioFields[10].Descriptor()
+	// audio.DefaultAlbumArtist holds the default value on creation for the album_artist field.
+	audio.DefaultAlbumArtist = audioDescAlbumArtist.Default.(string)
+	// audioDescComposer is the schema descriptor for composer field.
+	audioDescComposer := audioFields[11].Descriptor()
+	// audio.DefaultComposer holds the default value on creation for the composer field.
+	audio.DefaultComposer = audioDescComposer.Default.(string)
+	// audioDescGenre is the schema descriptor for genre field.
+	audioDescGenre := audioFields[12].Descriptor()
+	// audio.DefaultGenre holds the default value on creation for the genre field.
+	audio.DefaultGenre = audioDescGenre.Default.(string)
+	// audioDescYear is the schema descriptor for year field.
+	audioDescYear := audioFields[13].Descriptor()
+	// audio.DefaultYear holds the default value on creation for the year field.
+	audio.DefaultYear = audioDescYear.Default.(int)
+	// audio.YearValidator is a validator for the "year" field. It is called by the builders before save.
+	audio.YearValidator = audioDescYear.Validators[0].(func(int) error)
+	// audioDescTrackNumber is the schema descriptor for track_number field.
+	audioDescTrackNumber := audioFields[14].Descriptor()
+	// audio.DefaultTrackNumber holds the default value on creation for the track_number field.
+	audio.DefaultTrackNumber = audioDescTrackNumber.Default.(int)
+	// audio.TrackNumberValidator is a validator for the "track_number" field. It is called by the builders before save.
+	audio.TrackNumberValidator = audioDescTrackNumber.Validators[0].(func(int) error)
+	// audioDescDiscNumber is the schema descriptor for disc_number field.
+	audioDescDiscNumber := audioFields[15].Descriptor()
+	// audio.DefaultDiscNumber holds the default value on creation for the disc_number field.
+	audio.DefaultDiscNumber = audioDescDiscNumber.Default.(int)
+	// audio.DiscNumberValidator is a validator for the "disc_number" field. It is called by the builders before save.
+	audio.DiscNumberValidator = audioDescDiscNumber.Validators[0].(func(int) error)
+	// audioDescDurationSeconds is the schema descriptor for duration_seconds field.
+	audioDescDurationSeconds := audioFields[16].Descriptor()
+	// audio.DefaultDurationSeconds holds the default value on creation for the duration_seconds field.
+	audio.DefaultDurationSeconds = audioDescDurationSeconds.Default.(float64)
+	// audioDescBitrateKbps is the schema descriptor for bitrate_kbps field.
+	audioDescBitrateKbps := audioFields[17].Descriptor()
+	// audio.DefaultBitrateKbps holds the default value on creation for the bitrate_kbps field.
+	audio.DefaultBitrateKbps = audioDescBitrateKbps.Default.(int)
+	// audio.BitrateKbpsValidator is a validator for the "bitrate_kbps" field. It is called by the builders before save.
+	audio.BitrateKbpsValidator = audioDescBitrateKbps.Validators[0].(func(int) error)
+	// audioDescSampleRate is the schema descriptor for sample_rate field.
+	audioDescSampleRate := audioFields[18].Descriptor()
+	// audio.DefaultSampleRate holds the default value on creation for the sample_rate field.
+	audio.DefaultSampleRate = audioDescSampleRate.Default.(int)
+	// audio.SampleRateValidator is a validator for the "sample_rate" field. It is called by the builders before save.
+	audio.SampleRateValidator = audioDescSampleRate.Validators[0].(func(int) error)
+	// audioDescChannels is the schema descriptor for channels field.
+	audioDescChannels := audioFields[19].Descriptor()
+	// audio.DefaultChannels holds the default value on creation for the channels field.
+	audio.DefaultChannels = audioDescChannels.Default.(int)
+	// audio.ChannelsValidator is a validator for the "channels" field. It is called by the builders before save.
+	audio.ChannelsValidator = audioDescChannels.Validators[0].(func(int) error)
+	// audioDescBitDepth is the schema descriptor for bit_depth field.
+	audioDescBitDepth := audioFields[20].Descriptor()
+	// audio.DefaultBitDepth holds the default value on creation for the bit_depth field.
+	audio.DefaultBitDepth = audioDescBitDepth.Default.(int)
+	// audio.BitDepthValidator is a validator for the "bit_depth" field. It is called by the builders before save.
+	audio.BitDepthValidator = audioDescBitDepth.Validators[0].(func(int) error)
+	// audioDescEmbeddedCoverURL is the schema descriptor for embedded_cover_url field.
+	audioDescEmbeddedCoverURL := audioFields[21].Descriptor()
+	// audio.DefaultEmbeddedCoverURL holds the default value on creation for the embedded_cover_url field.
+	audio.DefaultEmbeddedCoverURL = audioDescEmbeddedCoverURL.Default.(string)
+	// audioDescCreatedAt is the schema descriptor for created_at field.
+	audioDescCreatedAt := audioFields[23].Descriptor()
+	// audio.DefaultCreatedAt holds the default value on creation for the created_at field.
+	audio.DefaultCreatedAt = audioDescCreatedAt.Default.(func() time.Time)
 	imageFields := schema.Image{}.Fields()
 	_ = imageFields
 	// imageDescFilename is the schema descriptor for filename field.

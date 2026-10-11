@@ -35,7 +35,7 @@ type SystemService struct {
     }
     ```
 
-2. **字段直传**：`Server`（`Host` / `Port`）、`APIKey`（`RateLimitPerMinute` / `HTTPSOnly`）、`Storage`（`RootDir` / `PublicBaseURL` / `MaxUploadSizeMB` / `AllowedMimeTypes`）与 `Database.Driver` 从 config 透传。本方法**不做任何默认值兜底**--缺省默认（`RateLimitPerMinute` / `MaxUploadSizeMB` / `AllowedMimeTypes` 等）由 [`config.ApplyDefaults`](../../config/config.md#applydefaults) 在 `Load` 阶段统一补齐，此处直接透传补齐后的值，保证前端展示与实际生效阈值一致。
+2. **字段直传**：`Server`（`Host` / `Port`）、`APIKey`（`RateLimitPerMinute` / `HTTPSOnly`）、`Storage`（`RootDir` / `PublicBaseURL` / `MaxUploadSizeMB` / `AllowedMimeTypes` + 平行的音频键 `AudioRootDir` / `AudioPublicBaseURL` / `AudioMaxUploadSizeMB` / `AudioAllowedMimeTypes`）与 `Database.Driver` 从 config 透传。本方法**不做任何默认值兜底**--缺省默认（`RateLimitPerMinute` / `MaxUploadSizeMB` / `AllowedMimeTypes` / `AudioMaxUploadSizeMB` / `AudioAllowedMimeTypes` 等）由 [`config.ApplyDefaults`](../../config/config.md#applydefaults) 在 `Load` 阶段统一补齐，此处直接透传补齐后的值，保证前端展示与实际生效阈值一致。
 
 3. **脱敏**：`config.Auth` 段（含 `password` 与 `jwt.secret`）**不参与映射**，响应体中不出现这些机密。
 

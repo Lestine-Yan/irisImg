@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/Lestine-Yan/irisImg/backend/ent/apikey"
+	"github.com/Lestine-Yan/irisImg/backend/ent/audio"
 	"github.com/Lestine-Yan/irisImg/backend/ent/image"
 )
 
@@ -114,6 +115,21 @@ func (_c *ApiKeyCreate) AddImages(v ...*Image) *ApiKeyCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddImageIDs(ids...)
+}
+
+// AddAudioIDs adds the "audios" edge to the Audio entity by IDs.
+func (_c *ApiKeyCreate) AddAudioIDs(ids ...int) *ApiKeyCreate {
+	_c.mutation.AddAudioIDs(ids...)
+	return _c
+}
+
+// AddAudios adds the "audios" edges to the Audio entity.
+func (_c *ApiKeyCreate) AddAudios(v ...*Audio) *ApiKeyCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddAudioIDs(ids...)
 }
 
 // Mutation returns the ApiKeyMutation object of the builder.
@@ -280,6 +296,22 @@ func (_c *ApiKeyCreate) createSpec() (*ApiKey, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(image.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.AudiosIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   apikey.AudiosTable,
+			Columns: []string{apikey.AudiosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(audio.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

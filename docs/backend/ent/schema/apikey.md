@@ -26,6 +26,7 @@
 ## 关联关系（Edges）
 
 - `images`：`edge.To("images", Image.Type)` —— 一个密钥可以添加多张图片。反向由 [`Image`](image.md) 的 `key` edge（`edge.From("key", ApiKey.Type).Ref("images")`）绑定到显式字段 `key_id`。
+- `audios`：`edge.To("audios", Audio.Type)` —— 一个密钥可以添加多个音频（与图片对称）。反向由 [`Audio`](audio.md) 的 `key` edge（`edge.From("key", ApiKey.Type).Ref("audios")`）绑定到 `key_id`；删除密钥时由 `APIKeyService.Delete` 先级联清理音频记录与文件再删密钥。
 
 ## 调用关系
 

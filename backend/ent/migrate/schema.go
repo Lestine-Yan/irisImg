@@ -84,6 +84,61 @@ var (
 			},
 		},
 	}
+	// AudiosColumns holds the columns for the "audios" table.
+	AudiosColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "filename", Type: field.TypeString},
+		{Name: "stored_path", Type: field.TypeString, Unique: true},
+		{Name: "url", Type: field.TypeString},
+		{Name: "size", Type: field.TypeInt64},
+		{Name: "mime_type", Type: field.TypeString},
+		{Name: "hash", Type: field.TypeString},
+		{Name: "format", Type: field.TypeString, Default: ""},
+		{Name: "title", Type: field.TypeString, Default: ""},
+		{Name: "artist", Type: field.TypeString, Default: ""},
+		{Name: "album", Type: field.TypeString, Default: ""},
+		{Name: "album_artist", Type: field.TypeString, Default: ""},
+		{Name: "composer", Type: field.TypeString, Default: ""},
+		{Name: "genre", Type: field.TypeString, Default: ""},
+		{Name: "year", Type: field.TypeInt, Default: 0},
+		{Name: "track_number", Type: field.TypeInt, Default: 0},
+		{Name: "disc_number", Type: field.TypeInt, Default: 0},
+		{Name: "duration_seconds", Type: field.TypeFloat64, Default: 0},
+		{Name: "bitrate_kbps", Type: field.TypeInt, Default: 0},
+		{Name: "sample_rate", Type: field.TypeInt, Default: 0},
+		{Name: "channels", Type: field.TypeInt, Default: 0},
+		{Name: "bit_depth", Type: field.TypeInt, Default: 0},
+		{Name: "embedded_cover_url", Type: field.TypeString, Default: ""},
+		{Name: "cover_url", Type: field.TypeString, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "key_id", Type: field.TypeInt, Nullable: true},
+	}
+	// AudiosTable holds the schema information for the "audios" table.
+	AudiosTable = &schema.Table{
+		Name:       "audios",
+		Columns:    AudiosColumns,
+		PrimaryKey: []*schema.Column{AudiosColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "audios_api_keys_audios",
+				Columns:    []*schema.Column{AudiosColumns[25]},
+				RefColumns: []*schema.Column{APIKeysColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "audio_hash",
+				Unique:  false,
+				Columns: []*schema.Column{AudiosColumns[6]},
+			},
+			{
+				Name:    "audio_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{AudiosColumns[24]},
+			},
+		},
+	}
 	// ImagesColumns holds the columns for the "images" table.
 	ImagesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -128,6 +183,7 @@ var (
 	Tables = []*schema.Table{
 		LogsTable,
 		APIKeysTable,
+		AudiosTable,
 		ImagesTable,
 	}
 )
@@ -136,5 +192,6 @@ func init() {
 	LogsTable.Annotation = &entsql.Annotation{
 		Table: "logs",
 	}
+	AudiosTable.ForeignKeys[0].RefTable = APIKeysTable
 	ImagesTable.ForeignKeys[0].RefTable = APIKeysTable
 }

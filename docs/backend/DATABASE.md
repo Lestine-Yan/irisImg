@@ -66,7 +66,24 @@ cd backend && go generate ./ent
 
 ## 数据表登记
 
-数据库表由 `ent/schema/*.go` 定义，经 `entdao.Migrate` 自动建表。图片表（`images`）与密钥表（`api_keys`）的字段细节见 [`ent/schema/image.md`](./ent/schema/image.md) 与 [`ent/schema/apikey.md`](./ent/schema/apikey.md)；本节登记日志中心的 `logs` 表。
+数据库表由 `ent/schema/*.go` 定义，经 `entdao.Migrate` 自动建表。图片表（`images`）、音频表（`audios`）与密钥表（`api_keys`）的字段细节见 [`ent/schema/image.md`](./ent/schema/image.md)、[`ent/schema/audio.md`](./ent/schema/audio.md) 与 [`ent/schema/apikey.md`](./ent/schema/apikey.md)；本节登记日志中心的 `logs` 表与音频表的要点。
+
+### audios（Audio）
+
+音频元信息表，与 `images` 平行的存储字段（`filename` / `stored_path` **Unique** / `url` / `size` / `mime_type` / `hash` / `created_at` / `key_id` 可空）加上标准音频元数据：
+
+| 字段组 | 字段 | 说明 |
+|------|------|------|
+| 格式 | `format` | mp3 / m4a / flac（嗅探判定），解析失败空串 |
+| 标签 | `title` / `artist` / `album` / `album_artist` / `composer` / `genre` / `year` / `track_number` / `disc_number` | 标签解析，零值 = 未知/缺失（title 缺失回退文件名去扩展名） |
+| 技术参数 | `duration_seconds`(Float) / `bitrate_kbps` / `sample_rate` / `channels` / `bit_depth` | 零值 = 未知；`bit_depth` 仅 FLAC 有意义 |
+| 双层封面 | `embedded_cover_url`（默认空串）/ `cover_url`（Optional + Nillable） | 生效封面 = `cover_url || embedded_cover_url`；`cover_url` 为 NULL 表示未覆盖（详情页可改/清除） |
+
+**索引**：`hash`（秒传/去重）、`created_at`（分页），均普通索引；内容唯一性由 `stored_path` Unique + service 层 `GetByHash` 保证。
+
+**外键**：`key_id` → `api_keys.id`，符号 `audios_api_keys_audios`，**ON DELETE SET NULL**（与图片一致；`APIKeyService.Delete` 仍先级联删音频记录再删密钥）。
+
+**调用关系**：schema 仅供 Ent 代码生成；运行时由 [`internal/dao/entdao/audio.go`](./internal/dao/entdao/audio.md) 读写，业务见 [`internal/service/audio.md`](./internal/service/audio.md) 与 [`AUDIO.md`](./AUDIO.md)。纯新增表，老库经 `client.Schema.Create` 自动升级。
 
 ### logs（AccessLog）
 
@@ -99,6 +116,7 @@ cd backend && go generate ./ent
 - 配置项：[`config/config.md`](./config/config.md)
 - 连接与迁移：[`internal/dao/entdao/db.md`](./internal/dao/entdao/db.md)
 - DAO 接口：[`internal/dao/dao.md`](./internal/dao/dao.md)
-- 实体 schema：[`ent/schema/image.md`](./ent/schema/image.md)
+- 实体 schema：[`ent/schema/image.md`](./ent/schema/image.md) · [`ent/schema/audio.md`](./ent/schema/audio.md)
 - 日志 schema：[`ent/schema/log.md`](./ent/schema/log.md)
+- 图片链路：[`IMAGE.md`](./IMAGE.md) · 音频链路：[`AUDIO.md`](./AUDIO.md)
 - 日志链路：[`LOG.md`](./LOG.md)

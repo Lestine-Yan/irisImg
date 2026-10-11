@@ -53,6 +53,20 @@ storage:
     - "image/jpeg"
     - "image/gif"
     - "image/webp"
+  # 音频落盘相关配置（与图片分目录存储）。目录布局与图片一致：<YYYY>/<MM>/<sha256>.<ext>，
+  # 内嵌封面抽取后平铺存 covers/ 子目录（内容寻址、跨音频共享、不随删除清理）。
+  # audio_public_base_url 为空时返回相对路径 /audios/...；audio_max_upload_size_mb 默认 100
+  # （无损格式体积大；Nginx client_max_body_size 需大于此值，模板按 150m 对齐）。
+  # audio_allowed_mime_types 是嗅探规范化后的 MIME 白名单（mp3→audio/mpeg、m4a→audio/mp4、
+  # flac→audio/flac；audio/x-m4a 仅作别名接受）。
+  audio_root_dir: "data/audios"
+  audio_public_base_url: ""
+  audio_max_upload_size_mb: 100
+  audio_allowed_mime_types:
+    - "audio/mpeg"
+    - "audio/mp4"
+    - "audio/x-m4a"
+    - "audio/flac"
 
 # 跨域配置。生产同域部署（apiBase 相对路径）无跨域需求，留空关闭；开发联调填 ["*"]。
 # release 模式下 Validate 拒绝 "*"，强制配确切域名或留空。

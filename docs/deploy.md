@@ -6,9 +6,9 @@
 
 irisImg 为前后端分离的个人图床：
 
-- **后端**：Go(Gin) 单二进制，纯 Go SQLite 驱动（`modernc.org/sqlite`，无需 CGO），监听 `0.0.0.0:8080`。业务接口统一挂在 `/api/v1` 下，图片静态服务挂在 `/imgs`。
+- **后端**：Go(Gin) 单二进制，纯 Go SQLite 驱动（`modernc.org/sqlite`，无需 CGO），监听 `0.0.0.0:8080`。业务接口统一挂在 `/api/v1` 下，图片 / 音频静态服务分别挂在 `/imgs`、`/audios`。
 - **前端**：Nuxt4 SPA（`ssr:false`），`pnpm generate` 产出纯静态站点，由 Nginx 直接 serve。
-- **反代**：Nginx 同域反代，`/api/` 转发后端、`/imgs/` 直接 serve 落盘目录、`/` serve 前端 SPA。
+- **反代**：Nginx 同域反代，`/api/` 转发后端、`/imgs/` 与 `/audios/` 直接 serve 落盘目录、`/` serve 前端 SPA。
 
 ## Release 打包
 
@@ -21,7 +21,7 @@ irisImg/
 ├── irisImg                       # 后端二进制（linux/amd64，CGO_ENABLED=0 交叉编译）
 ├── config/config.yaml.example    # 配置模板（首次部署 cp 为 config.yaml 再改；更新只覆盖 .example）
 ├── web/                          # 前端 SPA（frontend/.output/public 产物）
-├── data/                         # 运行时数据（db + imgs，运行时生成）
+├── data/                         # 运行时数据（db + imgs + audios，运行时生成）
 ├── nginx/                        # Nginx 示例配置模板（.conf.example，HTTPS 生产 + HTTP 最简）
 └── scripts/                      # start.sh / stop.sh / irisImg.service
 ```
@@ -65,10 +65,11 @@ Windows 开发机 `git core.autocrlf=true` 会让 checkout 出来的 `.sh` / `.s
 
 ## Nginx 反代约定
 
-- `location /api/`：`proxy_pass http://127.0.0.1:8080;`（**无尾斜杠**，保留 `/api` 前缀），透传 `X-Forwarded-Proto` 供后端 `apikey.https_only` 校验。
+- `location /api/`：`proxy_pass http://127.0.0.1:8080;`（**无尾斜杠**，保留 `/api` 前缀），透传 `X-Forwarded-Proto` 供后端 `apikey.https_only` 校验；`proxy_read_timeout` 放宽到 300s（100MB 音频经慢速上行链路上传可能超 60s）。
 - `location /imgs/`：`alias <root>/data/imgs/;`，路径须与 `storage.root_dir` 一致。落盘文件权限须为 0644（新版 `storage.Saver` 已自动 `chmod`），目录 0755，且 Nginx worker 用户（如 `www`）需对 `<root>/data/imgs/` 及其子目录有可遍历位；旧版本落盘为 0600，升级后历史文件需 `find <root>/data/imgs -type f -exec chmod 644 {} \;` 批量补权限，否则跨用户读取 403。
+- `location /audios/`：`alias <root>/data/audios/;`，路径须与 `storage.audio_root_dir` 一致，扩展名白名单为 mp3/m4a/flac + 封面图片扩展名（内嵌封面落 `covers/` 子目录，与音频共用前缀）；权限要求同 `/imgs/`。Nginx 原生支持 Range 请求，音频拖动进度条无需额外配置。
 - `location /`：`try_files $uri $uri/ /index.html;` 兜底 SPA 路由刷新。
-- `client_max_body_size` 需大于 `storage.max_upload_size_mb`（默认 20MB，Nginx 示例取 25m）。
+- `client_max_body_size` 需大于 `storage.audio_max_upload_size_mb`（默认 100MB，Nginx 示例取 150m）；图片上传仍由后端 `max_upload_size_mb=20` 精确限制。
 
 示例配置见 `deploy/nginx/irisImg.conf.example`（HTTPS 生产形态，仅监听 443；80->443 跳转不在该模板内，需由主站 Nginx 或宝塔另行处理，见模板内注释）与 `deploy/nginx/irisImg.http.conf.example`（HTTP 最简版）；release 包内同名 `.example` 模板，首次部署 `cp` 去后缀使用。
 
@@ -80,5 +81,6 @@ Windows 开发机 `git core.autocrlf=true` 会让 checkout 出来的 `.sh` / `.s
 - `cors.allow_origins` 留空（同域部署无跨域需求，最安全）；`*` 会被 release 模式 `Validate` 拒绝启动
 - `storage.root_dir` 与 Nginx `/imgs/` alias 指向同一物理目录，落盘文件 0644、目录 0755 保证 Nginx 跨用户可读
 - `storage.public_base_url` 留空（同域 `/imgs/` 反代，最简）或填带协议的绝对前缀（如 `https://img.example.com`）；裸域名会被自动补 `https://`，但不建议依赖
+- **音频升级注记**：v0.2 起新增 `storage.audio_*` 配置键与 `/audios/` Nginx location。**旧 config.yaml 缺这些键时 `ApplyDefaults` 自动补默认值（`data/audios` / 100MB / mp3+m4a+flac），升级不会启动失败**；但 Nginx 配置需手动加上 `/audios/` location（拷贝新 `.example` 模板或对照补充），否则音频直链 404。`data/audios/` 目录由后端启动时自动创建。
 
 部署清单与排错见随 release 包分发的 `deploy/README.md`。

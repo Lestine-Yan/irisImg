@@ -8,7 +8,7 @@ APIkey 管理页用到的密钥接口封装 + 类型定义，供 [`pages/apikeys
 - `APIKeyInfo`：密钥列表项，对应后端 `model.APIKeyInfo`（`id / name / prefix / scope / rate_limit / revoked / last_used_at / created_at`，不含明文与哈希）。
 - `CreateAPIKeyResponse` / `ResetAPIKeyResponse`：创建 / 重置响应，含**一次性明文** `key`。
 - `DestructiveAPIKeyRequest`：吊销 / 删除的请求体（`username / password`，二次确认）。
-- `DeleteAPIKeyResult`：删除响应，含 `images_removed`（级联删除的图片数）。
+- `DeleteAPIKeyResult`：删除响应，含 `images_removed` / `audios_removed`（级联删除的图片与音频数）。
 
 ## 导出函数
 

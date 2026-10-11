@@ -251,14 +251,20 @@ func readUploadFile(c *gin.Context, maxBytes int64) (filename string, content []
 // respondUploadError 把 service.Upload 返回的错误映射为对应的 HTTP 响应，
 // 供 Create / CreateAdmin 复用，避免两处分支漂移。
 func respondUploadError(c *gin.Context, err error) {
+	respondUploadErrorWith(c, err, "图片")
+}
+
+// respondUploadErrorWith 是图片 / 音频上传共用的错误映射，
+// label 是面向用户的名词（如 "图片" / "音频"），只影响提示文案不影响状态码。
+func respondUploadErrorWith(c *gin.Context, err error, label string) {
 	switch {
 	case errors.Is(err, service.ErrEmptyFile):
 		response.BadRequest(c, "上传内容为空")
 	case errors.Is(err, service.ErrFileTooLarge):
 		response.PayloadTooLarge(c, "上传文件过大")
 	case errors.Is(err, service.ErrUnsupportedMime):
-		response.BadRequest(c, "不支持的图片类型")
+		response.BadRequest(c, "不支持的"+label+"类型")
 	default:
-		response.ServerError(c, "图片上传失败："+err.Error())
+		response.ServerError(c, label+"上传失败："+err.Error())
 	}
 }

@@ -13,7 +13,7 @@
 | `Server` | `ServerConfigView` | `server` | 服务监听信息 |
 | `Database` | `DatabaseConfigView` | `database` | 数据库位置信息 |
 | `APIKey` | `APIKeyConfigView` | `apikey` | API 密钥全局开关与默认阈值 |
-| `Storage` | `StorageConfigView` | `storage` | 图片存储相关参数 |
+| `Storage` | `StorageConfigView` | `storage` | 图片 / 音频存储相关参数 |
 
 > **脱敏设计**：[`config.Config`](../../config/config.md) 中的 `Auth` 段（`username` / `password` / `jwt.secret`）**刻意不在此结构中暴露**，避免把管理员口令与签名密钥下发到前端。`Database` 仅暴露驱动与纯文件路径，`DSN` 中的连接参数（如 `?_pragma=busy_timeout(5000)`）由 service 层剥离（见 [`service.SystemService`](../service/system.md)）。`App` / `Logger` 段当前亦不暴露。
 
@@ -46,7 +46,7 @@
 
 ### `StorageConfigView`
 
-暴露图片存储相关参数。
+暴露图片 / 音频存储相关参数（音频键与图片键平行）。
 
 | 字段 | json tag | 说明 |
 |------|----------|------|
@@ -54,6 +54,10 @@
 | `PublicBaseURL` | `public_base_url` | 图片对外访问基址，空表示走相对路径 `/imgs/` |
 | `MaxUploadSizeMB` | `max_upload_size_mb` | 单次上传上限（MiB） |
 | `AllowedMimeTypes` | `allowed_mime_types` | 允许上传的 MIME 白名单；service 层在配置为 `nil` 时兜底为空切片，避免 JSON 序列化为 `null` |
+| `AudioRootDir` | `audio_root_dir` | 音频落盘根目录 |
+| `AudioPublicBaseURL` | `audio_public_base_url` | 音频对外访问基址，空表示走相对路径 `/audios/` |
+| `AudioMaxUploadSizeMB` | `audio_max_upload_size_mb` | 单次音频上传上限（MiB） |
+| `AudioAllowedMimeTypes` | `audio_allowed_mime_types` | 允许上传的音频 MIME 白名单（匹配嗅探规范化后的值）；同上做非 null 兜底 |
 
 ## 调用关系
 

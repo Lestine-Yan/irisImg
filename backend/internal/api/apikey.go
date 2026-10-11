@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/Lestine-Yan/irisImg/backend/internal/middleware"
@@ -145,8 +146,8 @@ func (h *APIKeyAPI) Revoke(c *gin.Context) {
 	response.Success(c, gin.H{"id": id, "revoked": true})
 }
 
-// Delete 处理 DELETE /apikeys/:id，物理删除指定密钥并级联删除其关联图片。
-// 需在请求体中携带账号密码做二次确认。响应附带被删除的图片数量。
+// Delete 处理 DELETE /apikeys/:id，物理删除指定密钥并级联删除其关联图片与音频。
+// 需在请求体中携带账号密码做二次确认。响应附带被删除的图片与音频数量。
 func (h *APIKeyAPI) Delete(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -164,7 +165,7 @@ func (h *APIKeyAPI) Delete(c *gin.Context) {
 		return
 	}
 
-	removed, err := h.svc.Delete(c.Request.Context(), id)
+	removedImages, removedAudios, err := h.svc.Delete(c.Request.Context(), id)
 	if err != nil {
 		if errors.Is(err, service.ErrKeyNotFound) {
 			response.NotFound(c, "密钥不存在")
@@ -173,6 +174,12 @@ func (h *APIKeyAPI) Delete(c *gin.Context) {
 		response.ServerError(c, err.Error())
 		return
 	}
-	h.record(c, model.EventAPIKeyDelete, model.LevelWarn, "delete apikey #"+strconv.Itoa(id))
-	response.Success(c, gin.H{"id": id, "deleted": true, "images_removed": removed})
+	h.record(c, model.EventAPIKeyDelete, model.LevelWarn,
+		fmt.Sprintf("delete apikey #%d: removed %d images, %d audios", id, removedImages, removedAudios))
+	response.Success(c, gin.H{
+		"id":             id,
+		"deleted":        true,
+		"images_removed": removedImages,
+		"audios_removed": removedAudios,
+	})
 }

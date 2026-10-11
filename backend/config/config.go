@@ -92,6 +92,24 @@ type StorageConfig struct {
 	// 后端用 http.DetectContentType 嗅探内容头部得到真实类型，
 	// 不信任客户端提交的 Content-Type，未命中白名单直接拒收。
 	AllowedMimeTypes []string `yaml:"allowed_mime_types"`
+
+	// AudioRootDir 是音频文件落盘根目录，默认 "data/audios"。
+	//
+	// 与 RootDir 的 fail-fast（缺省报错拒启）刻意不同：音频是 v0.2 新增能力，
+	// 旧部署的 config.yaml 没有 audio_root_dir 键，若不兜底默认值会在升级后直接启动失败，
+	// 故 ApplyDefaults 统一补 "data/audios"。目录布局与图片一致（<YYYY>/<MM>/<sha256>.<ext>），
+	// 内嵌封面另存平铺的 covers/ 子目录。
+	AudioRootDir string `yaml:"audio_root_dir"`
+	// AudioPublicBaseURL 是音频对外访问 URL 前缀，空表示走相对路径 "/audios/..."。
+	AudioPublicBaseURL string `yaml:"audio_public_base_url"`
+	// AudioMaxUploadSizeMB 限制单次音频上传字节数（MiB），0 表示走默认 100。
+	// 无损格式（FLAC/ALAC）体积远大于图片，故默认上限高于图片；
+	// Nginx 的 client_max_body_size 必须大于此值（模板已按 150m 对齐）。
+	AudioMaxUploadSizeMB int `yaml:"audio_max_upload_size_mb"`
+	// AudioAllowedMimeTypes 是音频真实 MIME 白名单（白名单匹配的是嗅探规范化后的
+	// canonical MIME：mp3→audio/mpeg、m4a→audio/mp4、flac→audio/flac）。
+	// audio/x-m4a 仅作为白名单别名接受，入库永远存 canonical 值。
+	AudioAllowedMimeTypes []string `yaml:"audio_allowed_mime_types"`
 }
 
 // CORSConfig 描述跨域中间件的允许来源。
@@ -187,6 +205,15 @@ var defaultAllowedMimeTypes = []string{
 	"image/webp",
 }
 
+// defaultAudioAllowedMimeTypes 是 storage.audio_allowed_mime_types 缺省时的默认白名单。
+// mp3 / m4a(mp4 容器) / flac 三种格式；audio/x-m4a 是历史习惯别名，仅作兼容接受。
+var defaultAudioAllowedMimeTypes = []string{
+	"audio/mpeg",
+	"audio/mp4",
+	"audio/x-m4a",
+	"audio/flac",
+}
+
 // ApplyDefaults 把缺失（零值）的配置项补齐为合理默认值，建立「缺省默认」的单一事实源。
 //
 // 设计边界——以下字段刻意不兜底：
@@ -252,6 +279,17 @@ func (c *Config) ApplyDefaults() {
 	}
 	if c.Storage.AllowedMimeTypes == nil {
 		c.Storage.AllowedMimeTypes = defaultAllowedMimeTypes
+	}
+	// Audio*：AudioRootDir 刻意兜底（区别于 RootDir 的 fail-fast）——旧配置缺键时
+	// 取默认 "data/audios"，保证升级即用；AudioPublicBaseURL 空串是合法语义（走 /audios 相对路径）。
+	if c.Storage.AudioRootDir == "" {
+		c.Storage.AudioRootDir = "data/audios"
+	}
+	if c.Storage.AudioMaxUploadSizeMB <= 0 {
+		c.Storage.AudioMaxUploadSizeMB = 100
+	}
+	if c.Storage.AudioAllowedMimeTypes == nil {
+		c.Storage.AudioAllowedMimeTypes = defaultAudioAllowedMimeTypes
 	}
 
 	// CORS：nil 补 ["*"]（开发开箱即用）；显式空列表保留（关闭跨域，生产同域部署用）。

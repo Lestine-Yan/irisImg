@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/Lestine-Yan/irisImg/backend/ent/apikey"
+	"github.com/Lestine-Yan/irisImg/backend/ent/audio"
 	"github.com/Lestine-Yan/irisImg/backend/ent/image"
 	"github.com/Lestine-Yan/irisImg/backend/ent/predicate"
 )
@@ -25,6 +26,7 @@ type ApiKeyQuery struct {
 	inters     []Interceptor
 	predicates []predicate.ApiKey
 	withImages *ImageQuery
+	withAudios *AudioQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -76,6 +78,28 @@ func (_q *ApiKeyQuery) QueryImages() *ImageQuery {
 			sqlgraph.From(apikey.Table, apikey.FieldID, selector),
 			sqlgraph.To(image.Table, image.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, apikey.ImagesTable, apikey.ImagesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryAudios chains the current query on the "audios" edge.
+func (_q *ApiKeyQuery) QueryAudios() *AudioQuery {
+	query := (&AudioClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(apikey.Table, apikey.FieldID, selector),
+			sqlgraph.To(audio.Table, audio.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, apikey.AudiosTable, apikey.AudiosColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -276,6 +300,7 @@ func (_q *ApiKeyQuery) Clone() *ApiKeyQuery {
 		inters:     append([]Interceptor{}, _q.inters...),
 		predicates: append([]predicate.ApiKey{}, _q.predicates...),
 		withImages: _q.withImages.Clone(),
+		withAudios: _q.withAudios.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -290,6 +315,17 @@ func (_q *ApiKeyQuery) WithImages(opts ...func(*ImageQuery)) *ApiKeyQuery {
 		opt(query)
 	}
 	_q.withImages = query
+	return _q
+}
+
+// WithAudios tells the query-builder to eager-load the nodes that are connected to
+// the "audios" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ApiKeyQuery) WithAudios(opts ...func(*AudioQuery)) *ApiKeyQuery {
+	query := (&AudioClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withAudios = query
 	return _q
 }
 
@@ -371,8 +407,9 @@ func (_q *ApiKeyQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*ApiKe
 	var (
 		nodes       = []*ApiKey{}
 		_spec       = _q.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [2]bool{
 			_q.withImages != nil,
+			_q.withAudios != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -400,6 +437,13 @@ func (_q *ApiKeyQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*ApiKe
 			return nil, err
 		}
 	}
+	if query := _q.withAudios; query != nil {
+		if err := _q.loadAudios(ctx, query, nodes,
+			func(n *ApiKey) { n.Edges.Audios = []*Audio{} },
+			func(n *ApiKey, e *Audio) { n.Edges.Audios = append(n.Edges.Audios, e) }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
 }
 
@@ -418,6 +462,39 @@ func (_q *ApiKeyQuery) loadImages(ctx context.Context, query *ImageQuery, nodes 
 	}
 	query.Where(predicate.Image(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(apikey.ImagesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.KeyID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "key_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "key_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *ApiKeyQuery) loadAudios(ctx context.Context, query *AudioQuery, nodes []*ApiKey, init func(*ApiKey), assign func(*ApiKey, *Audio)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*ApiKey)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(audio.FieldKeyID)
+	}
+	query.Where(predicate.Audio(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(apikey.AudiosColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

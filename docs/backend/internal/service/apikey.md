@@ -1,6 +1,6 @@
 # `internal/service/apikey.go`
 
-API 密钥的业务逻辑层：处理密钥的**签发、管理（列表 / 重命名 / 重置 / 吊销 / 删除）与鉴权**。控制器与中间件把入参原样交过来，本层负责生成明文、调 DAO、判定吊销与权限前置条件，并在删除密钥时级联清理关联图片。
+API 密钥的业务逻辑层：处理密钥的**签发、管理（列表 / 重命名 / 重置 / 吊销 / 删除）与鉴权**。控制器与中间件把入参原样交过来，本层负责生成明文、调 DAO、判定吊销与权限前置条件，并在删除密钥时级联清理关联图片与音频。
 
 ## 类型与变量
 
@@ -8,14 +8,16 @@ API 密钥的业务逻辑层：处理密钥的**签发、管理（列表 / 重�
 
 ```go
 type APIKeyService struct {
-    dao      dao.APIKeyDAO
-    imageDAO dao.ImageDAO
-    saver    *storage.Saver
+    dao        dao.APIKeyDAO
+    imageDAO   dao.ImageDAO
+    audioDAO   dao.AudioDAO
+    saver      *storage.Saver
+    audioSaver *storage.Saver
 }
 ```
 
 - 持有 [`dao.APIKeyDAO`](../dao/dao.md) 接口，由 [`router`](../router/router.md) 注入。
-- `imageDAO` 与 `saver` 仅用于 `Delete` 的级联清理（删除该密钥关联的图片文件与记录），其余操作不依赖它们。
+- `imageDAO` / `audioDAO` 与两个 Saver（图片 `/imgs`、音频 `/audios`）仅用于 `Delete` 的级联清理（删除该密钥关联的图片与音频文件与记录），其余操作不依赖它们。
 - 无可变状态，goroutine 安全。
 
 ### sentinel 错误
@@ -31,9 +33,9 @@ type APIKeyService struct {
 
 ## 函数
 
-### `NewAPIKeyService(d dao.APIKeyDAO, imgDAO dao.ImageDAO, saver *storage.Saver) *APIKeyService`
+### `NewAPIKeyService(d dao.APIKeyDAO, imgDAO dao.ImageDAO, audioDAO dao.AudioDAO, saver, audioSaver *storage.Saver) *APIKeyService`
 
-普通构造器。`imgDAO` / `saver` 供 `Delete` 级联清理使用。
+普通构造器。`imgDAO` / `audioDAO` 与两个 Saver 供 `Delete` 级联清理使用。
 
 ### `Create(ctx, *model.CreateAPIKeyRequest) (*model.CreateAPIKeyResponse, error)`
 
@@ -62,17 +64,17 @@ type APIKeyService struct {
 3. 返回 `ResetAPIKeyResponse`，其中 `Key` 为**一次性新明文**；旧明文因哈希被替换而立即失效。
 4. `dao.ErrNotFound` → `ErrKeyNotFound`。
 
-### `Delete(ctx, id int) (int, error)`
+### `Delete(ctx, id int) (int, int, error)`
 
-物理删除密钥并**级联删除其关联图片**（物理文件 + 元信息记录），返回被删除的图片数量。顺序：
+物理删除密钥并**级联删除其关联图片与音频**（物理文件 + 元信息记录），返回 `(删除的图片数, 删除的音频数, err)`。顺序：
 
 1. `dao.GetByID` 确认密钥存在（否则 `ErrKeyNotFound`）。
-2. `imageDAO.ListByKeyID` 取该密钥的全部图片路径。
-3. 逐个 `saver.Delete(img.StoredPath)` best-effort 删物理文件（失败不阻断）。
-4. `imageDAO.DeleteByKeyID` 删图片记录（先删记录以解除外键约束）。
+2. `imageDAO.ListByKeyID` 取该密钥的全部图片路径，逐个 `saver.Delete(StoredPath)` best-effort 删物理文件（失败不阻断）。
+3. `imageDAO.DeleteByKeyID` 删图片记录（先删记录以解除外键约束）。
+4. 音频同款：`audioDAO.ListByKeyID` → 逐个 `audioSaver.Delete` → `audioDAO.DeleteByKeyID`。**音频内嵌封面（covers/ 内容寻址共享文件）刻意不清理**——与批量删除音频一致。
 5. `dao.Delete` 删密钥。
 
-> 非事务（删除是低频管理操作）：若删密钥失败，图片已清理但密钥仍在，此时密钥已无关联图片，管理员重试删除不会再受外键约束。
+> 非事务（删除是低频管理操作）：若删密钥失败，内容已清理但密钥仍在，此时密钥已无关联内容，管理员重试删除不会再受外键约束。
 
 ### `Touch(ctx, id int) error`
 
@@ -96,7 +98,7 @@ return key, nil
 
 ```
 api.APIKeyAPI ────────────► service.APIKeyService ──► dao.APIKeyDAO
-middleware.APIKeyAuth ─────►        │   └─► dao.ImageDAO + storage.Saver (Delete 级联清理)
+middleware.APIKeyAuth ─────►        │   └─► dao.ImageDAO + dao.AudioDAO + 两个 Saver (Delete 级联清理)
                                     └─► pkg/apikey (Generate / Hash / IsValidFormat)
 ```
 

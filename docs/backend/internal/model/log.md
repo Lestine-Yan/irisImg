@@ -21,19 +21,22 @@ const (
 
 ```go
 const (
-    EventHTTPRequest   = "http.request"        // 每条 HTTP 请求（访问日志，由中间件批量落库）
-    EventImageUpload   = "image.upload"        // 图片上传
-    EventImageDelete   = "image.delete"        // 批量删除图片（warn）
-    EventAPIKeyCreate  = "apikey.create"       // 密钥创建
-    EventAPIKeyRename  = "apikey.rename"       // 密钥重命名
-    EventAPIKeyReset   = "apikey.reset"        // 密钥重置（明文重发）
-    EventAPIKeyRevoke  = "apikey.revoke"       // 密钥吊销
-    EventAPIKeyDelete  = "apikey.delete"       // 密钥删除
-    EventAuthLoginOK   = "auth.login_success"  // 登录成功
-    EventAuthLoginFail = "auth.login_failed"   // 登录失败
-    EventLogClear      = "log.clear"           // 日志清理（全量清空）
-    EventLogClearGet   = "log.clear_get"       // 日志清理（仅 info 级 GET 请求日志）
-    EventPanic         = "panic"               // panic 恢复记录
+    EventHTTPRequest      = "http.request"         // 每条 HTTP 请求（访问日志，由中间件批量落库）
+    EventImageUpload      = "image.upload"         // 图片上传
+    EventImageDelete      = "image.delete"         // 批量删除图片（warn）
+    EventAudioUpload      = "audio.upload"         // 音频上传
+    EventAudioDelete      = "audio.delete"         // 批量删除音频（warn）
+    EventAudioUpdateCover = "audio.update_cover"   // 修改音频封面（清除覆盖时消息为 reset）
+    EventAPIKeyCreate     = "apikey.create"        // 密钥创建
+    EventAPIKeyRename     = "apikey.rename"        // 密钥重命名
+    EventAPIKeyReset      = "apikey.reset"         // 密钥重置（明文重发）
+    EventAPIKeyRevoke     = "apikey.revoke"        // 密钥吊销
+    EventAPIKeyDelete     = "apikey.delete"        // 密钥删除（级联清理图片与音频）
+    EventAuthLoginOK      = "auth.login_success"   // 登录成功
+    EventAuthLoginFail    = "auth.login_failed"    // 登录失败
+    EventLogClear         = "log.clear"            // 日志清理（全量清空）
+    EventLogClearGet      = "log.clear_get"        // 日志清理（仅 info 级 GET 请求日志）
+    EventPanic            = "panic"                // panic 恢复记录
 )
 ```
 

@@ -58,6 +58,7 @@ func main() {
 
 	// 5. 构建 DAO 层（含日志 DAO）
 	imageDAO := entdao.NewImageDAO(dbClient)
+	audioDAO := entdao.NewAudioDAO(dbClient)
 	apiKeyDAO := entdao.NewAPIKeyDAO(dbClient)
 	logDAO := entdao.NewLogDAO(dbClient)
 
@@ -65,6 +66,12 @@ func main() {
 	saver, err := storage.NewSaver(cfg.Storage)
 	if err != nil {
 		log.Fatalf("init storage failed: %v", err)
+	}
+
+	// 6.0 构建音频存储器（data/audios，与图片分目录；同款启动期 fail-fast）
+	audioSaver, err := storage.NewAudioSaver(cfg.Storage)
+	if err != nil {
+		log.Fatalf("init audio storage failed: %v", err)
 	}
 
 	// 6.1 解析受信任反代网段（server.trusted_proxies），非法 CIDR fail-fast 拒绝启动。
@@ -76,7 +83,7 @@ func main() {
 	}
 
 	// 7. 构建路由（注入 DAO / Saver / logger 依赖），取回 logSvc 供优雅关闭 flush
-	r, logSvc := router.New(cfg, imageDAO, apiKeyDAO, logDAO, saver, trustedProxies, lg)
+	r, logSvc := router.New(cfg, imageDAO, audioDAO, apiKeyDAO, logDAO, saver, audioSaver, trustedProxies, lg)
 
 	// 8. 启动 HTTP 服务，并支持优雅关闭
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)

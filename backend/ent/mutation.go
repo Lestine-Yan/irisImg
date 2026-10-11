@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/Lestine-Yan/irisImg/backend/ent/accesslog"
 	"github.com/Lestine-Yan/irisImg/backend/ent/apikey"
+	"github.com/Lestine-Yan/irisImg/backend/ent/audio"
 	"github.com/Lestine-Yan/irisImg/backend/ent/image"
 	"github.com/Lestine-Yan/irisImg/backend/ent/predicate"
 )
@@ -28,6 +29,7 @@ const (
 	// Node types.
 	TypeAccessLog = "AccessLog"
 	TypeApiKey    = "ApiKey"
+	TypeAudio     = "Audio"
 	TypeImage     = "Image"
 )
 
@@ -1284,6 +1286,9 @@ type ApiKeyMutation struct {
 	images        map[int]struct{}
 	removedimages map[int]struct{}
 	clearedimages bool
+	audios        map[int]struct{}
+	removedaudios map[int]struct{}
+	clearedaudios bool
 	done          bool
 	oldValue      func(context.Context) (*ApiKey, error)
 	predicates    []predicate.ApiKey
@@ -1762,6 +1767,60 @@ func (m *ApiKeyMutation) ResetImages() {
 	m.removedimages = nil
 }
 
+// AddAudioIDs adds the "audios" edge to the Audio entity by ids.
+func (m *ApiKeyMutation) AddAudioIDs(ids ...int) {
+	if m.audios == nil {
+		m.audios = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.audios[ids[i]] = struct{}{}
+	}
+}
+
+// ClearAudios clears the "audios" edge to the Audio entity.
+func (m *ApiKeyMutation) ClearAudios() {
+	m.clearedaudios = true
+}
+
+// AudiosCleared reports if the "audios" edge to the Audio entity was cleared.
+func (m *ApiKeyMutation) AudiosCleared() bool {
+	return m.clearedaudios
+}
+
+// RemoveAudioIDs removes the "audios" edge to the Audio entity by IDs.
+func (m *ApiKeyMutation) RemoveAudioIDs(ids ...int) {
+	if m.removedaudios == nil {
+		m.removedaudios = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.audios, ids[i])
+		m.removedaudios[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedAudios returns the removed IDs of the "audios" edge to the Audio entity.
+func (m *ApiKeyMutation) RemovedAudiosIDs() (ids []int) {
+	for id := range m.removedaudios {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// AudiosIDs returns the "audios" edge IDs in the mutation.
+func (m *ApiKeyMutation) AudiosIDs() (ids []int) {
+	for id := range m.audios {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetAudios resets all changes to the "audios" edge.
+func (m *ApiKeyMutation) ResetAudios() {
+	m.audios = nil
+	m.clearedaudios = false
+	m.removedaudios = nil
+}
+
 // Where appends a list predicates to the ApiKeyMutation builder.
 func (m *ApiKeyMutation) Where(ps ...predicate.ApiKey) {
 	m.predicates = append(m.predicates, ps...)
@@ -2038,9 +2097,12 @@ func (m *ApiKeyMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ApiKeyMutation) AddedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.images != nil {
 		edges = append(edges, apikey.EdgeImages)
+	}
+	if m.audios != nil {
+		edges = append(edges, apikey.EdgeAudios)
 	}
 	return edges
 }
@@ -2055,15 +2117,24 @@ func (m *ApiKeyMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case apikey.EdgeAudios:
+		ids := make([]ent.Value, 0, len(m.audios))
+		for id := range m.audios {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ApiKeyMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.removedimages != nil {
 		edges = append(edges, apikey.EdgeImages)
+	}
+	if m.removedaudios != nil {
+		edges = append(edges, apikey.EdgeAudios)
 	}
 	return edges
 }
@@ -2078,15 +2149,24 @@ func (m *ApiKeyMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case apikey.EdgeAudios:
+		ids := make([]ent.Value, 0, len(m.removedaudios))
+		for id := range m.removedaudios {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ApiKeyMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.clearedimages {
 		edges = append(edges, apikey.EdgeImages)
+	}
+	if m.clearedaudios {
+		edges = append(edges, apikey.EdgeAudios)
 	}
 	return edges
 }
@@ -2097,6 +2177,8 @@ func (m *ApiKeyMutation) EdgeCleared(name string) bool {
 	switch name {
 	case apikey.EdgeImages:
 		return m.clearedimages
+	case apikey.EdgeAudios:
+		return m.clearedaudios
 	}
 	return false
 }
@@ -2116,8 +2198,2028 @@ func (m *ApiKeyMutation) ResetEdge(name string) error {
 	case apikey.EdgeImages:
 		m.ResetImages()
 		return nil
+	case apikey.EdgeAudios:
+		m.ResetAudios()
+		return nil
 	}
 	return fmt.Errorf("unknown ApiKey edge %s", name)
+}
+
+// AudioMutation represents an operation that mutates the Audio nodes in the graph.
+type AudioMutation struct {
+	config
+	op                  Op
+	typ                 string
+	id                  *int
+	filename            *string
+	stored_path         *string
+	url                 *string
+	size                *int64
+	addsize             *int64
+	mime_type           *string
+	hash                *string
+	format              *string
+	title               *string
+	artist              *string
+	album               *string
+	album_artist        *string
+	composer            *string
+	genre               *string
+	year                *int
+	addyear             *int
+	track_number        *int
+	addtrack_number     *int
+	disc_number         *int
+	adddisc_number      *int
+	duration_seconds    *float64
+	addduration_seconds *float64
+	bitrate_kbps        *int
+	addbitrate_kbps     *int
+	sample_rate         *int
+	addsample_rate      *int
+	channels            *int
+	addchannels         *int
+	bit_depth           *int
+	addbit_depth        *int
+	embedded_cover_url  *string
+	cover_url           *string
+	created_at          *time.Time
+	clearedFields       map[string]struct{}
+	key                 *int
+	clearedkey          bool
+	done                bool
+	oldValue            func(context.Context) (*Audio, error)
+	predicates          []predicate.Audio
+}
+
+var _ ent.Mutation = (*AudioMutation)(nil)
+
+// audioOption allows management of the mutation configuration using functional options.
+type audioOption func(*AudioMutation)
+
+// newAudioMutation creates new mutation for the Audio entity.
+func newAudioMutation(c config, op Op, opts ...audioOption) *AudioMutation {
+	m := &AudioMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeAudio,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withAudioID sets the ID field of the mutation.
+func withAudioID(id int) audioOption {
+	return func(m *AudioMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Audio
+		)
+		m.oldValue = func(ctx context.Context) (*Audio, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Audio.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withAudio sets the old Audio of the mutation.
+func withAudio(node *Audio) audioOption {
+	return func(m *AudioMutation) {
+		m.oldValue = func(context.Context) (*Audio, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m AudioMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m AudioMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *AudioMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *AudioMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Audio.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetFilename sets the "filename" field.
+func (m *AudioMutation) SetFilename(s string) {
+	m.filename = &s
+}
+
+// Filename returns the value of the "filename" field in the mutation.
+func (m *AudioMutation) Filename() (r string, exists bool) {
+	v := m.filename
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFilename returns the old "filename" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldFilename(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFilename is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFilename requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFilename: %w", err)
+	}
+	return oldValue.Filename, nil
+}
+
+// ResetFilename resets all changes to the "filename" field.
+func (m *AudioMutation) ResetFilename() {
+	m.filename = nil
+}
+
+// SetStoredPath sets the "stored_path" field.
+func (m *AudioMutation) SetStoredPath(s string) {
+	m.stored_path = &s
+}
+
+// StoredPath returns the value of the "stored_path" field in the mutation.
+func (m *AudioMutation) StoredPath() (r string, exists bool) {
+	v := m.stored_path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStoredPath returns the old "stored_path" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldStoredPath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStoredPath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStoredPath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStoredPath: %w", err)
+	}
+	return oldValue.StoredPath, nil
+}
+
+// ResetStoredPath resets all changes to the "stored_path" field.
+func (m *AudioMutation) ResetStoredPath() {
+	m.stored_path = nil
+}
+
+// SetURL sets the "url" field.
+func (m *AudioMutation) SetURL(s string) {
+	m.url = &s
+}
+
+// URL returns the value of the "url" field in the mutation.
+func (m *AudioMutation) URL() (r string, exists bool) {
+	v := m.url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldURL returns the old "url" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldURL: %w", err)
+	}
+	return oldValue.URL, nil
+}
+
+// ResetURL resets all changes to the "url" field.
+func (m *AudioMutation) ResetURL() {
+	m.url = nil
+}
+
+// SetSize sets the "size" field.
+func (m *AudioMutation) SetSize(i int64) {
+	m.size = &i
+	m.addsize = nil
+}
+
+// Size returns the value of the "size" field in the mutation.
+func (m *AudioMutation) Size() (r int64, exists bool) {
+	v := m.size
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSize returns the old "size" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldSize(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSize is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSize requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSize: %w", err)
+	}
+	return oldValue.Size, nil
+}
+
+// AddSize adds i to the "size" field.
+func (m *AudioMutation) AddSize(i int64) {
+	if m.addsize != nil {
+		*m.addsize += i
+	} else {
+		m.addsize = &i
+	}
+}
+
+// AddedSize returns the value that was added to the "size" field in this mutation.
+func (m *AudioMutation) AddedSize() (r int64, exists bool) {
+	v := m.addsize
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSize resets all changes to the "size" field.
+func (m *AudioMutation) ResetSize() {
+	m.size = nil
+	m.addsize = nil
+}
+
+// SetMimeType sets the "mime_type" field.
+func (m *AudioMutation) SetMimeType(s string) {
+	m.mime_type = &s
+}
+
+// MimeType returns the value of the "mime_type" field in the mutation.
+func (m *AudioMutation) MimeType() (r string, exists bool) {
+	v := m.mime_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMimeType returns the old "mime_type" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldMimeType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMimeType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMimeType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMimeType: %w", err)
+	}
+	return oldValue.MimeType, nil
+}
+
+// ResetMimeType resets all changes to the "mime_type" field.
+func (m *AudioMutation) ResetMimeType() {
+	m.mime_type = nil
+}
+
+// SetHash sets the "hash" field.
+func (m *AudioMutation) SetHash(s string) {
+	m.hash = &s
+}
+
+// Hash returns the value of the "hash" field in the mutation.
+func (m *AudioMutation) Hash() (r string, exists bool) {
+	v := m.hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHash returns the old "hash" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHash: %w", err)
+	}
+	return oldValue.Hash, nil
+}
+
+// ResetHash resets all changes to the "hash" field.
+func (m *AudioMutation) ResetHash() {
+	m.hash = nil
+}
+
+// SetFormat sets the "format" field.
+func (m *AudioMutation) SetFormat(s string) {
+	m.format = &s
+}
+
+// Format returns the value of the "format" field in the mutation.
+func (m *AudioMutation) Format() (r string, exists bool) {
+	v := m.format
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFormat returns the old "format" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldFormat(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFormat is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFormat requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFormat: %w", err)
+	}
+	return oldValue.Format, nil
+}
+
+// ResetFormat resets all changes to the "format" field.
+func (m *AudioMutation) ResetFormat() {
+	m.format = nil
+}
+
+// SetTitle sets the "title" field.
+func (m *AudioMutation) SetTitle(s string) {
+	m.title = &s
+}
+
+// Title returns the value of the "title" field in the mutation.
+func (m *AudioMutation) Title() (r string, exists bool) {
+	v := m.title
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTitle returns the old "title" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldTitle(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTitle is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTitle requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTitle: %w", err)
+	}
+	return oldValue.Title, nil
+}
+
+// ResetTitle resets all changes to the "title" field.
+func (m *AudioMutation) ResetTitle() {
+	m.title = nil
+}
+
+// SetArtist sets the "artist" field.
+func (m *AudioMutation) SetArtist(s string) {
+	m.artist = &s
+}
+
+// Artist returns the value of the "artist" field in the mutation.
+func (m *AudioMutation) Artist() (r string, exists bool) {
+	v := m.artist
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldArtist returns the old "artist" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldArtist(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldArtist is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldArtist requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldArtist: %w", err)
+	}
+	return oldValue.Artist, nil
+}
+
+// ResetArtist resets all changes to the "artist" field.
+func (m *AudioMutation) ResetArtist() {
+	m.artist = nil
+}
+
+// SetAlbum sets the "album" field.
+func (m *AudioMutation) SetAlbum(s string) {
+	m.album = &s
+}
+
+// Album returns the value of the "album" field in the mutation.
+func (m *AudioMutation) Album() (r string, exists bool) {
+	v := m.album
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAlbum returns the old "album" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldAlbum(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAlbum is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAlbum requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAlbum: %w", err)
+	}
+	return oldValue.Album, nil
+}
+
+// ResetAlbum resets all changes to the "album" field.
+func (m *AudioMutation) ResetAlbum() {
+	m.album = nil
+}
+
+// SetAlbumArtist sets the "album_artist" field.
+func (m *AudioMutation) SetAlbumArtist(s string) {
+	m.album_artist = &s
+}
+
+// AlbumArtist returns the value of the "album_artist" field in the mutation.
+func (m *AudioMutation) AlbumArtist() (r string, exists bool) {
+	v := m.album_artist
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAlbumArtist returns the old "album_artist" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldAlbumArtist(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAlbumArtist is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAlbumArtist requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAlbumArtist: %w", err)
+	}
+	return oldValue.AlbumArtist, nil
+}
+
+// ResetAlbumArtist resets all changes to the "album_artist" field.
+func (m *AudioMutation) ResetAlbumArtist() {
+	m.album_artist = nil
+}
+
+// SetComposer sets the "composer" field.
+func (m *AudioMutation) SetComposer(s string) {
+	m.composer = &s
+}
+
+// Composer returns the value of the "composer" field in the mutation.
+func (m *AudioMutation) Composer() (r string, exists bool) {
+	v := m.composer
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldComposer returns the old "composer" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldComposer(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldComposer is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldComposer requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldComposer: %w", err)
+	}
+	return oldValue.Composer, nil
+}
+
+// ResetComposer resets all changes to the "composer" field.
+func (m *AudioMutation) ResetComposer() {
+	m.composer = nil
+}
+
+// SetGenre sets the "genre" field.
+func (m *AudioMutation) SetGenre(s string) {
+	m.genre = &s
+}
+
+// Genre returns the value of the "genre" field in the mutation.
+func (m *AudioMutation) Genre() (r string, exists bool) {
+	v := m.genre
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGenre returns the old "genre" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldGenre(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGenre is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGenre requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGenre: %w", err)
+	}
+	return oldValue.Genre, nil
+}
+
+// ResetGenre resets all changes to the "genre" field.
+func (m *AudioMutation) ResetGenre() {
+	m.genre = nil
+}
+
+// SetYear sets the "year" field.
+func (m *AudioMutation) SetYear(i int) {
+	m.year = &i
+	m.addyear = nil
+}
+
+// Year returns the value of the "year" field in the mutation.
+func (m *AudioMutation) Year() (r int, exists bool) {
+	v := m.year
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldYear returns the old "year" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldYear(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldYear is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldYear requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldYear: %w", err)
+	}
+	return oldValue.Year, nil
+}
+
+// AddYear adds i to the "year" field.
+func (m *AudioMutation) AddYear(i int) {
+	if m.addyear != nil {
+		*m.addyear += i
+	} else {
+		m.addyear = &i
+	}
+}
+
+// AddedYear returns the value that was added to the "year" field in this mutation.
+func (m *AudioMutation) AddedYear() (r int, exists bool) {
+	v := m.addyear
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetYear resets all changes to the "year" field.
+func (m *AudioMutation) ResetYear() {
+	m.year = nil
+	m.addyear = nil
+}
+
+// SetTrackNumber sets the "track_number" field.
+func (m *AudioMutation) SetTrackNumber(i int) {
+	m.track_number = &i
+	m.addtrack_number = nil
+}
+
+// TrackNumber returns the value of the "track_number" field in the mutation.
+func (m *AudioMutation) TrackNumber() (r int, exists bool) {
+	v := m.track_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTrackNumber returns the old "track_number" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldTrackNumber(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTrackNumber is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTrackNumber requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTrackNumber: %w", err)
+	}
+	return oldValue.TrackNumber, nil
+}
+
+// AddTrackNumber adds i to the "track_number" field.
+func (m *AudioMutation) AddTrackNumber(i int) {
+	if m.addtrack_number != nil {
+		*m.addtrack_number += i
+	} else {
+		m.addtrack_number = &i
+	}
+}
+
+// AddedTrackNumber returns the value that was added to the "track_number" field in this mutation.
+func (m *AudioMutation) AddedTrackNumber() (r int, exists bool) {
+	v := m.addtrack_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTrackNumber resets all changes to the "track_number" field.
+func (m *AudioMutation) ResetTrackNumber() {
+	m.track_number = nil
+	m.addtrack_number = nil
+}
+
+// SetDiscNumber sets the "disc_number" field.
+func (m *AudioMutation) SetDiscNumber(i int) {
+	m.disc_number = &i
+	m.adddisc_number = nil
+}
+
+// DiscNumber returns the value of the "disc_number" field in the mutation.
+func (m *AudioMutation) DiscNumber() (r int, exists bool) {
+	v := m.disc_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDiscNumber returns the old "disc_number" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldDiscNumber(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDiscNumber is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDiscNumber requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDiscNumber: %w", err)
+	}
+	return oldValue.DiscNumber, nil
+}
+
+// AddDiscNumber adds i to the "disc_number" field.
+func (m *AudioMutation) AddDiscNumber(i int) {
+	if m.adddisc_number != nil {
+		*m.adddisc_number += i
+	} else {
+		m.adddisc_number = &i
+	}
+}
+
+// AddedDiscNumber returns the value that was added to the "disc_number" field in this mutation.
+func (m *AudioMutation) AddedDiscNumber() (r int, exists bool) {
+	v := m.adddisc_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDiscNumber resets all changes to the "disc_number" field.
+func (m *AudioMutation) ResetDiscNumber() {
+	m.disc_number = nil
+	m.adddisc_number = nil
+}
+
+// SetDurationSeconds sets the "duration_seconds" field.
+func (m *AudioMutation) SetDurationSeconds(f float64) {
+	m.duration_seconds = &f
+	m.addduration_seconds = nil
+}
+
+// DurationSeconds returns the value of the "duration_seconds" field in the mutation.
+func (m *AudioMutation) DurationSeconds() (r float64, exists bool) {
+	v := m.duration_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDurationSeconds returns the old "duration_seconds" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldDurationSeconds(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDurationSeconds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDurationSeconds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDurationSeconds: %w", err)
+	}
+	return oldValue.DurationSeconds, nil
+}
+
+// AddDurationSeconds adds f to the "duration_seconds" field.
+func (m *AudioMutation) AddDurationSeconds(f float64) {
+	if m.addduration_seconds != nil {
+		*m.addduration_seconds += f
+	} else {
+		m.addduration_seconds = &f
+	}
+}
+
+// AddedDurationSeconds returns the value that was added to the "duration_seconds" field in this mutation.
+func (m *AudioMutation) AddedDurationSeconds() (r float64, exists bool) {
+	v := m.addduration_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDurationSeconds resets all changes to the "duration_seconds" field.
+func (m *AudioMutation) ResetDurationSeconds() {
+	m.duration_seconds = nil
+	m.addduration_seconds = nil
+}
+
+// SetBitrateKbps sets the "bitrate_kbps" field.
+func (m *AudioMutation) SetBitrateKbps(i int) {
+	m.bitrate_kbps = &i
+	m.addbitrate_kbps = nil
+}
+
+// BitrateKbps returns the value of the "bitrate_kbps" field in the mutation.
+func (m *AudioMutation) BitrateKbps() (r int, exists bool) {
+	v := m.bitrate_kbps
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBitrateKbps returns the old "bitrate_kbps" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldBitrateKbps(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBitrateKbps is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBitrateKbps requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBitrateKbps: %w", err)
+	}
+	return oldValue.BitrateKbps, nil
+}
+
+// AddBitrateKbps adds i to the "bitrate_kbps" field.
+func (m *AudioMutation) AddBitrateKbps(i int) {
+	if m.addbitrate_kbps != nil {
+		*m.addbitrate_kbps += i
+	} else {
+		m.addbitrate_kbps = &i
+	}
+}
+
+// AddedBitrateKbps returns the value that was added to the "bitrate_kbps" field in this mutation.
+func (m *AudioMutation) AddedBitrateKbps() (r int, exists bool) {
+	v := m.addbitrate_kbps
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBitrateKbps resets all changes to the "bitrate_kbps" field.
+func (m *AudioMutation) ResetBitrateKbps() {
+	m.bitrate_kbps = nil
+	m.addbitrate_kbps = nil
+}
+
+// SetSampleRate sets the "sample_rate" field.
+func (m *AudioMutation) SetSampleRate(i int) {
+	m.sample_rate = &i
+	m.addsample_rate = nil
+}
+
+// SampleRate returns the value of the "sample_rate" field in the mutation.
+func (m *AudioMutation) SampleRate() (r int, exists bool) {
+	v := m.sample_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSampleRate returns the old "sample_rate" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldSampleRate(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSampleRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSampleRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSampleRate: %w", err)
+	}
+	return oldValue.SampleRate, nil
+}
+
+// AddSampleRate adds i to the "sample_rate" field.
+func (m *AudioMutation) AddSampleRate(i int) {
+	if m.addsample_rate != nil {
+		*m.addsample_rate += i
+	} else {
+		m.addsample_rate = &i
+	}
+}
+
+// AddedSampleRate returns the value that was added to the "sample_rate" field in this mutation.
+func (m *AudioMutation) AddedSampleRate() (r int, exists bool) {
+	v := m.addsample_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSampleRate resets all changes to the "sample_rate" field.
+func (m *AudioMutation) ResetSampleRate() {
+	m.sample_rate = nil
+	m.addsample_rate = nil
+}
+
+// SetChannels sets the "channels" field.
+func (m *AudioMutation) SetChannels(i int) {
+	m.channels = &i
+	m.addchannels = nil
+}
+
+// Channels returns the value of the "channels" field in the mutation.
+func (m *AudioMutation) Channels() (r int, exists bool) {
+	v := m.channels
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannels returns the old "channels" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldChannels(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannels is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannels requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannels: %w", err)
+	}
+	return oldValue.Channels, nil
+}
+
+// AddChannels adds i to the "channels" field.
+func (m *AudioMutation) AddChannels(i int) {
+	if m.addchannels != nil {
+		*m.addchannels += i
+	} else {
+		m.addchannels = &i
+	}
+}
+
+// AddedChannels returns the value that was added to the "channels" field in this mutation.
+func (m *AudioMutation) AddedChannels() (r int, exists bool) {
+	v := m.addchannels
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetChannels resets all changes to the "channels" field.
+func (m *AudioMutation) ResetChannels() {
+	m.channels = nil
+	m.addchannels = nil
+}
+
+// SetBitDepth sets the "bit_depth" field.
+func (m *AudioMutation) SetBitDepth(i int) {
+	m.bit_depth = &i
+	m.addbit_depth = nil
+}
+
+// BitDepth returns the value of the "bit_depth" field in the mutation.
+func (m *AudioMutation) BitDepth() (r int, exists bool) {
+	v := m.bit_depth
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBitDepth returns the old "bit_depth" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldBitDepth(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBitDepth is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBitDepth requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBitDepth: %w", err)
+	}
+	return oldValue.BitDepth, nil
+}
+
+// AddBitDepth adds i to the "bit_depth" field.
+func (m *AudioMutation) AddBitDepth(i int) {
+	if m.addbit_depth != nil {
+		*m.addbit_depth += i
+	} else {
+		m.addbit_depth = &i
+	}
+}
+
+// AddedBitDepth returns the value that was added to the "bit_depth" field in this mutation.
+func (m *AudioMutation) AddedBitDepth() (r int, exists bool) {
+	v := m.addbit_depth
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBitDepth resets all changes to the "bit_depth" field.
+func (m *AudioMutation) ResetBitDepth() {
+	m.bit_depth = nil
+	m.addbit_depth = nil
+}
+
+// SetEmbeddedCoverURL sets the "embedded_cover_url" field.
+func (m *AudioMutation) SetEmbeddedCoverURL(s string) {
+	m.embedded_cover_url = &s
+}
+
+// EmbeddedCoverURL returns the value of the "embedded_cover_url" field in the mutation.
+func (m *AudioMutation) EmbeddedCoverURL() (r string, exists bool) {
+	v := m.embedded_cover_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEmbeddedCoverURL returns the old "embedded_cover_url" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldEmbeddedCoverURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEmbeddedCoverURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEmbeddedCoverURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEmbeddedCoverURL: %w", err)
+	}
+	return oldValue.EmbeddedCoverURL, nil
+}
+
+// ResetEmbeddedCoverURL resets all changes to the "embedded_cover_url" field.
+func (m *AudioMutation) ResetEmbeddedCoverURL() {
+	m.embedded_cover_url = nil
+}
+
+// SetCoverURL sets the "cover_url" field.
+func (m *AudioMutation) SetCoverURL(s string) {
+	m.cover_url = &s
+}
+
+// CoverURL returns the value of the "cover_url" field in the mutation.
+func (m *AudioMutation) CoverURL() (r string, exists bool) {
+	v := m.cover_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCoverURL returns the old "cover_url" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldCoverURL(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCoverURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCoverURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCoverURL: %w", err)
+	}
+	return oldValue.CoverURL, nil
+}
+
+// ClearCoverURL clears the value of the "cover_url" field.
+func (m *AudioMutation) ClearCoverURL() {
+	m.cover_url = nil
+	m.clearedFields[audio.FieldCoverURL] = struct{}{}
+}
+
+// CoverURLCleared returns if the "cover_url" field was cleared in this mutation.
+func (m *AudioMutation) CoverURLCleared() bool {
+	_, ok := m.clearedFields[audio.FieldCoverURL]
+	return ok
+}
+
+// ResetCoverURL resets all changes to the "cover_url" field.
+func (m *AudioMutation) ResetCoverURL() {
+	m.cover_url = nil
+	delete(m.clearedFields, audio.FieldCoverURL)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *AudioMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *AudioMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *AudioMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetKeyID sets the "key_id" field.
+func (m *AudioMutation) SetKeyID(i int) {
+	m.key = &i
+}
+
+// KeyID returns the value of the "key_id" field in the mutation.
+func (m *AudioMutation) KeyID() (r int, exists bool) {
+	v := m.key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKeyID returns the old "key_id" field's value of the Audio entity.
+// If the Audio object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AudioMutation) OldKeyID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKeyID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKeyID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKeyID: %w", err)
+	}
+	return oldValue.KeyID, nil
+}
+
+// ClearKeyID clears the value of the "key_id" field.
+func (m *AudioMutation) ClearKeyID() {
+	m.key = nil
+	m.clearedFields[audio.FieldKeyID] = struct{}{}
+}
+
+// KeyIDCleared returns if the "key_id" field was cleared in this mutation.
+func (m *AudioMutation) KeyIDCleared() bool {
+	_, ok := m.clearedFields[audio.FieldKeyID]
+	return ok
+}
+
+// ResetKeyID resets all changes to the "key_id" field.
+func (m *AudioMutation) ResetKeyID() {
+	m.key = nil
+	delete(m.clearedFields, audio.FieldKeyID)
+}
+
+// ClearKey clears the "key" edge to the ApiKey entity.
+func (m *AudioMutation) ClearKey() {
+	m.clearedkey = true
+	m.clearedFields[audio.FieldKeyID] = struct{}{}
+}
+
+// KeyCleared reports if the "key" edge to the ApiKey entity was cleared.
+func (m *AudioMutation) KeyCleared() bool {
+	return m.KeyIDCleared() || m.clearedkey
+}
+
+// KeyIDs returns the "key" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// KeyID instead. It exists only for internal usage by the builders.
+func (m *AudioMutation) KeyIDs() (ids []int) {
+	if id := m.key; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetKey resets all changes to the "key" edge.
+func (m *AudioMutation) ResetKey() {
+	m.key = nil
+	m.clearedkey = false
+}
+
+// Where appends a list predicates to the AudioMutation builder.
+func (m *AudioMutation) Where(ps ...predicate.Audio) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the AudioMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *AudioMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Audio, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *AudioMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *AudioMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Audio).
+func (m *AudioMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *AudioMutation) Fields() []string {
+	fields := make([]string, 0, 25)
+	if m.filename != nil {
+		fields = append(fields, audio.FieldFilename)
+	}
+	if m.stored_path != nil {
+		fields = append(fields, audio.FieldStoredPath)
+	}
+	if m.url != nil {
+		fields = append(fields, audio.FieldURL)
+	}
+	if m.size != nil {
+		fields = append(fields, audio.FieldSize)
+	}
+	if m.mime_type != nil {
+		fields = append(fields, audio.FieldMimeType)
+	}
+	if m.hash != nil {
+		fields = append(fields, audio.FieldHash)
+	}
+	if m.format != nil {
+		fields = append(fields, audio.FieldFormat)
+	}
+	if m.title != nil {
+		fields = append(fields, audio.FieldTitle)
+	}
+	if m.artist != nil {
+		fields = append(fields, audio.FieldArtist)
+	}
+	if m.album != nil {
+		fields = append(fields, audio.FieldAlbum)
+	}
+	if m.album_artist != nil {
+		fields = append(fields, audio.FieldAlbumArtist)
+	}
+	if m.composer != nil {
+		fields = append(fields, audio.FieldComposer)
+	}
+	if m.genre != nil {
+		fields = append(fields, audio.FieldGenre)
+	}
+	if m.year != nil {
+		fields = append(fields, audio.FieldYear)
+	}
+	if m.track_number != nil {
+		fields = append(fields, audio.FieldTrackNumber)
+	}
+	if m.disc_number != nil {
+		fields = append(fields, audio.FieldDiscNumber)
+	}
+	if m.duration_seconds != nil {
+		fields = append(fields, audio.FieldDurationSeconds)
+	}
+	if m.bitrate_kbps != nil {
+		fields = append(fields, audio.FieldBitrateKbps)
+	}
+	if m.sample_rate != nil {
+		fields = append(fields, audio.FieldSampleRate)
+	}
+	if m.channels != nil {
+		fields = append(fields, audio.FieldChannels)
+	}
+	if m.bit_depth != nil {
+		fields = append(fields, audio.FieldBitDepth)
+	}
+	if m.embedded_cover_url != nil {
+		fields = append(fields, audio.FieldEmbeddedCoverURL)
+	}
+	if m.cover_url != nil {
+		fields = append(fields, audio.FieldCoverURL)
+	}
+	if m.created_at != nil {
+		fields = append(fields, audio.FieldCreatedAt)
+	}
+	if m.key != nil {
+		fields = append(fields, audio.FieldKeyID)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *AudioMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case audio.FieldFilename:
+		return m.Filename()
+	case audio.FieldStoredPath:
+		return m.StoredPath()
+	case audio.FieldURL:
+		return m.URL()
+	case audio.FieldSize:
+		return m.Size()
+	case audio.FieldMimeType:
+		return m.MimeType()
+	case audio.FieldHash:
+		return m.Hash()
+	case audio.FieldFormat:
+		return m.Format()
+	case audio.FieldTitle:
+		return m.Title()
+	case audio.FieldArtist:
+		return m.Artist()
+	case audio.FieldAlbum:
+		return m.Album()
+	case audio.FieldAlbumArtist:
+		return m.AlbumArtist()
+	case audio.FieldComposer:
+		return m.Composer()
+	case audio.FieldGenre:
+		return m.Genre()
+	case audio.FieldYear:
+		return m.Year()
+	case audio.FieldTrackNumber:
+		return m.TrackNumber()
+	case audio.FieldDiscNumber:
+		return m.DiscNumber()
+	case audio.FieldDurationSeconds:
+		return m.DurationSeconds()
+	case audio.FieldBitrateKbps:
+		return m.BitrateKbps()
+	case audio.FieldSampleRate:
+		return m.SampleRate()
+	case audio.FieldChannels:
+		return m.Channels()
+	case audio.FieldBitDepth:
+		return m.BitDepth()
+	case audio.FieldEmbeddedCoverURL:
+		return m.EmbeddedCoverURL()
+	case audio.FieldCoverURL:
+		return m.CoverURL()
+	case audio.FieldCreatedAt:
+		return m.CreatedAt()
+	case audio.FieldKeyID:
+		return m.KeyID()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *AudioMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case audio.FieldFilename:
+		return m.OldFilename(ctx)
+	case audio.FieldStoredPath:
+		return m.OldStoredPath(ctx)
+	case audio.FieldURL:
+		return m.OldURL(ctx)
+	case audio.FieldSize:
+		return m.OldSize(ctx)
+	case audio.FieldMimeType:
+		return m.OldMimeType(ctx)
+	case audio.FieldHash:
+		return m.OldHash(ctx)
+	case audio.FieldFormat:
+		return m.OldFormat(ctx)
+	case audio.FieldTitle:
+		return m.OldTitle(ctx)
+	case audio.FieldArtist:
+		return m.OldArtist(ctx)
+	case audio.FieldAlbum:
+		return m.OldAlbum(ctx)
+	case audio.FieldAlbumArtist:
+		return m.OldAlbumArtist(ctx)
+	case audio.FieldComposer:
+		return m.OldComposer(ctx)
+	case audio.FieldGenre:
+		return m.OldGenre(ctx)
+	case audio.FieldYear:
+		return m.OldYear(ctx)
+	case audio.FieldTrackNumber:
+		return m.OldTrackNumber(ctx)
+	case audio.FieldDiscNumber:
+		return m.OldDiscNumber(ctx)
+	case audio.FieldDurationSeconds:
+		return m.OldDurationSeconds(ctx)
+	case audio.FieldBitrateKbps:
+		return m.OldBitrateKbps(ctx)
+	case audio.FieldSampleRate:
+		return m.OldSampleRate(ctx)
+	case audio.FieldChannels:
+		return m.OldChannels(ctx)
+	case audio.FieldBitDepth:
+		return m.OldBitDepth(ctx)
+	case audio.FieldEmbeddedCoverURL:
+		return m.OldEmbeddedCoverURL(ctx)
+	case audio.FieldCoverURL:
+		return m.OldCoverURL(ctx)
+	case audio.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case audio.FieldKeyID:
+		return m.OldKeyID(ctx)
+	}
+	return nil, fmt.Errorf("unknown Audio field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AudioMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case audio.FieldFilename:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFilename(v)
+		return nil
+	case audio.FieldStoredPath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStoredPath(v)
+		return nil
+	case audio.FieldURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetURL(v)
+		return nil
+	case audio.FieldSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSize(v)
+		return nil
+	case audio.FieldMimeType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMimeType(v)
+		return nil
+	case audio.FieldHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHash(v)
+		return nil
+	case audio.FieldFormat:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFormat(v)
+		return nil
+	case audio.FieldTitle:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTitle(v)
+		return nil
+	case audio.FieldArtist:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetArtist(v)
+		return nil
+	case audio.FieldAlbum:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAlbum(v)
+		return nil
+	case audio.FieldAlbumArtist:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAlbumArtist(v)
+		return nil
+	case audio.FieldComposer:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetComposer(v)
+		return nil
+	case audio.FieldGenre:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGenre(v)
+		return nil
+	case audio.FieldYear:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetYear(v)
+		return nil
+	case audio.FieldTrackNumber:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTrackNumber(v)
+		return nil
+	case audio.FieldDiscNumber:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDiscNumber(v)
+		return nil
+	case audio.FieldDurationSeconds:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDurationSeconds(v)
+		return nil
+	case audio.FieldBitrateKbps:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBitrateKbps(v)
+		return nil
+	case audio.FieldSampleRate:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSampleRate(v)
+		return nil
+	case audio.FieldChannels:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannels(v)
+		return nil
+	case audio.FieldBitDepth:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBitDepth(v)
+		return nil
+	case audio.FieldEmbeddedCoverURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEmbeddedCoverURL(v)
+		return nil
+	case audio.FieldCoverURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCoverURL(v)
+		return nil
+	case audio.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case audio.FieldKeyID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKeyID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Audio field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *AudioMutation) AddedFields() []string {
+	var fields []string
+	if m.addsize != nil {
+		fields = append(fields, audio.FieldSize)
+	}
+	if m.addyear != nil {
+		fields = append(fields, audio.FieldYear)
+	}
+	if m.addtrack_number != nil {
+		fields = append(fields, audio.FieldTrackNumber)
+	}
+	if m.adddisc_number != nil {
+		fields = append(fields, audio.FieldDiscNumber)
+	}
+	if m.addduration_seconds != nil {
+		fields = append(fields, audio.FieldDurationSeconds)
+	}
+	if m.addbitrate_kbps != nil {
+		fields = append(fields, audio.FieldBitrateKbps)
+	}
+	if m.addsample_rate != nil {
+		fields = append(fields, audio.FieldSampleRate)
+	}
+	if m.addchannels != nil {
+		fields = append(fields, audio.FieldChannels)
+	}
+	if m.addbit_depth != nil {
+		fields = append(fields, audio.FieldBitDepth)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *AudioMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case audio.FieldSize:
+		return m.AddedSize()
+	case audio.FieldYear:
+		return m.AddedYear()
+	case audio.FieldTrackNumber:
+		return m.AddedTrackNumber()
+	case audio.FieldDiscNumber:
+		return m.AddedDiscNumber()
+	case audio.FieldDurationSeconds:
+		return m.AddedDurationSeconds()
+	case audio.FieldBitrateKbps:
+		return m.AddedBitrateKbps()
+	case audio.FieldSampleRate:
+		return m.AddedSampleRate()
+	case audio.FieldChannels:
+		return m.AddedChannels()
+	case audio.FieldBitDepth:
+		return m.AddedBitDepth()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AudioMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case audio.FieldSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSize(v)
+		return nil
+	case audio.FieldYear:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddYear(v)
+		return nil
+	case audio.FieldTrackNumber:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTrackNumber(v)
+		return nil
+	case audio.FieldDiscNumber:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDiscNumber(v)
+		return nil
+	case audio.FieldDurationSeconds:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDurationSeconds(v)
+		return nil
+	case audio.FieldBitrateKbps:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBitrateKbps(v)
+		return nil
+	case audio.FieldSampleRate:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSampleRate(v)
+		return nil
+	case audio.FieldChannels:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddChannels(v)
+		return nil
+	case audio.FieldBitDepth:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBitDepth(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Audio numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *AudioMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(audio.FieldCoverURL) {
+		fields = append(fields, audio.FieldCoverURL)
+	}
+	if m.FieldCleared(audio.FieldKeyID) {
+		fields = append(fields, audio.FieldKeyID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *AudioMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *AudioMutation) ClearField(name string) error {
+	switch name {
+	case audio.FieldCoverURL:
+		m.ClearCoverURL()
+		return nil
+	case audio.FieldKeyID:
+		m.ClearKeyID()
+		return nil
+	}
+	return fmt.Errorf("unknown Audio nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *AudioMutation) ResetField(name string) error {
+	switch name {
+	case audio.FieldFilename:
+		m.ResetFilename()
+		return nil
+	case audio.FieldStoredPath:
+		m.ResetStoredPath()
+		return nil
+	case audio.FieldURL:
+		m.ResetURL()
+		return nil
+	case audio.FieldSize:
+		m.ResetSize()
+		return nil
+	case audio.FieldMimeType:
+		m.ResetMimeType()
+		return nil
+	case audio.FieldHash:
+		m.ResetHash()
+		return nil
+	case audio.FieldFormat:
+		m.ResetFormat()
+		return nil
+	case audio.FieldTitle:
+		m.ResetTitle()
+		return nil
+	case audio.FieldArtist:
+		m.ResetArtist()
+		return nil
+	case audio.FieldAlbum:
+		m.ResetAlbum()
+		return nil
+	case audio.FieldAlbumArtist:
+		m.ResetAlbumArtist()
+		return nil
+	case audio.FieldComposer:
+		m.ResetComposer()
+		return nil
+	case audio.FieldGenre:
+		m.ResetGenre()
+		return nil
+	case audio.FieldYear:
+		m.ResetYear()
+		return nil
+	case audio.FieldTrackNumber:
+		m.ResetTrackNumber()
+		return nil
+	case audio.FieldDiscNumber:
+		m.ResetDiscNumber()
+		return nil
+	case audio.FieldDurationSeconds:
+		m.ResetDurationSeconds()
+		return nil
+	case audio.FieldBitrateKbps:
+		m.ResetBitrateKbps()
+		return nil
+	case audio.FieldSampleRate:
+		m.ResetSampleRate()
+		return nil
+	case audio.FieldChannels:
+		m.ResetChannels()
+		return nil
+	case audio.FieldBitDepth:
+		m.ResetBitDepth()
+		return nil
+	case audio.FieldEmbeddedCoverURL:
+		m.ResetEmbeddedCoverURL()
+		return nil
+	case audio.FieldCoverURL:
+		m.ResetCoverURL()
+		return nil
+	case audio.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case audio.FieldKeyID:
+		m.ResetKeyID()
+		return nil
+	}
+	return fmt.Errorf("unknown Audio field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *AudioMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.key != nil {
+		edges = append(edges, audio.EdgeKey)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *AudioMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case audio.EdgeKey:
+		if id := m.key; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *AudioMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *AudioMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *AudioMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedkey {
+		edges = append(edges, audio.EdgeKey)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *AudioMutation) EdgeCleared(name string) bool {
+	switch name {
+	case audio.EdgeKey:
+		return m.clearedkey
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *AudioMutation) ClearEdge(name string) error {
+	switch name {
+	case audio.EdgeKey:
+		m.ClearKey()
+		return nil
+	}
+	return fmt.Errorf("unknown Audio unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *AudioMutation) ResetEdge(name string) error {
+	switch name {
+	case audio.EdgeKey:
+		m.ResetKey()
+		return nil
+	}
+	return fmt.Errorf("unknown Audio edge %s", name)
 }
 
 // ImageMutation represents an operation that mutates the Image nodes in the graph.

@@ -94,6 +94,27 @@
             <span v-else class="text-gray-400">无</span>
           </SettingsConfigItem>
         </SettingsConfigSection>
+
+        <!-- 音频存储 -->
+        <SettingsConfigSection title="音频存储">
+          <SettingsConfigItem label="根目录">{{ config.storage.audio_root_dir }}</SettingsConfigItem>
+          <SettingsConfigItem label="公访问基址">
+            <span v-if="config.storage.audio_public_base_url">{{ config.storage.audio_public_base_url }}</span>
+            <span v-else class="text-gray-400">未设置（使用相对路径 /audios/）</span>
+          </SettingsConfigItem>
+          <SettingsConfigItem label="上传上限">{{ config.storage.audio_max_upload_size_mb }} MiB</SettingsConfigItem>
+          <SettingsConfigItem label="允许类型">
+            <span v-if="config.storage.audio_allowed_mime_types.length" class="inline-flex flex-wrap justify-end gap-1.5">
+              <span
+                v-for="m in config.storage.audio_allowed_mime_types"
+                :key="m"
+                class="inline-flex items-center rounded-full bg-iris-violet/10 px-2 py-0.5 text-xs font-medium text-iris-dark"
+                >{{ m }}</span
+              >
+            </span>
+            <span v-else class="text-gray-400">无</span>
+          </SettingsConfigItem>
+        </SettingsConfigSection>
       </div>
     </template>
   </div>

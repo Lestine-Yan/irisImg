@@ -43,9 +43,11 @@ type ApiKey struct {
 type ApiKeyEdges struct {
 	// Images holds the value of the images edge.
 	Images []*Image `json:"images,omitempty"`
+	// Audios holds the value of the audios edge.
+	Audios []*Audio `json:"audios,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 }
 
 // ImagesOrErr returns the Images value or an error if the edge
@@ -55,6 +57,15 @@ func (e ApiKeyEdges) ImagesOrErr() ([]*Image, error) {
 		return e.Images, nil
 	}
 	return nil, &NotLoadedError{edge: "images"}
+}
+
+// AudiosOrErr returns the Audios value or an error if the edge
+// was not loaded in eager-loading.
+func (e ApiKeyEdges) AudiosOrErr() ([]*Audio, error) {
+	if e.loadedTypes[1] {
+		return e.Audios, nil
+	}
+	return nil, &NotLoadedError{edge: "audios"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -156,6 +167,11 @@ func (_m *ApiKey) Value(name string) (ent.Value, error) {
 // QueryImages queries the "images" edge of the ApiKey entity.
 func (_m *ApiKey) QueryImages() *ImageQuery {
 	return NewApiKeyClient(_m.config).QueryImages(_m)
+}
+
+// QueryAudios queries the "audios" edge of the ApiKey entity.
+func (_m *ApiKey) QueryAudios() *AudioQuery {
+	return NewApiKeyClient(_m.config).QueryAudios(_m)
 }
 
 // Update returns a builder for updating this ApiKey.

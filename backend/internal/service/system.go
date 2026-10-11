@@ -52,6 +52,11 @@ func (s *SystemService) Config() model.SystemConfigResponse {
 			PublicBaseURL:    cfg.Storage.PublicBaseURL,
 			MaxUploadSizeMB:  cfg.Storage.MaxUploadSizeMB,
 			AllowedMimeTypes: cfg.Storage.AllowedMimeTypes,
+
+			AudioRootDir:          cfg.Storage.AudioRootDir,
+			AudioPublicBaseURL:    cfg.Storage.AudioPublicBaseURL,
+			AudioMaxUploadSizeMB:  cfg.Storage.AudioMaxUploadSizeMB,
+			AudioAllowedMimeTypes: cfg.Storage.AudioAllowedMimeTypes,
 		},
 	}
 }

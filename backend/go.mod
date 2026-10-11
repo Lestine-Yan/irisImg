@@ -4,10 +4,14 @@ go 1.26
 
 require (
 	entgo.io/ent v0.14.6
+	github.com/abema/go-mp4 v1.7.3
+	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
 	github.com/gin-contrib/cors v1.7.7
 	github.com/gin-gonic/gin v1.12.0
+	github.com/go-flac/go-flac v1.0.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
+	github.com/tcolgate/mp3 v0.0.0-20170426193717-e79c5a46d300
 	go.uber.org/zap v1.28.0
 	golang.org/x/time v0.15.0
 	gopkg.in/yaml.v3 v3.0.1

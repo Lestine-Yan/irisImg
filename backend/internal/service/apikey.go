@@ -25,17 +25,19 @@ var (
 
 // APIKeyService 处理 API 密钥的签发、管理与鉴权。
 //
-// imageDAO 与 saver 仅用于删除密钥时的级联清理（删除该密钥关联的图片文件与记录），
-// 其余密钥操作不依赖它们。
+// imageDAO/audioDAO 与 saver/audioSaver 仅用于删除密钥时的级联清理
+// （删除该密钥关联的图片 / 音频文件与记录），其余密钥操作不依赖它们。
 type APIKeyService struct {
-	dao      dao.APIKeyDAO
-	imageDAO dao.ImageDAO
-	saver    *storage.Saver
+	dao       dao.APIKeyDAO
+	imageDAO  dao.ImageDAO
+	audioDAO  dao.AudioDAO
+	saver     *storage.Saver
+	audioSaver *storage.Saver
 }
 
 // NewAPIKeyService 通过依赖注入构造 APIKeyService。
-func NewAPIKeyService(d dao.APIKeyDAO, imgDAO dao.ImageDAO, saver *storage.Saver) *APIKeyService {
-	return &APIKeyService{dao: d, imageDAO: imgDAO, saver: saver}
+func NewAPIKeyService(d dao.APIKeyDAO, imgDAO dao.ImageDAO, audioDAO dao.AudioDAO, saver, audioSaver *storage.Saver) *APIKeyService {
+	return &APIKeyService{dao: d, imageDAO: imgDAO, audioDAO: audioDAO, saver: saver, audioSaver: audioSaver}
 }
 
 // Create 生成并落库一把新密钥，返回包含一次性明文的响应。
@@ -137,24 +139,25 @@ func (s *APIKeyService) Reset(ctx context.Context, id int) (*model.ResetAPIKeyRe
 	}, nil
 }
 
-// Delete 物理删除指定密钥，并级联删除其关联的图片（物理文件 + 元信息记录）。
-// 返回被删除的图片数量。密钥不存在返回 ErrKeyNotFound。
+// Delete 物理删除指定密钥，并级联删除其关联的图片与音频（物理文件 + 元信息记录）。
+// 返回被删除的图片数量与音频数量。密钥不存在返回 ErrKeyNotFound。
 //
-// 顺序：取关联图片 → best-effort 删物理文件 → 删图片记录 → 删密钥。
-// 先删图片记录是为了解除外键约束，避免删密钥时被 SQLite 拦截。
-// 本流程非事务（删除是低频管理操作）：若删密钥失败，图片已清理但密钥仍在，
-// 此时密钥已无关联图片，管理员重试删除不会再受外键约束。
-func (s *APIKeyService) Delete(ctx context.Context, id int) (int, error) {
+// 顺序：取关联图片/音频 → best-effort 删物理文件 → 删记录 → 删密钥。
+// 先删内容记录是为了解除外键约束，避免删密钥时被 SQLite 拦截。
+// 音频的内嵌封面（covers/ 内容寻址共享文件）刻意不在此清理，与批量删除音频一致。
+// 本流程非事务（删除是低频管理操作）：若删密钥失败，内容已清理但密钥仍在，
+// 此时密钥已无关联内容，管理员重试删除不会再受外键约束。
+func (s *APIKeyService) Delete(ctx context.Context, id int) (int, int, error) {
 	if _, err := s.dao.GetByID(ctx, id); err != nil {
 		if errors.Is(err, dao.ErrNotFound) {
-			return 0, ErrKeyNotFound
+			return 0, 0, ErrKeyNotFound
 		}
-		return 0, err
+		return 0, 0, err
 	}
 
 	imgs, err := s.imageDAO.ListByKeyID(ctx, id)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	for _, img := range imgs {
 		if img.StoredPath != "" {
@@ -162,18 +165,33 @@ func (s *APIKeyService) Delete(ctx context.Context, id int) (int, error) {
 		}
 	}
 
-	removed, err := s.imageDAO.DeleteByKeyID(ctx, id)
+	removedImages, err := s.imageDAO.DeleteByKeyID(ctx, id)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
+	}
+
+	audios, err := s.audioDAO.ListByKeyID(ctx, id)
+	if err != nil {
+		return 0, 0, err
+	}
+	for _, a := range audios {
+		if a.StoredPath != "" {
+			_ = s.audioSaver.Delete(a.StoredPath) // best-effort：文件删除失败不阻断主流程
+		}
+	}
+
+	removedAudios, err := s.audioDAO.DeleteByKeyID(ctx, id)
+	if err != nil {
+		return 0, 0, err
 	}
 
 	if err := s.dao.Delete(ctx, id); err != nil {
 		if errors.Is(err, dao.ErrNotFound) {
-			return removed, ErrKeyNotFound
+			return removedImages, removedAudios, ErrKeyNotFound
 		}
-		return removed, err
+		return removedImages, removedAudios, err
 	}
-	return removed, nil
+	return removedImages, removedAudios, nil
 }
 
 // Touch 更新密钥的最近使用时间为当前时刻，供鉴权通过后尽力调用。

@@ -48,6 +48,35 @@ type ImageDAO interface {
 	CountByRangeGrouped(ctx context.Context, start, end time.Time) ([]model.KeyGroupCount, error)
 }
 
+// AudioDAO 抽象音频元信息的持久化操作。
+//
+// 与 ImageDAO 平行（存储字段同构 + 标准音频元数据列），差异点：
+//   - 无仪表盘聚合（Count/TotalSize/CountByRange*）——仪表盘 v1 刻意只统计图片；
+//   - UpdateCoverURL 供「详情页改封面 URL」特性：nil 表示清除用户覆盖（回到内嵌封面）。
+type AudioDAO interface {
+	// Create 落库一条音频元信息，成功后回填自增 ID 与创建时间。
+	Create(ctx context.Context, a *model.Audio) (*model.Audio, error)
+	// GetByID 按主键查询，未找到返回 ErrNotFound。
+	GetByID(ctx context.Context, id int) (*model.Audio, error)
+	// GetByHash 按内容哈希查询，用于秒传 / 去重；未找到返回 ErrNotFound。
+	GetByHash(ctx context.Context, hash string) (*model.Audio, error)
+	// List 按 AudioListQuery 过滤（可选 key_id）、排序（asc/desc）、分页返回，
+	// 同时给出符合过滤条件的总条数（用于前端计算总页数）。
+	List(ctx context.Context, q model.AudioListQuery) (items []*model.Audio, total int, err error)
+	// ListByKeyID 返回指定密钥关联的全部音频（不分页），供删除密钥时级联清理使用。
+	ListByKeyID(ctx context.Context, keyID int) ([]*model.Audio, error)
+	// ListByIDs 按主键集合批量查询现存的音频记录（不存在的 ID 静默跳过），
+	// 供批量删除前取 StoredPath 做物理文件清理。
+	ListByIDs(ctx context.Context, ids []int) ([]*model.Audio, error)
+	// DeleteByIDs 按主键集合批量删除音频记录，返回实际删除条数（不存在的 ID 静默跳过）。
+	DeleteByIDs(ctx context.Context, ids []int) (int, error)
+	// DeleteByKeyID 批量删除指定密钥关联的全部音频记录，返回实际删除条数。
+	DeleteByKeyID(ctx context.Context, keyID int) (int, error)
+	// UpdateCoverURL 更新用户覆盖的封面 URL：coverURL 为 nil 表示清除覆盖（回到内嵌封面），
+	// 未找到返回 ErrNotFound，成功返回更新后的完整记录。
+	UpdateCoverURL(ctx context.Context, id int, coverURL *string) (*model.Audio, error)
+}
+
 // APIKeyDAO 抽象 API 密钥的持久化操作。
 type APIKeyDAO interface {
 	// Create 落库一把密钥（存哈希），成功后回填自增 ID 与创建时间。
@@ -65,7 +94,7 @@ type APIKeyDAO interface {
 	// ResetKey 重置密钥明文：写入新的哈希与前缀，并清除吊销状态，未找到返回 ErrNotFound。
 	ResetKey(ctx context.Context, id int, keyHash, prefix string) (*model.APIKey, error)
 	// Delete 物理删除指定密钥，未找到返回 ErrNotFound。
-	// 调用方需先清理引用该密钥的图片记录，否则会因外键约束失败。
+	// 调用方需先清理引用该密钥的图片与音频记录，否则会因外键约束失败。
 	Delete(ctx context.Context, id int) error
 	// TouchLastUsed 更新指定密钥的最近使用时间。
 	TouchLastUsed(ctx context.Context, id int, t time.Time) error

@@ -9,16 +9,17 @@
 
 irisImg 是一个面向个人使用的轻量图床服务，前后端分离，**解压即用、简单配置、无需 Docker**。
 
-- **后端**：Go (Gin) 单二进制，纯 Go SQLite 驱动（`modernc.org/sqlite`，无需 CGO，可交叉编译），业务接口统一挂在 `/api/v1`，图片静态服务挂在 `/imgs`。
+- **后端**：Go (Gin) 单二进制，纯 Go SQLite 驱动（`modernc.org/sqlite`，无需 CGO，可交叉编译），业务接口统一挂在 `/api/v1`，图片 / 音频静态服务分别挂在 `/imgs`、`/audios`。
 - **前端**：Nuxt 4 + Vue 3 SPA（`ssr:false`），`pnpm generate` 产出纯静态站点，由 Nginx 直接 serve。
-- **反代**：Nginx 同域反代，`/api/` 转发后端、`/imgs/` 直接 serve 落盘目录、`/` serve 前端 SPA。
+- **反代**：Nginx 同域反代，`/api/` 转发后端、`/imgs/` 与 `/audios/` 直接 serve 落盘目录、`/` serve 前端 SPA。
 
-除「本人登录后台管理」外，irisImg 另提供一套独立于 JWT 的 **API 密钥**鉴权体系，供外部程序（如博客后端）「添加图片」，并内建日志中心与仪表盘。后台覆盖六大模块：
+除「本人登录后台管理」外，irisImg 另提供一套独立于 JWT 的 **API 密钥**鉴权体系，供外部程序（如博客后端）「添加图片 / 上传音频」，并内建日志中心与仪表盘。后台覆盖七大模块：
 
 | 模块 | 说明 |
 | --- | --- |
 | 登录认证 | 单用户模型 + HS256 JWT，常量时间比较防时序攻击，统一 401 防用户名枚举 |
 | 内容中心 | 图片网格浏览、后台直传、SHA256 去重、真实 MIME 嗅探、原子写盘 |
+| 音频中心 | MP3 / M4A / FLAC 管理与直传（魔数嗅探、视频拒收）、标准元数据解析（标签 / 时长 / 码率 / 采样率 / 位深）、双层封面（内嵌抽取 + 可改的覆盖 URL）、卡片播放 / 暂停、批量删除 |
 | API Key 管理 | 明文仅展示一次、SHA-256 哈希存储、readonly/readwrite 双权限、按密钥令牌桶限流、敏感操作密码二次确认 |
 | 日志中心 | 访问日志 + 业务审计统一落库，zap 异步批量写入，request id 串联，14 天纯 SVG 直方图（带 7 日移动平均） |
 | 仪表盘 | 单接口聚合统计（图片总量 / 存储占用 / APIkey 计数 / 日志总量 / 近 N 天上传趋势，按来源拆分） |
@@ -54,7 +55,7 @@ release 产物包含后端二进制、前端 SPA 静态产物、`.example` 示�
 - **[部署与 Release 打包](docs/deploy.md)** — 部署架构、打包流程、Nginx 反代约定、构建坑防护。
 - **后端**
   - [目录对照与入口阅读顺序](docs/backend/README.md)
-  - 特性文档：[登录认证 AUTH](docs/backend/AUTH.md) · [API 密钥 APIKEY](docs/backend/APIKEY.md) · [图片上传 IMAGE](docs/backend/IMAGE.md) · [日志中心 LOG](docs/backend/LOG.md) · [仪表盘 DASHBOARD](docs/backend/DASHBOARD.md) · [数据库 DATABASE](docs/backend/DATABASE.md)
+  - 特性文档：[登录认证 AUTH](docs/backend/AUTH.md) · [API 密钥 APIKEY](docs/backend/APIKEY.md) · [图片上传 IMAGE](docs/backend/IMAGE.md) · [音频管理 AUDIO](docs/backend/AUDIO.md) · [日志中心 LOG](docs/backend/LOG.md) · [仪表盘 DASHBOARD](docs/backend/DASHBOARD.md) · [数据库 DATABASE](docs/backend/DATABASE.md)
 - **前端**
   - [目录对照与分层说明](docs/frontend/README.md)
   - [前端登录链路 AUTH](docs/frontend/AUTH.md)
