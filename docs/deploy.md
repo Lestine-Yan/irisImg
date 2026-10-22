@@ -37,7 +37,7 @@ git push origin <branch> v0.1.1
 4. **发布说明**：取 tag 指向 commit 的 **body**（`git log -1 --format=%b`），markdown 原样渲染为 Release 正文；body 为空则 workflow 直接报错中止，不会发出无说明的 Release。说明风格参考 PR squash commit（如 `9586f98`）的分段格式。
 5. **产物**：`dist/irisImg-<version>-linux-amd64.tar.gz` 作为 Release Asset 上传（`fail_on_unmatched_files` 保证产物缺失时发布失败）。
 
-工具链：Go 版本读 `backend/go.mod`，pnpm 10 + Node 22（`frontend/package.json` 未声明 `packageManager`，版本钉在 workflow 里）。
+工具链：Go 版本读 `backend/go.mod` 的 `go` 指令，当前固定为 **`go 1.26.10`**（含 CVE-2026-111943 的 `crypto/x509` 中间证书信任移除；`setup-go` 按该指令安装精确补丁版本，本地 `GOTOOLCHAIN=auto` 亦会自动下载），pnpm 10 + Node 22（`frontend/package.json` 未声明 `packageManager`，版本钉在 workflow 里）。安全补丁类升级须提升该 directive 并**重新构建发布产物**（旧二进制不会自动获得修复）。
 
 ### 产物结构
 

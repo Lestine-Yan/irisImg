@@ -1,6 +1,6 @@
 # irisImg
 
-[![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)](https://go.dev)[![Gin](https://img.shields.io/badge/Gin-1.12-000000)](https://gin-gonic.com)[![Ent](https://img.shields.io/badge/Ent-0.14-29B5C8)](https://entgo.io)[![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org)[![Nuxt](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxtdotjs&logoColor=white)](https://nuxt.com)[![Vue](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org)[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)[![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.26.10-00ADD8?logo=go&logoColor=white)](https://go.dev)[![Gin](https://img.shields.io/badge/Gin-1.12-000000)](https://gin-gonic.com)[![Ent](https://img.shields.io/badge/Ent-0.14-29B5C8)](https://entgo.io)[![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org)[![Nuxt](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxtdotjs&logoColor=white)](https://nuxt.com)[![Vue](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org)[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)[![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 
 ### 前言
 因为感觉OSS对象存储服务有点贵，然后我刚好又买了个服务器，然后刚好又搭了个blog，然后刚好想给blog做前后端分离，然后发现后端写blog的时候上传图片有点麻烦 （~~*超绝不经意*~~） 所以现在想写个图床后端给我的blog用
@@ -27,7 +27,7 @@ irisImg 是一个面向个人使用的轻量图床服务，前后端分离，**�
 
 release 产物包含后端二进制、前端 SPA 静态产物、`.example` 示例配置与 Nginx 模板——后端就是一个可执行文件、前端由 Nginx 直接代理，因此本项目无需 Docker 构建。
 
-> 当前版本 **v0.1.0**。功能特性、技术栈、安全特性、接口一览、部署升级与配置速览的完整说明见 [发布说明](docs/release/v0.1.0.md)。
+> 当前版本 **v0.1.2**（Go 1.26.10 安全补丁）。本次发布说明见 [v0.1.2](docs/release/v0.1.2.md)；功能特性、技术栈、安全特性、接口一览、部署升级与配置速览的完整说明见 [v0.1.0 发布说明](docs/release/v0.1.0.md)。
 
 ## WebUI速览
 
@@ -51,7 +51,7 @@ release 产物包含后端二进制、前端 SPA 静态产物、`.example` 示�
 
 项目所有说明文档集中在 [`docs/`](docs/) 下，与源码一一对应。README 仅作入口，细节请按需查阅：
 
-- **[发布说明 (v0.1.0)](docs/release/v0.1.0.md)** — 功能特性、技术栈、安全特性、接口一览、部署升级、配置速览、已知限制。
+- **[发布说明](docs/release/)** — 当前 [v0.1.2](docs/release/v0.1.2.md)（Go 工具链安全补丁）；完整功能说明见 [v0.1.0](docs/release/v0.1.0.md) 与 [v0.1.1](docs/release/v0.1.1.md)。
 - **[部署与 Release 打包](docs/deploy.md)** — 部署架构、打包流程、Nginx 反代约定、构建坑防护。
 - **后端**
   - [目录对照与入口阅读顺序](docs/backend/README.md)
