@@ -1,31 +1,44 @@
 # `frontend/app/components/login/LoginHero.vue`
 
-登录页左侧品牌字标组件。
+登录页左侧品牌与产品说明组件。
 
 ## 职责
 
-- 以**内联 SVG 字标**展示品牌名称 `irisImg`，且仅展示该字标（无副标题、无功能标签、无装饰圆点）。
-- 字标由 `iris` 与 `Img` 两部分**上下两行**布局构成，两行统一使用浅紫罗兰（`#A48CE6`，`iris-violet`）。
+- 展示品牌字标 `irisImg`。
+- 以「轻量、高性能的私人对象存储」为核心定位文案。
+- 补充一句产品说明与三项能力：轻量、高性能、私有。
 
 ## 对外行为
 
-- 纯展示组件，无 props、无 emits、无内部状态（仅模板）。
+- 纯展示组件，无 props、无 emits、无内部状态。
+- 能力列表数据为组件内常量 `features`。
 
-## 视觉与定位
+## 视觉结构
 
-- SVG `viewBox="0 0 240 200"`，两行 `font-size="96"`、`font-weight="800"`、`letter-spacing="-3"`，相较初版明显放大。
-- 响应式宽度：`w-56 sm:w-64 md:w-[360px] lg:w-[420px]`，高度自适应；桌面端有效字号约 168px。
-- 组件自身 `flex flex-col items-start` 左对齐；实际「左上方」定位由 `frontend/app/pages/index.vue` 通过 `lg:self-start lg:pt-24` 顶部对齐实现。
-- 字标落在 `GeometricBackground.vue` 左侧暖米白留白区（`iris-cream` `#FAFBE6`）内，右缘不越过留白斜边。
-- `iris-violet`（`#A48CE6`）于米白底上对比度偏低（约 2.7:1），系刻意取色以追求观感舒适，非可读性优先。
+1. **Eyebrow**：短线 + `PRIVATE OBJECT STORAGE`，紫罗兰色、宽字距。
+2. **字标**：内联 SVG，`iris` 与 `Img` 上下两行：
+   - `iris` 使用近黑 `#1C1A27`。
+   - `Img` 使用从 `#6D4FD8` 经 `#8F7BE8` 到 `#86C9EC` 的渐变。
+   - 响应式宽度：`w-[158px]` → `sm:w-[232px]` → `lg:w-[278px]` → `xl:w-[306px]`。
+   - 完整品牌名通过 `sr-only` 文本提供给读屏。
+3. **标题**：`轻量、高性能的 / 私人对象存储`，第二行紫罗兰强调；移动端自然连成一行。
+4. **说明**：两行短句，「为图片与音频打造的自托管空间 / 上传、整理、直链分发，数据始终由你掌控」。
+5. **能力列表**：三列，顶部细分割线；每项由小圆点、标题与一句说明组成：
+   - 轻量：Go 单二进制，解压即用。
+   - 高性能：静态直链，Nginx 直接分发。
+   - 私有：单用户模型，数据自持。
+
+## 响应式与动效
+
+- 移动端隐藏能力列表，缩小字标与标题间距，让右侧/下方登录表单更快进入首屏。
+- 组件带 `hero-in` 入场动画（0.8s，上移淡入）；`prefers-reduced-motion` 下关闭。
 
 ## 与其它文件的关系
 
-- 被 `frontend/app/pages/index.vue` 放置在左侧分栏，桌面端顶部对齐。
-- 字标配色与 `GeometricBackground.vue` 的鸢尾色系一致；可读性依赖背景左侧保持留白。
+- 被 `frontend/app/pages/index.vue` 放置在左侧栏。
+- 配色与 `GeometricBackground.vue`、Tailwind 鸢尾色系一致。
 
 ## 修改建议
 
-- 字标内文字使用 `<text>` 渲染，依赖 Inter 字体已加载；若需脱离字体依赖可转为路径（path）。
-- 调整字号或宽度时需同步确认下沿不越过 `GeometricBackground.vue` 留白的斜边（留白区上宽下窄）。
-- 若后续需要更高可读性，可将字标色改回 `iris-dark`（`#6D4FD8`）。
+- 字标使用 `<text>` 渲染，依赖 Inter 或系统无衬线字体；若需完全脱离字体，可转为路径。
+- 能力说明涉及产品事实，修改时需与 README / 发布说明保持一致。

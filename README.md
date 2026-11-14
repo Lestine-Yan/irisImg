@@ -31,8 +31,7 @@ release 产物包含后端二进制、前端 SPA 静态产物、`.example` 示�
 
 ## WebUI速览
 
-*（感觉现在的登陆页面做的有点丑，以后有灵感时间了重新设计一张。。。）*
-![登陆界面](docs/screenshots/login.png)
+![登录界面](docs/screenshots/login.png)
 
 
 ![仪表盘](docs/screenshots/dashboard.png)
