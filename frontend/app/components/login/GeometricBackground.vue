@@ -105,12 +105,12 @@
       </g>
     </svg>
 
-    <!-- 鸢尾花原作：multiply 让白底融进纸色，只留下花瓣 -->
+    <!-- 鸢尾花原作：保留透明通道，multiply 让花瓣融进纸色 -->
     <div
       class="flower-art absolute -right-[6%] -top-[17%] hidden h-[114vh] w-[114vh] max-h-[1100px] max-w-[1100px] md:block"
     >
       <img
-        src="/flower.png"
+        src="/flower.webp"
         alt=""
         class="h-full w-full object-contain mix-blend-multiply"
         draggable="false"

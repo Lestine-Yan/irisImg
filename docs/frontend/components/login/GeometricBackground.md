@@ -6,7 +6,7 @@
 
 - 以 `fixed inset-0 z-0` 覆盖整个视口，位于内容层（`z-10`）之下。
 - 不使用大色块拼接，改用低透明度径向光晕、细网格、轨道圆与花瓣曲线营造简约现代的留白氛围。
-- 将 `public/flower.png` 作为右上角的大幅背景画，使用 `mix-blend-mode: multiply` 让白底融入纸色。
+- 将 `public/flower.webp` 作为右上角的大幅背景画，保留透明通道，并用 `mix-blend-mode: multiply` 让花瓣与纸色、线稿自然融合。
 
 ## SVG 视觉元素
 
@@ -19,9 +19,9 @@
 
 ## 花朵图层
 
-- 图片：`/flower.png`（1440×1440，鸢尾花水彩插画）。
+- 图片：`/flower.webp`（1440×1440，鸢尾花水彩插画；由原始 PNG 压制、保留透明通道的 WebP，约 180 KB）。
 - 定位：右上角，`h-[114vh] w-[114vh]`，最大 1100px，`-right-[6%] -top-[17%]`。
-- 混合：`mix-blend-multiply` + `opacity: 0.86`，白色背景被乘掉，只留下花瓣与花茎。
+- 混合：`mix-blend-multiply` + `opacity: 0.86`，透明背景与纸色自然叠加，只突出花瓣与花茎。
 - 遮罩：径向渐变柔化四周边缘，避免出现图片边界。
 - 动效：`flower-drift` 26s 缓慢漂移缩放；`prefers-reduced-motion` 下关闭。
 - 移动端（`< md`）隐藏花朵，仅保留细线背景，避免与登录卡片抢视觉。
@@ -34,7 +34,7 @@
 ## 与其它文件的关系
 
 - 被 `frontend/app/pages/index.vue` 引用，作为登录页最底层视觉层。
-- `flower.png` 位于 `frontend/public/`，构建时复制到产物根路径。
+- `flower.webp` 位于 `frontend/public/`，构建时复制到产物根路径。
 
 ## 修改建议
 
