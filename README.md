@@ -1,6 +1,6 @@
 # irisImg
 
-[![Go](https://img.shields.io/badge/Go-1.26.10-00ADD8?logo=go&logoColor=white)](https://go.dev)[![Gin](https://img.shields.io/badge/Gin-1.12-000000)](https://gin-gonic.com)[![Ent](https://img.shields.io/badge/Ent-0.14-29B5C8)](https://entgo.io)[![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org)[![Nuxt](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxtdotjs&logoColor=white)](https://nuxt.com)[![Vue](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org)[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)[![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.26.10-00ADD8?logo=go&logoColor=white)](https://go.dev) [![Gin](https://img.shields.io/badge/Gin-1.12-000000)](https://gin-gonic.com) [![Ent](https://img.shields.io/badge/Ent-0.14-29B5C8)](https://entgo.io) [![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org) [![Nuxt](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxtdotjs&logoColor=white)](https://nuxt.com) [![Vue](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org) [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com) [![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 
 ### 前言
 因为感觉OSS对象存储服务有点贵，然后我刚好又买了个服务器，然后刚好又搭了个blog，然后刚好想给blog做前后端分离，然后发现后端写blog的时候上传图片有点麻烦 （~~*超绝不经意*~~） 所以现在想写个图床后端给我的blog用
@@ -38,8 +38,6 @@ release 产物包含后端二进制、前端 SPA 静态产物、`.example` 示�
 ![登录界面](docs/screenshots/login.png)
 
 ### 加载过渡
-
-登录成功后，四条曲线从加载页中央漂浮，随后迁移到后台背景的落点，完成页面切换。
 
 ![登录后的加载过渡](docs/screenshots/loading.png)
 
