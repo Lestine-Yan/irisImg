@@ -29,21 +29,35 @@ release 产物包含后端二进制、前端 SPA 静态产物、`.example` 示�
 
 > 当前版本 **v0.1.2**（Go 1.26.10 安全补丁）。本次发布说明见 [v0.1.2](docs/release/v0.1.2.md)；功能特性、技术栈、安全特性、接口一览、部署升级与配置速览的完整说明见 [v0.1.0 发布说明](docs/release/v0.1.0.md)。
 
-## WebUI速览
+## WebUI 速览
+
+登录页延续鸢尾纸色与细线背景；登录成功后先播放曲线迁移的加载过渡，再进入后台。后台使用同一套纸色、细网格与玻璃卡片，侧边栏在窄屏会自动收为 76px 图标栏。以下截图由无头浏览器实拍。
+
+### 登录
 
 ![登录界面](docs/screenshots/login.png)
 
+### 加载过渡
+
+登录成功后，四条曲线从加载页中央漂浮，随后迁移到后台背景的落点，完成页面切换。
+
+![登录后的加载过渡](docs/screenshots/loading.png)
+
+### 仪表盘
 
 ![仪表盘](docs/screenshots/dashboard.png)
 
+### 内容中心
 
 ![内容中心](docs/screenshots/content.png)
 
+### 日志中心
 
 ![日志中心](docs/screenshots/logs.png)
 
+### APIkey 管理
 
-![APIkey管理](docs/screenshots/apikeys.png)
+![APIkey 管理](docs/screenshots/apikeys.png)
 
 
 ## 文档导航
