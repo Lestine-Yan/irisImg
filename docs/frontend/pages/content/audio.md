@@ -4,6 +4,7 @@
 
 ## 职责
 
+- 视觉：标题使用 `.admin-page-title` / `.admin-page-subtitle`；加载 / 空态占位使用 `.admin-surface-quiet`，与后台整体纸色玻璃风一致。
 - 顶部展示「音频」标题 + 副标题「管理已上传的音频文件（MP3 / M4A / FLAC）」，按钮组与图片页同款：
   - **默认态**：「多选」+「上传音频」（切换 [`ContentAudioUploadPanel`](../../components/content/audio-upload-panel.md)）。
   - **多选态**：「删除（N）」+「取消」。

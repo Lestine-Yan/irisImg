@@ -16,6 +16,10 @@
   - `selected?: boolean` — 多选模式下该卡片是否被选中：主色（`iris-dark`）描边 + 柔和 ring（`iris-violet/30`）+ 实底勾。
 - emits：`click(image: ImageItem)`。
 
+## 视觉
+
+- 根节点使用 `.admin-surface-flat` 卡片（20px 圆角、白色细边、无 backdrop blur，避免网格大量卡片拖慢滚动），边框颜色仍由 `borderClass` 三态控制。
+
 ## 选中态样式实现
 
 - 边框三态互斥（computed `borderClass`）：选中 > 多选未选中 > 默认。选中态与 hover 放在互斥分支而非叠加类，避免 hover 把选中边框撤掉；多选未选中用 `hover:border-iris-dark/50` 替代默认的紫色 hover，提示当前点击语义是选择。

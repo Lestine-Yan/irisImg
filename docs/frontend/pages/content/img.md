@@ -4,6 +4,7 @@
 
 ## 职责
 
+- 视觉：标题使用 `.admin-page-title` / `.admin-page-subtitle`；加载 / 空态占位使用 `.admin-surface-quiet`，与后台整体纸色玻璃风一致。
 - 顶部展示「图片」标题 + 副标题「管理已上传的图片资源」，标题右侧为按钮组：
   - **默认态**：「多选」+「上传图片」。点击「多选」进入多选模式；「上传图片」切换 [`ContentUploadPanel`](../../components/content/upload-panel.md) 上传栏的显隐。
   - **多选态**：「删除（N）」（rose 危险色，空选中时禁用）+「取消」退出多选。

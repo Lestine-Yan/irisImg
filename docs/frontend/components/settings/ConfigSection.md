@@ -4,7 +4,7 @@
 
 ## 职责
 
-- 渲染一个圆角白底卡片（`rounded-2xl border bg-white p-6`），顶部为分组标题（`uppercase` 小字灰色），下方为 `dl` 列表（`divide-y divide-gray-100` 行间分隔）。
+- 渲染一个 `.admin-surface` 玻璃卡片（20px 圆角、白色细边、白色 74% 背景、backdrop blur），顶部为分组标题（`uppercase` 小字灰色），下方为 `dl` 列表（`divide-y divide-gray-100` 行间分隔）。
 - 通过默认插槽接收若干 [`ConfigItem`](./ConfigItem.md)（`dt` / `dd` 行）作为列表内容。
 
 ## Props / Emits

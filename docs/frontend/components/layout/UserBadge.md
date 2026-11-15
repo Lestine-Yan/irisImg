@@ -4,9 +4,9 @@
 
 ## 职责
 
-- 展示用户头像（白底圆 + 浅紫首字符）。
-- 展示当前用户名。
-- 提供退出登录按钮。
+- 展示用户头像：浅紫渐变圆 + 用户名首字符。
+- 完整侧边栏（`>= xl`）下展示用户名与「已登录 · 私人空间」。
+- 提供退出登录按钮；窄屏下面板纵向排列，仍保留退出入口。
 
 ## 状态
 
@@ -14,8 +14,10 @@
 
 ## 视觉
 
-- 头像：`h-9 w-9` 圆形，`bg-white border border-gray-200`，文字 `text-iris-violet`（白底 + 浅色首字符，与浅白底侧边栏区分）。
-- 退出按钮：`text-gray-400`，hover `bg-gray-100 text-gray-700`。
+- 容器：窄屏 `flex-col` 居中；`>= xl` 转为横向玻璃卡片（`border-white/70 bg-white/45`）。
+- 头像：`h-9 w-9` 圆形，`bg-gradient-to-br from-white to-[#F0EBFC]`，`text-iris-dark` + 白色细边与轻阴影。
+- 用户名：`12.5px font-semibold text-[#1C1A27]`；副文案：`10px text-[#8A8696]`。
+- 退出按钮：低对比灰色，hover 转白底与深色；带 `title` / `aria-label`。
 
 ## 与其它文件的关系
 

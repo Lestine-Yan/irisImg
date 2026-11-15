@@ -3,7 +3,7 @@
     <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/50" @click="close" />
       <div
-        class="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-xl"
+        class="relative z-10 w-full max-w-lg overflow-hidden rounded-[22px] border border-white/80 bg-white shadow-[0_32px_90px_-48px_rgba(42,33,80,0.5)]"
         :class="contentClass"
       >
         <div

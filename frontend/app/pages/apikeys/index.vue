@@ -3,8 +3,8 @@
     <!-- 顶栏：标题 + 创建按钮（justify-between 布局） -->
     <div class="flex items-center justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">APIkey 管理</h1>
-        <p class="mt-1 text-sm text-gray-500">创建与维护 API 密钥</p>
+        <h1 class="admin-page-title">APIkey 管理</h1>
+        <p class="admin-page-subtitle">创建与维护 API 密钥</p>
       </div>
       <button
         type="button"

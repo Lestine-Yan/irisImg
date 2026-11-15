@@ -5,7 +5,7 @@
 ## 职责
 
 - 纯展示组件，把一个统计指标渲染为卡片：标题（`label`）、主数值（`value`，字符串或数字，由父组件格式化后传入）、可选副标题（`hint`）、可选图标徽章（`icon`，heroicons outline 的 SVG path d）。
-- 容器样式沿用 `ConfigSection` 的 `rounded-2xl border border-gray-200 bg-white p-6` 范式。
+- 容器使用全局 `.admin-surface` 玻璃卡片（20px 圆角、白色细边、白色 74% 背景、backdrop blur）。
 - 图标徽章用 `bg-iris-violet/10` 底 + `text-iris-dark` 字色，与侧边栏激活态呼应。
 
 ## Props
@@ -24,4 +24,4 @@
 ## 与其它文件的关系
 
 - 父组件：[`pages/dashboard.vue`](../../pages/dashboard.md)（渲染 4 张统计卡）。
-- 样式参考：[`components/settings/ConfigSection.vue`](../settings/ConfigSection.md)（白底圆角卡范式）。
+- 样式参考：[`components/settings/ConfigSection.vue`](../settings/ConfigSection.md)（`.admin-surface` 玻璃卡范式）。

@@ -1,3 +1,63 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    background-color: #f7f7f2;
+  }
+
+  body {
+    color: #1c1a27;
+  }
+
+  ::selection {
+    background: rgba(164, 140, 230, 0.3);
+  }
+}
+
+@layer components {
+  /* 后台通用玻璃卡片：延续登录卡片的纸色、细边与低对比阴影 */
+  .admin-surface {
+    border-radius: 1.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.74);
+    box-shadow:
+      0 24px 70px -52px rgba(42, 33, 80, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  /* 图片 / 音频网格这类大量重复卡片不叠 backdrop-filter，避免滚动时 GPU 压力过大 */
+  .admin-surface-flat {
+    border-radius: 1.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow:
+      0 20px 48px -42px rgba(42, 33, 80, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  }
+
+  .admin-surface-quiet {
+    border-radius: 1.25rem;
+    border: 1px dashed rgba(28, 26, 39, 0.12);
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .admin-page-title {
+    font-size: 1.625rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: #1c1a27;
+  }
+
+  .admin-page-subtitle {
+    margin-top: 0.35rem;
+    font-size: 0.8125rem;
+    line-height: 1.5rem;
+    color: #77737f;
+  }
+}

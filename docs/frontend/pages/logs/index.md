@@ -4,6 +4,7 @@
 
 ## 职责
 
+- 视觉：标题使用 `.admin-page-title` / `.admin-page-subtitle`；筛选栏与直方图卡片使用 `.admin-surface` 玻璃表面。
 - 顶部标题 + 副标题（「查看访问与业务日志，支持多维筛选、按日趋势与清理」）。
 - 筛选栏（`grid` 响应式 2/3/4 列）：级别 / 事件 / 方法 / 状态 / 关键字 / 起始日期 / 结束日期 + 「查询」「重置」按钮。
 - 直方图卡片：标题「近 14 天日志量」+ 副文案「共 N 条」，右上角并排两个红色清理按钮——「清理全部日志」（触发 `purgeOpen`，清空全部）与「清理GET日志」（触发 `purgeGetOpen`，仅清 info 级 GET 请求日志），分别打开 [`LogsPurgeDialog`](../../components/logs/LogsPurgeDialog.md) 二次确认弹窗（同一组件，`scope` prop 区分模式）；卡片主体渲染 [`LogsHistogram`](../../components/logs/LogsHistogram.md)，透传 `:error="histError"` 与 `@retry="fetchHistogram"`，与表格一致支持加载 / 错误（重试）/ 空 / 图表四态。

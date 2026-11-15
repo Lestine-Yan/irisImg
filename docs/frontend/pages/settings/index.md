@@ -4,6 +4,7 @@
 
 ## 职责
 
+- 视觉：标题使用 `.admin-page-title` / `.admin-page-subtitle`；配置分组卡片由 `ConfigSection` 的 `.admin-surface` 承担。
 - 顶部标题 + 副标题（「查看当前运行配置（只读）」）。
 - 固定 amber 提示横幅：「生产中无法变更配置，请修改 config 文件并重启以应用。」
 - 数据态下，当 `config.apikey.https_only === false` 时额外显示 rose 警告横幅，提示密钥相关敏感接口未强制 HTTPS，并给出 `apikey.https_only: true` 的配置建议（建议值包在 `<code>` 内，`font-mono` + `px-1.5`，与 [`ApiKeyTable`](../../components/apikeys/ApiKeyTable.md) 的 `code` 风格一致）。

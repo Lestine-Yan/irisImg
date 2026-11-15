@@ -6,10 +6,12 @@
 
 - 渲染 `NuxtRouteAnnouncer`，提供路由切换时的可访问性提示。
 - 用 `NuxtLayout` 包裹 `NuxtPage`，使 `layouts/default.vue` 等布局生效。
+- 在布局与页面之外挂载 `<AppLoadingTransition>`，让登录成功后的全屏加载层跨路由持续存在。
 
 ## 与其它文件的关系
 
 - `NuxtPage` 渲染 `app/pages/` 下的页面。
+- `AppLoadingTransition` 读取 `useAppTransition` 的状态，在登录页与后台布局之间播放曲线过渡。
 - `NuxtLayout` 根据页面 `definePageMeta` 选择布局：
   - `pages/index.vue`（登录页）声明 `layout: false`，跳过布局，自行渲染全屏背景。
   - 其余后台页（`dashboard` / `content` / `logs` / `apikeys` / `settings`）使用默认布局 `layouts/default.vue`（侧边栏 + 内容区）。

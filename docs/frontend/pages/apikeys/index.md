@@ -4,6 +4,7 @@ APIkey 管理页，对应路由 `/apikeys`，后台「APIkey 管理」导航目�
 
 ## 职责
 
+- 视觉：标题使用 `.admin-page-title` / `.admin-page-subtitle`；密钥列表外层由 `ApiKeyTable` 的 `.admin-surface` 承担。
 - 顶栏：标题 + 「创建 Key」按钮（`justify-between` 布局）。
 - 标题下说明文本：APIkey 仅在创建时可见可复制，请妥善保存，不要与他人共享或暴露在客户端代码中。
 - 密钥列表（[`ApiKeyTable`](../../components/apikeys/ApiKeyTable.md)）：操作 / 名称 / 明文前缀 / 创建时间 / 最近使用。

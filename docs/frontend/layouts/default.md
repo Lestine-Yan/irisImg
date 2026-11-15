@@ -10,8 +10,10 @@
 
 ## 视觉
 
-- 外层 `flex min-h-screen bg-iris-cream`（暖米白留白底）。
-- 侧边栏 sticky 固定在左侧；主内容区 `flex-1` 滚动。
+- 外层 `relative min-h-screen`，底层为 `<LayoutAdminBackdrop>`（`fixed inset-0 z-0`）：暖白纸色、细网格、轨道圆与四条落定曲线。
+- 内容层 `relative z-10 flex min-h-screen`：左侧 sticky 侧边栏 + 右侧 `flex-1` 主内容区。
+- 主内容容器 `max-w-6xl`，内边距 `px-4 py-6 sm:px-6 lg:px-10 lg:py-10`。
+- 页面标题统一使用 `.admin-page-title` / `.admin-page-subtitle`；卡片统一使用 `.admin-surface` 玻璃表面，与登录卡片同一套纸色语言。
 
 ## 鉴权逻辑
 
@@ -22,6 +24,7 @@
 
 ```
 default.vue
+  ├── AdminBackdrop.vue       # 背景层
   ├── AppSidebar.vue
   │     └── UserBadge.vue
   └── useAuth.ts

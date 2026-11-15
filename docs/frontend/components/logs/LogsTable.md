@@ -17,6 +17,7 @@
 
 ## 实现要点
 
+- 数据表格外层使用 `.admin-surface` 玻璃容器；加载 / 空态使用 `.admin-surface-quiet` 虚线占位。
 - 时间格式化复用 [`useImages`](../../composables/useImages.md) 的 `formatDate`（显式 `import` 引入）。
 - 级别 / 事件 / 方法均以 `<code>` 等宽样式呈现；`method` 为空时方法·路径列回退为 `-`。
 - 状态、耗时为空时统一回退为 `-`，耗时非空时追加 `ms` 后缀。

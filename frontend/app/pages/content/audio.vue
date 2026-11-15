@@ -3,8 +3,8 @@
     <!-- 顶部标题 + 上传入口 -->
     <div class="flex items-center justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">音频</h1>
-        <p class="mt-1 text-sm text-gray-500">管理已上传的音频文件（MP3 / M4A / FLAC）</p>
+        <h1 class="admin-page-title">音频</h1>
+        <p class="admin-page-subtitle">管理已上传的音频文件（MP3 / M4A / FLAC）</p>
       </div>
       <div class="flex shrink-0 items-center gap-2">
         <!-- 多选模式操作栏：删除（危险色，空选中禁用）+ 取消退出 -->
@@ -137,7 +137,7 @@
         <!-- 加载态 -->
         <div
           v-if="loading"
-          class="flex h-64 items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white/60"
+          class="admin-surface-quiet flex h-64 items-center justify-center"
         >
           <span class="text-sm text-gray-400">加载中…</span>
         </div>
@@ -160,7 +160,7 @@
         <!-- 空态 -->
         <div
           v-else-if="!audios.length"
-          class="flex h-64 flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-gray-300 bg-white/60"
+          class="admin-surface-quiet flex h-64 flex-col items-center justify-center gap-1"
         >
           <p class="text-sm text-gray-400">该筛选条件下暂无音频</p>
         </div>

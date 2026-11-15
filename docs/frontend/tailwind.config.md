@@ -9,8 +9,8 @@ Tailwind CSS 配置文件。
 ## 扩展项
 
 - `colors`（蓝紫鸢尾花色系，全局主色系）：
-  - `iris-dark`：`#6D4FD8` — 深紫罗兰，主按钮 / 文字 / 深底；亦是字标 `iris` 的色值。
-  - `iris-violet`：`#A48CE6` — 浅紫罗兰，字标 `Img` 的色值 / 辅助强调。
+  - `iris-dark`：`#6D4FD8` — 深紫罗兰，主按钮 / 链接 / 强调文字；登录字标 `Img` 渐变也以此为起点。
+  - `iris-violet`：`#A48CE6` — 浅紫罗兰，图标底、选中态、辅助强调。
   - `iris-sky`：`#86C9EC` — 浅天蓝，渐变底色。
   - `iris-gold`：`#F4C430` — 金黄，鸢尾斑纹强调色。
   - `iris-cream`：`#FAFBE6` — 暖米白，背景留白底色。
@@ -19,7 +19,7 @@ Tailwind CSS 配置文件。
 ## 与其它文件的关系
 
 - 被 `@nuxtjs/tailwindcss` 模块读取，决定生成的工具类。
-- 品牌色在 `frontend/app/components/login/GeometricBackground.vue`（外层 `bg-iris-cream`，SVG 内联色值与之一致）、`LoginHero.vue`（字标 `iris` 与 `Img` 均为 `iris-violet`）与 `LoginForm.vue`（主按钮 `iris-dark` 底 + 白字、hover 底色转 `iris-violet`；输入框聚焦态 `iris-dark`）中体现。
+- 品牌色在 `login/GeometricBackground.vue`（底色 `#F7F7F2`，SVG 光晕 / 轨道 / 曲线使用 violet、sky、gold）、`LoginHero.vue`（`iris` 近黑、`Img` 紫蓝渐变）与 `LoginForm.vue`（主按钮近黑紫、聚焦态 `iris-dark`）中体现；后台背景、`.admin-surface` 与页面强调色沿用同一组 token。
 
 ## 配置加载与排错
 
@@ -30,6 +30,6 @@ Tailwind CSS 配置文件。
 ## 修改建议
 
 - 新增颜色/间距/阴影变量时，优先在此集中定义，避免在组件中写死色值。
-- `iris-violet`（`#A48CE6`）偏浅，字标与按钮 hover 刻意采用以追求观感（对比度约 2.7:1，偏低但可接受）；需要高对比的文字或按钮主态仍用 `iris-dark`（`#6D4FD8`）。
+- `iris-violet`（`#A48CE6`）偏浅，适合图标底、选中态与装饰；需要高对比的文字或按钮主态仍用 `iris-dark`（`#6D4FD8`）或近黑墨色。
 - `GeometricBackground.vue` 中的渐变 / 留白色值当前直接写死并与本配置保持一致；若后续需要统一管理，可考虑改为 CSS 变量引用。
 - 若后续引入 `tailwindcss-animate` 等插件，在此 `plugins` 数组注册。

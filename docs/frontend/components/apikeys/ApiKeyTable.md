@@ -16,6 +16,7 @@ APIkey 列表表格，Nuxt 自动导入标签为 `<ApikeysApiKeyTable />`。
 
 ## 实现要点
 
+- 数据表格外层使用 `.admin-surface` 玻璃容器；加载 / 空态使用 `.admin-surface-quiet` 虚线占位。
 - 时间格式化复用 [`useImages`](../../composables/useImages.md) 的 `formatDate`（自动导入）；`last_used_at` 为空显示「从未」。
 - 前缀展示为 `<code>{prefix}…</code>`。
 
