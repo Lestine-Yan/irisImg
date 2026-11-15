@@ -1,24 +1,27 @@
 <template>
-  <div class="flex items-center gap-3 rounded-xl px-2 py-1.5">
-    <!-- 用户头像：白底圆 + 浅紫首字符 -->
+  <div
+    class="flex flex-col items-center gap-2 rounded-2xl px-1 py-1 xl:flex-row xl:items-center xl:gap-3 xl:border xl:border-white/70 xl:bg-white/45 xl:p-2.5"
+  >
+    <!-- 用户头像：浅紫渐变圆 + 首字符 -->
     <div
-      class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-sm font-semibold text-iris-violet"
+      class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/80 bg-gradient-to-br from-white to-[#F0EBFC] text-[13px] font-semibold text-iris-dark shadow-sm"
     >
       {{ initial }}
     </div>
 
-    <div class="min-w-0 flex-1">
-      <p class="truncate text-sm font-medium text-gray-900">{{ user?.username || '未登录' }}</p>
-      <p class="truncate text-xs text-gray-500">已登录</p>
+    <div class="hidden min-w-0 flex-1 xl:block">
+      <p class="truncate text-[12.5px] font-semibold text-[#1C1A27]">{{ user?.username || '未登录' }}</p>
+      <p class="truncate text-[10px] text-[#8A8696]">已登录 · 私人空间</p>
     </div>
 
     <button
       type="button"
       title="退出登录"
-      class="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+      aria-label="退出登录"
+      class="rounded-lg p-1.5 text-[#8A8696] transition-colors hover:bg-white/60 hover:text-[#1C1A27]"
       @click="handleLogout"
     >
-      <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path
           stroke-linecap="round"
           stroke-linejoin="round"

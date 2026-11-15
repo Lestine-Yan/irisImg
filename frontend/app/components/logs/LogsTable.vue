@@ -3,7 +3,7 @@
     <!-- 加载态 -->
     <div
       v-if="loading"
-      class="flex h-64 items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white/60"
+      class="admin-surface-quiet flex h-64 items-center justify-center"
     >
       <span class="text-sm text-gray-400">加载中…</span>
     </div>
@@ -26,13 +26,13 @@
     <!-- 空态 -->
     <div
       v-else-if="!logs.length"
-      class="flex h-64 flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-gray-300 bg-white/60"
+      class="admin-surface-quiet flex h-64 flex-col items-center justify-center gap-1"
     >
       <p class="text-sm text-gray-400">该筛选条件下暂无日志</p>
     </div>
 
     <!-- 列表 -->
-    <div v-else class="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
+    <div v-else class="admin-surface overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
           <tr class="border-b border-gray-100 bg-gray-50/60 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">

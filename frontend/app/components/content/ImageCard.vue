@@ -1,7 +1,7 @@
 <template>
   <button
     type="button"
-    class="group flex flex-col overflow-hidden rounded-2xl border bg-white text-left transition focus:outline-none focus:ring-2 focus:ring-iris-violet/40"
+    class="admin-surface-flat group flex flex-col overflow-hidden text-left transition focus:outline-none focus:ring-2 focus:ring-iris-violet/40"
     :class="borderClass"
     :aria-pressed="selectable ? selected : undefined"
     @click="emit('click', image)"

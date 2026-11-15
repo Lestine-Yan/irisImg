@@ -24,6 +24,10 @@
 
 经 [`useAudioPlayer`](../../composables/useAudioPlayer.md) 的 `toggle(id, resolveAudioUrl(audio.url))` 与 `isPlaying(id)`——全局单实例（`currentId` / `playing` 走 `useState` 共享），任意时刻至多一个音频在播，切歌即换源。卡片自身不持有任何播放状态。
 
+## 视觉
+
+- 根节点使用 `.admin-surface-flat` 条卡（20px 圆角、白色细边、无 backdrop blur，避免长列表拖慢滚动），边框颜色仍由 `borderClass` 三态控制。
+
 ## 选中态样式
 
 边框三态互斥（computed `borderClass`）：选中（`border-iris-dark ring-2 ring-iris-violet/30`）> 多选未选中（`hover:border-iris-dark/50`）> 默认（`hover:border-iris-violet/60 hover:shadow-sm`），规则与 ImageCard 相同。

@@ -3,8 +3,8 @@
     <!-- 顶部标题 + 刷新 -->
     <div class="flex items-center justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">仪表盘</h1>
-        <p class="mt-1 text-sm text-gray-500">概览你的图片服务运行状况</p>
+        <h1 class="admin-page-title">仪表盘</h1>
+        <p class="admin-page-subtitle">概览你的图片服务运行状况</p>
       </div>
       <button
         type="button"
@@ -27,7 +27,7 @@
     <!-- 统计卡片 -->
     <div class="grid grid-cols-2 gap-6 lg:grid-cols-4">
       <template v-if="loading">
-        <div v-for="i in 4" :key="i" class="rounded-2xl border border-gray-200 bg-white p-6">
+        <div v-for="i in 4" :key="i" class="admin-surface p-6">
           <div class="flex items-start justify-between gap-4">
             <div class="space-y-2">
               <div class="h-4 w-16 rounded bg-gray-200 animate-pulse"></div>
@@ -70,7 +70,7 @@
     </div>
 
     <!-- 近 N 天新增图片趋势 -->
-    <div class="rounded-2xl border border-gray-200 bg-white p-6">
+    <div class="admin-surface p-6">
       <div class="mb-4 flex items-center justify-between gap-4">
         <div>
           <h2 class="text-base font-semibold text-gray-900">近 {{ days }} 天新增图片</h2>
@@ -104,7 +104,7 @@
           v-for="entry in quickEntries"
           :key="entry.to"
           :to="entry.to"
-          class="group rounded-2xl border border-gray-200 bg-white p-5 transition hover:border-iris-violet hover:shadow-sm"
+          class="admin-surface group p-5 transition duration-200 hover:-translate-y-0.5 hover:border-iris-violet/40"
         >
           <div class="flex items-center gap-3">
             <span

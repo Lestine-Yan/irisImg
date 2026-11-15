@@ -1,5 +1,5 @@
 <template>
-  <div class="rounded-2xl border border-gray-200 bg-white p-6">
+  <div class="admin-surface p-6">
     <div class="flex items-start justify-between gap-4">
       <div class="min-w-0">
         <p class="text-sm font-medium text-gray-500">{{ label }}</p>

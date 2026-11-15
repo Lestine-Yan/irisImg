@@ -1,6 +1,6 @@
 <template>
   <div
-    class="group flex cursor-pointer items-center gap-4 rounded-2xl border bg-white px-4 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-iris-violet/40"
+    class="admin-surface-flat group flex cursor-pointer items-center gap-4 px-4 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-iris-violet/40"
     :class="borderClass"
     :aria-pressed="selectable ? selected : undefined"
     role="button"

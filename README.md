@@ -1,6 +1,6 @@
 # irisImg
 
-[![Go](https://img.shields.io/badge/Go-1.26.10-00ADD8?logo=go&logoColor=white)](https://go.dev)[![Gin](https://img.shields.io/badge/Gin-1.12-000000)](https://gin-gonic.com)[![Ent](https://img.shields.io/badge/Ent-0.14-29B5C8)](https://entgo.io)[![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org)[![Nuxt](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxtdotjs&logoColor=white)](https://nuxt.com)[![Vue](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org)[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)[![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.26.10-00ADD8?logo=go&logoColor=white)](https://go.dev) [![Gin](https://img.shields.io/badge/Gin-1.12-000000)](https://gin-gonic.com) [![Ent](https://img.shields.io/badge/Ent-0.14-29B5C8)](https://entgo.io) [![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org) [![Nuxt](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxtdotjs&logoColor=white)](https://nuxt.com) [![Vue](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org) [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com) [![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 
 ### 前言
 因为感觉OSS对象存储服务有点贵，然后我刚好又买了个服务器，然后刚好又搭了个blog，然后刚好想给blog做前后端分离，然后发现后端写blog的时候上传图片有点麻烦 （~~*超绝不经意*~~） 所以现在想写个图床后端给我的blog用
@@ -29,21 +29,33 @@ release 产物包含后端二进制、前端 SPA 静态产物、`.example` 示�
 
 > 当前版本 **v0.1.2**（Go 1.26.10 安全补丁）。本次发布说明见 [v0.1.2](docs/release/v0.1.2.md)；功能特性、技术栈、安全特性、接口一览、部署升级与配置速览的完整说明见 [v0.1.0 发布说明](docs/release/v0.1.0.md)。
 
-## WebUI速览
+## WebUI 速览
+
+登录页延续鸢尾纸色与细线背景；登录成功后先播放曲线迁移的加载过渡，再进入后台。后台使用同一套纸色、细网格与玻璃卡片，侧边栏在窄屏会自动收为 76px 图标栏。以下截图由无头浏览器实拍。
+
+### 登录
 
 ![登录界面](docs/screenshots/login.png)
 
+### 加载过渡
+
+![登录后的加载过渡](docs/screenshots/loading.png)
+
+### 仪表盘
 
 ![仪表盘](docs/screenshots/dashboard.png)
 
+### 内容中心
 
 ![内容中心](docs/screenshots/content.png)
 
+### 日志中心
 
 ![日志中心](docs/screenshots/logs.png)
 
+### APIkey 管理
 
-![APIkey管理](docs/screenshots/apikeys.png)
+![APIkey 管理](docs/screenshots/apikeys.png)
 
 
 ## 文档导航

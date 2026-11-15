@@ -17,6 +17,7 @@
 
 - `watch(open)` 在显示 / 隐藏时增删 `window` 的 `keydown` ESC 监听，`onBeforeUnmount` 兜底移除（模式同 [`content/ImageDetailDialog`](../content/image-detail-dialog.md)）。
 - `v-if="open"` 控制挂载，关闭即卸载。
+- 内容容器使用 22px 圆角、`border-white/80` 细边与低对比大阴影，避免纯白弹窗在纸色背景上显得生硬。
 
 ## 与其它文件的关系
 

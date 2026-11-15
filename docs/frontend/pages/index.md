@@ -9,7 +9,7 @@
   - `LoginHero`：左侧品牌字标、产品定位文案与能力说明。
   - `LoginForm`：右侧半透明登录卡片。
 - 提供顶部的品牌条 / 自托管状态，以及底部版权信息。
-- 登录成功后跳转 `/dashboard`。
+- 登录成功后先触发 `useAppTransition().begin()`，显示全屏加载层；等待约 520ms 后跳转 `/dashboard`，再等待约 320ms 调用 `reveal()`，由加载层完成曲线迁移并自行结束。
 
 ## 布局与层级
 
@@ -35,11 +35,14 @@ index.vue
   ├── LoginGeometricBackground.vue   // 背景层（z-0）
   ├── LoginHero.vue                  // 左侧文案
   └── LoginForm.vue                  // 右侧表单
-        └── 登录成功 emit('success') → navigateTo('/dashboard')
+        └── 登录成功 emit('success')
+              └── begin() → 520ms → navigateTo('/dashboard')
+                    → 320ms → reveal() → AppLoadingTransition 曲线过渡
 ```
 
 ## 修改建议
 
 - 调整背景层 `z-index` 或页面根节点背景时，需同时确认花朵与 SVG 未被遮挡。
+- 过渡时长与 `AppLoadingTransition` 的动画时长耦合，修改等待时间时需同步复查曲线结束时机。
 - 若后续登录页改为独立路由 `/login`，需要同步调整此处路由与 `dashboard.vue` 的跳转目标。
 - 移动端首屏高度依赖 Hero 的间距与字标宽度，改动时建议在 390×844 视口复查登录按钮是否仍可尽快触达。

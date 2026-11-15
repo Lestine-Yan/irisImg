@@ -3,13 +3,20 @@
 # 产物：dist/irisImg/ 目录 + dist/irisImg-<version>-linux-amd64.tar.gz
 #
 # 用法：  bash scripts/build-release.sh
-# 覆盖版本号：VERSION=0.2.0 bash scripts/build-release.sh
+# 版本号：默认取最近的 git tag（v0.1.2 -> 0.1.2）；可用 VERSION=0.2.0 覆盖。
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
-VERSION="${VERSION:-0.1.0}"
+# 版本号优先级：VERSION 环境变量 > 最近 git tag > 0.0.0-dev
+if [ -z "${VERSION:-}" ]; then
+  GIT_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+  GIT_TAG="${GIT_TAG#v}"
+  VERSION="${GIT_TAG:-0.0.0-dev}"
+fi
+
+echo "==> 版本: ${VERSION}"
 ARCH="amd64"
 DIST="$ROOT_DIR/dist"
 PKG="$DIST/irisImg"

@@ -2,8 +2,8 @@
   <div class="space-y-6">
     <!-- 顶部标题 -->
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">系统配置</h1>
-      <p class="mt-1 text-sm text-gray-500">查看当前运行配置（只读）</p>
+      <h1 class="admin-page-title">系统配置</h1>
+      <p class="admin-page-subtitle">查看当前运行配置（只读）</p>
     </div>
 
     <!-- 固定提示：配置不可在线变更 -->

@@ -4,31 +4,33 @@
 
 ## 职责
 
-- 顶部展示 `irisImg` 字标（`iris-violet` 色，与 `LoginHero` 字标一致）。
-- 中部渲染导航项列表，数据驱动，`v-for` 输出 `NuxtLink`。
-- 底部嵌入 `<LayoutUserBadge>` 展示当前用户。
+- 顶部展示 iris 花形标记与 `irisImg / private cloud` 字标；窄屏只保留标记。
+- 中部按三组渲染导航：Overview / Library / System，数据驱动。
+- 底部嵌入 `<LayoutUserBadge>` 与 `self-hosted` 运行状态。
+- 当前路由对应项使用白色玻璃底 + 左侧紫罗兰细条 + 图标变色。
 
-## 导航项
+## 导航分组
 
-内置 `navItems` 数组，每项含 `label` / `to` / `icon`（heroicons outline 风格 SVG path 字符串；音频项为 feather music 音符形状——竖线 + 双符头圆，以弧线 path 表达圆）：
+`navGroups` 数组，每组含 `label` 与 `items`；每项含 `label` / `to` / `icon`（heroicons outline 风格 SVG path）。
 
-| 标签 | 路由 | 图标 |
+| 分组 | 标签 | 路由 |
 |---|---|---|
-| 仪表盘 | `/dashboard` | grid |
-| 图片 | `/content/img` | photo |
-| 音频 | `/content/audio` | music-note（feather） |
-| 日志中心 | `/logs` | document |
-| APIkey 管理 | `/apikeys` | key |
-| 系统配置 | `/settings` | cog |
+| Overview | 仪表盘 | `/dashboard` |
+| Library | 图片 | `/content/img` |
+| Library | 音频 | `/content/audio` |
+| System | 日志中心 | `/logs` |
+| System | APIkey 管理 | `/apikeys` |
+| System | 系统配置 | `/settings` |
 
 > 原「内容中心 `/content`」已拆分为图片 / 音频两个平级入口；旧 `/content` 路径经 [`pages/content/index.vue`](../../pages/content/index.md) 重定向到 `/content/img`，重定向瞬间导航无高亮属预期。
 
-## 视觉
+## 视觉与响应式
 
-- 白底 + 右侧细边框（`bg-white border-r border-gray-200`），宽度 `w-64`，`sticky top-0 h-screen`。
-- 导航项默认 `text-gray-600`；hover `bg-gray-100 text-gray-900`；active `bg-iris-violet/15 text-iris-dark`。
-- active 判定：`route.path === to` 或 `route.path.startsWith(to + '/')`。
-- 当前在所有断点固定显示（不随视口隐藏），暂未做移动端汉堡菜单适配，小屏下会与内容区挤压。
+- 根节点：`sticky top-0 z-20 h-screen w-[76px] xl:w-[264px]`，半透明 `bg-white/55` + `backdrop-blur-2xl` + 右侧 `#1C1A27/6%` 细线。
+- `< xl`：76px 窄栏，只显示图标；导航项居中，`title` 提供 hover 提示，底部用户区只保留头像与退出按钮。
+- `>= xl`：264px 完整栏，显示品牌文字、分组标签、导航文案、用户信息与 `self-hosted` 状态。
+- 导航项基础：`rounded-xl px-3 py-2.5 text-[13px]`；active 为 `bg-white/80 text-[#1C1A27]` + 柔和阴影 + 左侧 2px 紫条；非 active 为 `text-[#6B6775]`，hover 转 `bg-white/50`。
+- active 判定：`route.path === to` 或 `route.path.startsWith(to + '/')`；同时写入 `aria-current="page"`。
 
 ## 与其它文件的关系
 
@@ -36,10 +38,11 @@
 AppSidebar.vue
   ├── useRoute()            # active 态判定
   └── UserBadge.vue         # 底部用户区
+layouts/default.vue         # 外层背景与内容区
 ```
 
 ## 修改建议
 
-- 新增路由时往 `navItems` 追加一项即可，无需改模板。
-- 移动端后续可加汉堡按钮 + 抽屉式展开。
-- 若图标增多，可提取 `AppIcon.vue` 或引入 `@nuxt/icon`。
+- 新增路由时往对应分组的 `items` 追加一项即可，无需改模板。
+- 图标可后续抽取 `AppIcon.vue` 或引入 `@nuxt/icon`。
+- 窄屏目前固定 76px，不做抽屉；若需要移动端全屏导航，可在此组件外加汉堡按钮与抽屉。

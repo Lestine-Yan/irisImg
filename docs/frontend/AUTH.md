@@ -12,6 +12,9 @@
 - `frontend/app/middleware/auth.ts` — 客户端路由守卫，未登录访问后台页时跳转 `/`。
 - `frontend/app/layouts/default.vue` — 后台默认布局，挂载后统一 `fetchMe()` 刷新用户信息。
 - `frontend/app/pages/dashboard.vue` — 登录成功后的占位页面（后台默认着陆页）。
+- `frontend/app/components/AppLoadingTransition.vue` — 登录成功后的全屏加载与曲线过渡层。
+- `frontend/app/composables/useAppTransition.ts` — 过渡状态机（`begin` / `reveal` / `finish`）。
+- `frontend/app/utils/transitionCurves.ts` — 加载层与后台背景共享的曲线控制点。
 - 后端契约见 `docs/backend/AUTH.md`。
 
 ## 登录流程
@@ -31,7 +34,15 @@ useAuth 将 token 写入 useState 与 localStorage
     ↓
 useAuth 调用 /auth/me 获取当前用户信息
     ↓
-LoginForm.vue emit('success') → index.vue navigateTo('/dashboard')
+LoginForm.vue emit('success')
+    ↓
+index.vue useAppTransition().begin()
+    ↓
+等待约 520ms → navigateTo('/dashboard')
+    ↓
+等待约 320ms → reveal()
+    ↓
+AppLoadingTransition 曲线迁移并淡出 → 后台页面可操作
 ```
 
 ## Token 存储策略

@@ -67,8 +67,28 @@ definePageMeta({
 })
 
 const year = new Date().getFullYear()
+const { begin, reveal, finish } = useAppTransition()
 
-function onLoginSuccess() {
-  navigateTo('/dashboard')
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function onLoginSuccess() {
+  if (import.meta.client) {
+    begin()
+    await sleep(520)
+  }
+
+  try {
+    await navigateTo('/dashboard')
+  } catch {
+    finish()
+    return
+  }
+
+  if (import.meta.client) {
+    await sleep(320)
+    reveal()
+  }
 }
 </script>

@@ -2,12 +2,12 @@
   <div class="space-y-6">
     <!-- 顶部标题 -->
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">日志中心</h1>
-      <p class="mt-1 text-sm text-gray-500">查看访问与业务日志，支持多维筛选、按日趋势与清理</p>
+      <h1 class="admin-page-title">日志中心</h1>
+      <p class="admin-page-subtitle">查看访问与业务日志，支持多维筛选、按日趋势与清理</p>
     </div>
 
     <!-- 筛选栏 -->
-    <div class="rounded-2xl border border-gray-200 bg-white p-4">
+    <div class="admin-surface p-4">
       <div class="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
         <label class="block">
           <span class="mb-1 block text-xs font-medium text-gray-500">级别</span>
@@ -78,7 +78,7 @@
     </div>
 
     <!-- 直方图卡片 + 清理按钮 -->
-    <div class="rounded-2xl border border-gray-200 bg-white p-4">
+    <div class="admin-surface p-4">
       <div class="mb-2 flex items-center justify-between gap-4">
         <div>
           <h2 class="text-sm font-semibold text-gray-900">近 14 天日志量</h2>

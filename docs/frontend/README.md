@@ -23,11 +23,13 @@ frontend/                                  docs/frontend/
     │   ├── apikeys/index.vue               │   ├── pages/apikeys/index.md
     │   └── settings/index.vue              │   └── pages/settings/index.md
     ├── components/
+    │   ├── AppLoadingTransition.vue        │   ├── components/AppLoadingTransition.md
     │   ├── login/
     │   │   ├── GeometricBackground.vue     │   │   ├── components/login/GeometricBackground.md
     │   │   ├── LoginHero.vue               │   │   ├── components/login/LoginHero.md
     │   │   └── LoginForm.vue               │   │   └── components/login/LoginForm.md
     │   ├── layout/
+    │   │   ├── AdminBackdrop.vue           │   │   ├── components/layout/AdminBackdrop.md
     │   │   ├── AppSidebar.vue              │   │   ├── components/layout/AppSidebar.md
     │   │   └── UserBadge.vue               │   │   └── components/layout/UserBadge.md
     │   ├── content/
@@ -60,6 +62,7 @@ frontend/                                  docs/frontend/
     │       └── ConfigItem.vue              │       └── components/settings/ConfigItem.md
     ├── composables/
     │   ├── useApiKeys.ts                   │   ├── composables/useApiKeys.md
+    │   ├── useAppTransition.ts             │   ├── composables/useAppTransition.md
     │   ├── useAuth.ts                      │   ├── composables/useAuth.md
     │   ├── useApi.ts                       │   ├── composables/useApi.md
     │   ├── useImages.ts                    │   ├── composables/useImages.md
@@ -68,6 +71,8 @@ frontend/                                  docs/frontend/
     │   ├── useLogs.ts                      │   ├── composables/useLogs.md
     │   ├── useDashboard.ts                 │   ├── composables/useDashboard.md
     │   └── useSystemConfig.ts              │   └── composables/useSystemConfig.md
+    ├── utils/
+    │   └── transitionCurves.ts             │   └── utils/transitionCurves.md
     ├── middleware/
     │   └── auth.ts                         │   └── middleware/auth.md
     └── plugins/
@@ -81,17 +86,19 @@ frontend/                                  docs/frontend/
 ## 分层说明
 
 - **根配置**：`nuxt.config.ts` 为 Nuxt 入口（SPA 模式 `ssr: false`、模块、runtimeConfig）；`tailwind.config.ts` 定义 iris 全局色系；`assets/css/tailwind.css` 引入 Tailwind 三层。
-- **layouts/**：Nuxt 布局。`default.vue` 是后台默认布局，左侧 `AppSidebar` + 右侧内容区，并在挂载后统一 `fetchMe()` 刷新用户信息。
-- **pages/**：Nuxt 文件路由，每个 `.vue` 对应一个 URL。`index.vue` 是登录落地页（`layout: false`）；`dashboard.vue` 是后台默认着陆页（仪表盘：统计卡片 + 近 30 天新增图片趋势 + 五模块快捷入口）；`content/` 拆为图片（`img.vue`）与音频（`audio.vue`）两个子路由（`index.vue` 仅为旧 `/content` 链接的重定向桩）；`logs/`、`apikeys/`、`settings/` 是其余后台模块，均通过 `middleware: 'auth'` 保护。
+- **layouts/**：Nuxt 布局。`default.vue` 是后台默认布局：底层 `AdminBackdrop` 纸色背景，左侧 `AppSidebar` + 右侧内容区，并在挂载后统一 `fetchMe()` 刷新用户信息。
+- **pages/**：Nuxt 文件路由，每个 `.vue` 对应一个 URL。`index.vue` 是登录落地页（`layout: false`，登录成功经 `useAppTransition` 播放曲线过渡）；`dashboard.vue` 是后台默认着陆页（仪表盘：统计卡片 + 近 30 天新增图片趋势 + 五模块快捷入口）；`content/` 拆为图片（`img.vue`）与音频（`audio.vue`）两个子路由（`index.vue` 仅为旧 `/content` 链接的重定向桩）；`logs/`、`apikeys/`、`settings/` 是其余后台模块，均通过 `middleware: 'auth'` 保护。
 - **components/login/**：登录页专用展示组件。`GeometricBackground.vue` 负责 SVG 背景；`LoginHero.vue` 负责左侧品牌字标；`LoginForm.vue` 负责右侧登录表单与校验。
-- **components/layout/**：后台布局专用组件。`AppSidebar.vue` 负责侧边栏（logo + 导航 + 用户区）；`UserBadge.vue` 负责底部当前用户展示与退出登录。
+- **components/AppLoadingTransition.vue**：登录成功后的全屏加载层；复用后台背景，绘制漂浮曲线并在揭示阶段迁移到后台落点。
+- **components/layout/**：后台布局专用组件。`AdminBackdrop.vue` 负责纸色背景、细线轨道与落定曲线；`AppSidebar.vue` 负责分组导航（窄屏 76px 图标栏 / 宽屏 264px 完整栏）；`UserBadge.vue` 负责底部当前用户展示与退出登录。
 - **components/content/**：图片 / 音频中心专用组件。图片侧：`ImageCard.vue` 是图片网格单元（含多选选中态与勾选徽标）；`ImageDetailDialog.vue` 是图片详情弹窗；`UploadPanel.vue` 是拖拽上传栏（JWT 后台直传）；`BatchDeleteDialog.vue` 是批量删除确认弹窗（账号密码二次确认）。音频侧（平行镜像）：`AudioCard.vue` 是横向条卡（左封面 + 播放/暂停按钮，右简介数据）；`AudioUploadPanel.vue` 是音频拖拽上传栏（mp3/m4a/flac）；`AudioDetailDialog.vue` 是音频详情弹窗（全量元数据 + 封面 URL 编辑）；`AudioBatchDeleteDialog.vue` 是音频批量删除确认弹窗。
 - **components/ui/**：跨页面复用的基础组件。`BaseDialog.vue` 是弹窗外壳（Teleport + 遮罩 + ESC），供各业务弹窗复用；`Pagination.vue` 是分页控件（上一页 / 下一页 + 页码按钮与首末页直达），供日志中心与内容中心列表复用。
 - **components/apikeys/**：APIkey 管理页专用组件。`ApiKeyTable.vue` 是密钥列表表格（四态 + 行操作图标）；`CreateKeyDialog.vue` / `RenameKeyDialog.vue` / `ResetKeyDialog.vue` / `RevokeDeleteDialog.vue` 是各操作弹窗；`PlaintextKeyDialog.vue` 是一次性明文展示（创建/重置共用）。
 - **components/logs/**：日志中心专用组件。`LogsHistogram.vue` 是按时间维度的日志直方图；`LogsTable.vue` 是日志列表表格（筛选条件 + 分页）；`LogsPurgeDialog.vue` 是批量清理确认弹窗。
 - **components/dashboard/**：仪表盘专用组件。`StatCard.vue` 是统计卡片（标题 + 大数字 + iris 图标徽章）。
 - **components/settings/**：系统配置页专用组件。`ConfigSection.vue` 是分组卡片（标题 + `dl` 列表）；`ConfigItem.vue` 是键值行（标签 + 值）。
-- **composables/**：自动导入的组合函数。`useAuth.ts` 维护 token 与登录态；`useApi.ts` 封装 `$fetch`，统一处理响应体、鉴权头与 401 跳转；`useImages.ts` 封装内容中心的图片列表请求、后台直传上传与 URL / 格式化工具；`useAudios.ts` 封装音频中心的列表 / 上传 / 批量删除 / 改封面接口与封面、时长格式化工具；`useAudioPlayer.ts` 提供全局单实例的音频播放/暂停控制；`useApiKeys.ts` 封装 APIkey 管理的列表 / 创建 / 重命名 / 重置 / 吊销 / 删除接口；`useLogs.ts` 封装日志中心的列表查询、直方图聚合与批量清理接口；`useDashboard.ts` 封装仪表盘聚合统计接口（`GET /admin/dashboard`）；`useSystemConfig.ts` 封装系统配置只读接口（`GET /system/config`）。
+- **composables/**：自动导入的组合函数。`useAuth.ts` 维护 token 与登录态；`useApi.ts` 封装 `$fetch`，统一处理响应体、鉴权头与 401 跳转；`useImages.ts` 封装内容中心的图片列表请求、后台直传上传与 URL / 格式化工具；`useAudios.ts` 封装音频中心的列表 / 上传 / 批量删除 / 改封面接口与封面、时长格式化工具；`useAudioPlayer.ts` 提供全局单实例的音频播放/暂停控制；`useApiKeys.ts` 封装 APIkey 管理的列表 / 创建 / 重命名 / 重置 / 吊销 / 删除接口；`useLogs.ts` 封装日志中心的列表查询、直方图聚合与批量清理接口；`useDashboard.ts` 封装仪表盘聚合统计接口（`GET /admin/dashboard`）；`useSystemConfig.ts` 封装系统配置只读接口（`GET /system/config`）；`useAppTransition.ts` 维护登录成功后的加载/揭示过渡状态。
+- **utils/**：纯函数与共享常量。`transitionCurves.ts` 定义加载层与后台背景共用的四条曲线控制点与 SVG path 生成函数。
 - **middleware/**：路由中间件。`auth.ts` 是客户端命名守卫，未登录访问后台页面时跳转 `/`。
 - **plugins/**：客户端插件。`auth.client.ts` 在应用启动时从 `localStorage` 恢复 token。
 
