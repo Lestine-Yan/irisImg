@@ -17,6 +17,19 @@ export default defineNuxtConfig({
   // 后台管理系统无需 SEO / 首屏，登录态基于浏览器 localStorage，
   // 故关闭 SSR 走 SPA 模式，避免服务端拿不到 token 而渲染空壳。
   ssr: false,
+  app: {
+    head: {
+      title: 'IrisIMG 你的私人存储空间',
+      meta: [
+        { name: 'description', content: 'IrisIMG · 轻量、高性能的私人对象存储' },
+      ],
+      link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        { rel: 'alternate icon', href: '/favicon.ico' },
+        { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
+      ],
+    },
+  },
   modules: ['@nuxtjs/tailwindcss'],
   css: ['~/assets/css/tailwind.css'],
   runtimeConfig: {

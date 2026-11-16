@@ -8,6 +8,7 @@ Nuxt 应用配置入口。
 - `modules: ['@nuxtjs/tailwindcss']`：接入 Tailwind，全局样式见 `assets/css/tailwind.css`，色系定义见 `tailwind.config.ts`。
 - `css: ['~/assets/css/tailwind.css']`：全局引入 Tailwind 基础样式。
 - `runtimeConfig.public.apiBase`：后端 API 基址，默认 `http://localhost:8080/api/v1`，可通过 `NUXT_PUBLIC_API_BASE` 覆盖。取值经 `sanitizeApiBase()` 清洗：若被 Git Bash (MSYS2) 路径转换污染成盘符开头的 Windows 绝对路径（如 `D:/Runer/Git/Git/api/v1`），自动重置为 `/api/v1`，避免部署后浏览器请求非法 URL 而 `Failed to fetch`；正常的 `/api/v1`、`http(s)://...` 不受影响。
+- `app.head`：全局页面标题 `IrisIMG你的私人存储空间`；注册 `/favicon.svg`（透明底 SVG，首选）、`/favicon.ico`（透明底多尺寸 fallback）与 `/apple-touch-icon.png`（180×180，透明底，Apple 添加到主屏）；同时写入一条简短的 `description`。
 - `devtools: { enabled: true }`：开发态启用 Nuxt DevTools。
 - `compatibilityDate`：Nuxt 兼容性日期锚点。
 
