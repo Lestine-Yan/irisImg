@@ -19,9 +19,9 @@ export default defineNuxtConfig({
   ssr: false,
   app: {
     head: {
-      title: 'IrisIMG 你的私人存储空间',
+      title: 'IrisImg 你的私人存储空间',
       meta: [
-        { name: 'description', content: 'IrisIMG · 轻量、高性能的私人对象存储' },
+        { name: 'description', content: 'IrisImg · 轻量、高性能的私人对象存储' },
       ],
       link: [
         { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
