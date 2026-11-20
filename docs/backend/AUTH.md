@@ -12,6 +12,7 @@
 - **没有会话存储**：状态全部装在 JWT 里，服务端不保存。
 - **HS256 签名**：单服务部署，对称密钥够用；密钥写在 `auth.jwt.secret`。
 - **统一 401**：登录失败、token 缺失、token 错误、token 过期，对外都是 HTTP 401 + `code = 40100`，不暴露具体原因。
+- **登录失败锁定**：同一客户端 IP 连续失败达到 `auth.login_max_failures`（默认 3）后，锁定该 IP `auth.login_lockout_hours`（默认 168 小时）。锁定期间即使密码正确也返回 **429 + `Retry-After`**。锁定按 IP 隔离，只存进程内存，**重启后端即解锁**——这是所有者忘记密码时的兜底恢复路径。
 
 参与的代码文件：
 
@@ -36,7 +37,12 @@ auth:
     secret: "please-change-me-to-a-long-random-string"
     issuer: "irisImg"
     expire_hours: 24
+  login_max_failures: 3       # 连续失败多少次后锁定；0/缺省=3
+  login_lockout_hours: 168    # 锁定时长（小时）；0/缺省=168（7 天）
 ```
+
+- 锁定按**客户端 IP** 隔离：一个 IP 被锁不影响其他 IP；因此换 IP 可以绕过计数（Nginx 侧另有按 IP 的 5r/m 限流）。
+- 锁定状态只存内存（有容量上限，最多 4096 个 IP 的状态），进程重启（或容器重启）即清零，等于内置的解锁开关。
 
 - `expire_hours` 配置 `<= 0` 时，`jwt.NewManager` 自动回退到 24 小时。
 - 改了 `secret` 之后已经签发的 token 会立刻全部失效（签名校验不通过），属于预期行为，可以拿来「踢掉所有会话」。
@@ -68,6 +74,7 @@ auth:
 | 0 | 200 | 成功 |
 | 40000 | 400 | 入参非法（缺字段、JSON 不合法） |
 | 40100 | 401 | 凭据错 / token 缺失 / token 无效 / token 过期 |
+| 42900 | 429 | 登录失败次数达到阈值后的锁定（响应头 `Retry-After` 给出剩余秒数） |
 | 50000 | 500 | 服务器内部错误（例如 jwt 签发失败） |
 
 ## 4. 登录流程（POST /auth/login）
@@ -99,6 +106,14 @@ client                router          api.AuthAPI         service.AuthService   
    - 自定义：`username`
    - 标准：`iss`（来自配置）、`sub`（同 username）、`iat`、`nbf`（均为「现在」）、`exp`（now + expire）
 5. **响应**：返回 token 字符串、`token_type: "Bearer"`、`expires_at`（Unix 秒）。
+
+锁定相关补充：
+
+- **触发时机**：同一 IP 的第 `login_max_failures` 次密码错误时写入该 IP 的 `lockedUntil = now + lockout`，本次仍返回 401（前端提示密码错误），**下一次请求起**返回 429。
+- **锁定期间**：`Login` 在比对密码前直接返回 `ErrLoginLocked`，不查库、不增加计数（避免攻击者无限延长锁定）。
+- **解锁**：到期后下一次请求惰性清除锁定状态；成功登录也会清零失败计数。
+- **日志**：仅在触发锁定的一次记 `auth.login_locked`（warn），锁定期间被拒的请求只进访问日志（429），避免日志洪水。
+- **恢复**：忘记密码时 SSH 到服务器重启进程即可解除锁定，再改配置里的密码。
 
 ### 示例
 
@@ -211,4 +226,6 @@ curl -i http://localhost:8080/api/v1/auth/me -H "Authorization: Bearer not.a.rea
 - `auth.password` 是明文 → **不要把 `config.yaml` 提交到仓库**。当前 `config.yaml` 在仓库里只是默认模板，部署时通过 `IRIS_CONFIG=/path/to/private.yaml` 指向服务器本地版本。
 - `auth.jwt.secret` 至少 32 字节随机字符串。
 - 生产部署务必走 HTTPS；HS256 + 明文 token 在 HTTP 下等于裸奔。
+- **可信代理**：后端启动时用 `server.trusted_proxies` 调 `gin.Engine.SetTrustedProxies`，`c.ClientIP()` 只采信来自可信反代的 `X-Forwarded-For`；Nginx 模板改为只传 `$remote_addr`，客户端自带的伪造链会被丢弃。
+- **按 IP 锁定的代价**：攻击者只能锁住自己所用的 IP，无法远程锁死所有者；但若与所有者共享出口 IP（NAT / 公司代理），会被一起锁住。锁定只存内存，SSH 重启即恢复。
 - 想升级到 bcrypt 哈希：在 `AuthConfig` 加 `password_hash`，把 `service.AuthService.Login` 里的 `subtle.ConstantTimeCompare` 改成 `bcrypt.CompareHashAndPassword(hash, []byte(req.Password))` 即可，外部 API 和前端无感。

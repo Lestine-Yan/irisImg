@@ -8,7 +8,7 @@
 Config
 ├── Server   (ServerConfig)        host / port / mode / trusted_proxies
 ├── App      (AppConfig)           name / version
-├── Auth     (AuthConfig)          username / password
+├── Auth     (AuthConfig)          username / password / login_max_failures / login_lockout_hours
 │   └── JWT  (JWTConfig)           secret / issuer / expire_hours
 ├── Database (DatabaseConfig)      driver / dsn / auto_migrate
 ├── APIKey   (APIKeyConfig)        rate_limit_per_minute / https_only
@@ -23,7 +23,7 @@ Config
 | `server.host` | string | `0.0.0.0` | 监听地址 |
 | `server.port` | int | `8080` | 监听端口 |
 | `server.mode` | string | `debug` | Gin 运行模式 (`debug | release | test`) |
-| `server.trusted_proxies` | []string | `[127.0.0.1/8, ::1]` | 受信任反代 CIDR 网段；HTTPSOnly 仅对来自此列表的请求认 `X-Forwarded-Proto`，否则只认 `c.Request.TLS`。跨机反代追加反代 CIDR。空列表退化为只认 TLS。详见 [`middleware/https`](../internal/middleware/https.md) |
+| `server.trusted_proxies` | []string | `[127.0.0.1/8, ::1]` | 受信任反代 CIDR 网段。启动时同时注入 `HTTPSOnly`（仅对此列表的请求认 `X-Forwarded-Proto`，否则只认 `c.Request.TLS`）与 `gin.Engine.SetTrustedProxies`（决定 `c.ClientIP()` 是否采信 `X-Forwarded-For`，即日志 `client_ip` 的可信度）。跨机反代追加反代 CIDR；空列表退化为只认 TLS / 不信任任何代理。详见 [`middleware/https`](../internal/middleware/https.md) |
 | `app.name` | string | `irisImg` | 应用名（出现在 `/ping` 响应里） |
 | `app.version` | string | `0.1.0` | 版本号 |
 | `auth.username` | string | `admin` | 唯一用户名（release 模式下 `Validate` 要求非空） |
@@ -31,6 +31,8 @@ Config
 | `auth.jwt.secret` | string | 占位字符串 | HS256 签名密钥；release 模式下默认占位串 / 空 / 长度 <32 会被 `Validate` 拒绝启动 |
 | `auth.jwt.issuer` | string | `irisImg` | 写入 token 的 `iss` 字段 |
 | `auth.jwt.expire_hours` | int | `24` | token 有效期；`<=0` 时 jwt 包会回退到 24 小时 |
+| `auth.login_max_failures` | int | `3` | 同一客户端 IP 连续登录失败多少次后触发锁定；`<=0` 回退 3。按 IP 隔离计数，详见 [AUTH.md](../AUTH.md) |
+| `auth.login_lockout_hours` | int | `168` | 触发锁定后该 IP 的锁定时长（小时，默认 7 天）；`<=0` 回退 168。状态仅存进程内存（上限 4096 个 IP），重启即解锁 |
 | `database.driver` | string | `sqlite` | 数据库后端，目前仅支持 `sqlite` |
 | `database.dsn` | string | `data/irisImg.db?...` | SQLite 文件路径 + pragma；相对路径相对进程工作目录 |
 | `database.auto_migrate` | bool | `true` | 启动时是否自动建表 / 升级表结构 |
@@ -81,6 +83,7 @@ Config
 | `app.name` / `app.version` | `irisImg` / `0.1.0` |
 | `database.driver` | `sqlite` |
 | `auth.jwt.issuer` / `auth.jwt.expire_hours` | `irisImg` / `24` |
+| `auth.login_max_failures` / `auth.login_lockout_hours` | `3` / `168` |
 | `apikey.rate_limit_per_minute` | `100` |
 | `storage.max_upload_size_mb` | `20` |
 | `storage.allowed_mime_types` | `[png, jpeg, gif, webp]` |
@@ -143,6 +146,10 @@ auth:
     secret: "please-change-me-to-a-long-random-string"
     issuer: "irisImg"
     expire_hours: 24
+  # 登录防爆破：连续失败达到 login_max_failures 次后锁定 login_lockout_hours 小时。
+  # 锁定只存进程内存，重启后端即解锁（忘记密码时的恢复路径）。
+  login_max_failures: 3
+  login_lockout_hours: 168
 
 # API 密钥鉴权配置。密钥用于外部程序「申请图片 / 添加图片」，独立于后台 JWT 登录。
 # https_only 在生产环境（Nginx HTTPS 反代）请置为 true，后端会校验 X-Forwarded-Proto；

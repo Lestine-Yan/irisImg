@@ -42,6 +42,12 @@ type AuthConfig struct {
 	Username string    `yaml:"username"`
 	Password string    `yaml:"password"`
 	JWT      JWTConfig `yaml:"jwt"`
+	// LoginMaxFailures 是同一客户端 IP 连续登录失败多少次后触发锁定，默认 3，<=0 回退默认。
+	// 计数按 IP 隔离：一个 IP 被锁不影响其他来源；分布式爆破需按 IP 各自承担次数。
+	LoginMaxFailures int `yaml:"login_max_failures"`
+	// LoginLockoutHours 是触发锁定后的锁定时长（小时），默认 168（7 天），<=0 回退默认。
+	// 锁定状态仅存于进程内存：重启进程即解锁，这是忘记密码时的兜底恢复路径。
+	LoginLockoutHours int `yaml:"login_lockout_hours"`
 }
 
 // JWTConfig 是 JWT 签发与校验所需的参数。
@@ -266,6 +272,14 @@ func (c *Config) ApplyDefaults() {
 	}
 	if c.Auth.JWT.ExpireHours <= 0 {
 		c.Auth.JWT.ExpireHours = 24
+	}
+	// 登录防爆破：默认 3 次失败锁 7 天。个人图床单管理员场景下，
+	// 锁定状态只存内存，忘记密码可由服务器所有者重启进程解锁。
+	if c.Auth.LoginMaxFailures <= 0 {
+		c.Auth.LoginMaxFailures = 3
+	}
+	if c.Auth.LoginLockoutHours <= 0 {
+		c.Auth.LoginLockoutHours = 168
 	}
 
 	// APIKey（HTTPSOnly 是 bool，零值 false 即合法默认，不兜底）
