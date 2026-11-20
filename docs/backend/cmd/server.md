@@ -12,6 +12,8 @@
 6. **构建图片/音频存储器**：`storage.NewSaver(cfg.Storage)`（`/imgs`）与 `storage.NewAudioSaver(cfg.Storage)`（`/audios`）启动期 `MkdirAll` 出对应根目录，路径或权限有问题立刻 `log.Fatalf` 暴露。详见 [`internal/pkg/storage`](../internal/pkg/storage.md)。
 7. **解析受信任反代网段**：`config.ParseCIDRList(cfg.Server.TrustedProxies)` 把 `server.trusted_proxies` 的 CIDR 字符串解析成 `[]*net.IPNet`，非法值立刻 `log.Fatalf`（fail-fast）。供 [`HTTPSOnly`](../internal/middleware/https.md) 中间件校验 `RemoteAddr`：仅可信 peer 才认 `X-Forwarded-Proto`，避免后端端口误暴露公网时伪造头绕过 HTTPS 校验。
 8. **构建路由**：`router.New(cfg, imageDAO, audioDAO, apiKeyDAO, logDAO, saver, audioSaver, trustedProxies, lg)` 注入配置、四个 DAO、两个 Saver、受信任反代网段与 logger，由 router 包完成其余依赖装配（jwt manager / service / api / 限流令牌桶 / 异步日志服务），并返回 `(r *gin.Engine, logSvc service.LogService)`。`logSvc` 留给关闭阶段 flush 异步日志缓冲。
+
+   构建完成后立即调 `r.SetTrustedProxies(cfg.Server.TrustedProxies)`：让 Gin 的 `c.ClientIP()` 只在 TCP 对端属于可信反代时才采信 `X-Forwarded-For`，否则直接取 `RemoteAddr`。配置显式空列表表示不信任任何代理；非法 CIDR 在此 `log.Fatalf` fail-fast。这一步同时决定访问日志里的 `client_ip` 是否可信。
 9. **启动 HTTP 服务**：`http.Server` 监听 `cfg.Server.Host:cfg.Server.Port`，在 goroutine 里调用 `ListenAndServe`；进入监听前用 `lg.Info` 打印 `server listening` 及 `addr`。
 10. **优雅关闭**：监听 `SIGINT/SIGTERM`，收到信号后用 `lg.Info` 打印 `shutting down server`，再用 5 秒超时的 context 调 `srv.Shutdown(ctx)`。**`Shutdown` 超时不再用 `log.Fatalf`**：`Fatalf` 会 `os.Exit` 跳过 `logSvc.Close()` 与 `defer dbClient.Close()`/`lg.Sync()`，导致缓冲日志丢失、DB/logger 未优雅关闭；改为 `lg.Error` 记录错误后继续往下执行 `logSvc.Close()` flush 异步日志缓冲，把收尾交给 `defer`。`Record` 在 `Close` 后仍安全（`done` 通道保护，`buf` 永不关闭，在途 handler 即便仍在 `Record` 也不会 panic）。最后由 `defer dbClient.Close()` 关库，并以 `lg.Info` 打印 `server exited` 收尾。顺序为 `srv.Shutdown -> logSvc.Close() -> defer dbClient.Close()`。
 

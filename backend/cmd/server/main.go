@@ -85,6 +85,13 @@ func main() {
 	// 7. 构建路由（注入 DAO / Saver / logger 依赖），取回 logSvc 供优雅关闭 flush
 	r, logSvc := router.New(cfg, imageDAO, audioDAO, apiKeyDAO, logDAO, saver, audioSaver, trustedProxies, lg)
 
+	// 7.1 设置 Gin 的可信代理范围，使 c.ClientIP() 只信任反代追加的 X-Forwarded-For，
+	// 不信任客户端自带的伪造链。显式空列表表示不信任任何代理（直接取 RemoteAddr），
+	// 与 HTTPSOnly 的信任边界保持一致。非法 CIDR 在此 fail-fast。
+	if err := r.SetTrustedProxies(cfg.Server.TrustedProxies); err != nil {
+		log.Fatalf("set trusted proxies failed: %v", err)
+	}
+
 	// 8. 启动 HTTP 服务，并支持优雅关闭
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	srv := &http.Server{Addr: addr, Handler: r}

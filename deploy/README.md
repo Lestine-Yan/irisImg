@@ -49,6 +49,7 @@ cd /opt/irisImg && cp config/config.yaml.example config/config.yaml
 - `auth.jwt.secret`：换成 32 位以上随机字符串（默认占位串同样会被启动校验拒绝）
 - `server.host`：Nginx 同机反代保持 `127.0.0.1`，避免后端 8080 直接暴露公网
 - `apikey.https_only`：HTTPS 部署保持 `true`；纯 HTTP 临时测试改 `false`
+- `auth.login_max_failures` / `auth.login_lockout_hours`：同一客户端 IP 的登录锁定阈值与时长（默认 3 次 / 168 小时）；计数按 IP 隔离，锁定只存内存，忘记密码时重启后端即可解锁
 
 ### 3. 启动后端
 
@@ -94,6 +95,12 @@ sudo cp /opt/irisImg/nginx/irisImg.http.conf.example /etc/nginx/conf.d/irisImg.c
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
+模板已内置按 IP 限流（登录 5r/m、`/api/` 60r/m、静态 600r/m，超限 429），并对 `/api/` 只透传 `X-Forwarded-For $remote_addr`。**防盗链默认关闭**，需要时取消 `/imgs/`、`/audios/` 中 `valid_referers` 与 `if ($invalid_referer)` 两行的注释并填入实际域名。注意：
+
+- 两个模板定义同名 `limit_req_zone`，**只能启用其中一个**；
+- 启用防盗链后，`valid_referers` 必须包含本后台自己的访问域名/IP，否则同源缩略图会被 403；
+- 若把图片嵌入其它站点，需把该站点域名一并加入白名单。
+
 访问 `https://your-domain.com`，用配置的账号密码登录。
 
 ## 路径约定
@@ -125,3 +132,6 @@ sudo systemctl restart irisImg   # nohup 方式则 bash scripts/stop.sh && bash 
 | 密钥接口 403 | HTTPS 模式下 `https_only=true` 需 Nginx 透传 `X-Forwarded-Proto` |
 | 上传 413 | 调大 Nginx `client_max_body_size`（> `max_upload_size_mb`） |
 | SPA 刷新 404 | Nginx `location /` 需 `try_files $uri $uri/ /index.html` |
+| 登录返回 429 | 应用层：连续失败达到阈值已锁定，等待 `Retry-After` 或重启后端解锁；Nginx 层：单 IP 超过 5r/m，检查是否有脚本在刷登录 |
+| 页面图片 403 | 若启用了防盗链，`valid_referers` 需包含当前访问域名/IP；未启用防盗链时不会因 Referer 返回 403 |
+| `nginx -t` 报 duplicate zone | 同时启用了 HTTPS 与 HTTP 两个模板，只保留一个 |
