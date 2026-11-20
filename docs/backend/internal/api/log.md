@@ -17,7 +17,7 @@
 
 1. 解析分页 query：`page` 默认 `1`、`page_size` 默认 `50`（上限 `500`）；非法 -> `response.BadRequest`。
 2. `status_class` 白名单校验：仅允许 `""` / `"2xx"` / `"4xx"` / `"5xx"`，非法值直接 `response.BadRequest("无效的 status_class")` 返回 **400**。该字段不再随 query 任意透传，避免空字符串外的非法取值被静默放宽为"不过滤全量"。
-3. 组装 [`model.LogQuery`](../model/log.md)：`level` / `event` / `method` / `keyword` / `request_id` 直接透传，`status_class` 透传上一步已校验的值；`api_key_id` 非空时解析为 `*int`（非法 -> 400）；`start` / `end` 用 RFC3339 解析（左闭右开，失败 -> 400）；`Offset = (page-1) * pageSize`。
+3. 组装 [`model.LogQuery`](../model/log.md)：`level` / `event` / `method` / `keyword` / `request_id` 直接透传，`status_class` 透传上一步已校验的值；`client_ip` 先 `TrimSpace`，长度 > 64 -> 400（防超长 LIKE 模式），其余原样作为前缀匹配条件；`api_key_id` 非空时解析为 `*int`（非法 -> 400）；`start` / `end` 用 RFC3339 解析（左闭右开，失败 -> 400）；`Offset = (page-1) * pageSize`。
 4. 调 `svc.List`：err -> `response.ServerError`。
 5. 成功 `response.Success(c, gin.H{"items", "total", "page", "page_size"})`。
 
@@ -41,7 +41,7 @@
 
 | 场景 | HTTP | code |
 |------|------|------|
-| 入参非法（`page` / `page_size` / `status_class` / `start` / `end` / `api_key_id` / `scope`） | 400 | 40000 |
+| 入参非法（`page` / `page_size` / `status_class` / `client_ip` / `start` / `end` / `api_key_id` / `scope`） | 400 | 40000 |
 | 密码二次确认失败（Clear） | 403 | 40300 |
 | 内部错误（查询 / 直方图 / 清理失败） | 500 | 50000 |
 

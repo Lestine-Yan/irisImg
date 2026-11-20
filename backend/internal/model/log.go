@@ -12,22 +12,23 @@ const (
 
 // 事件类型常量。访问日志统一用 EventHTTPRequest；其余为业务事件 / 系统事件。
 const (
-	EventHTTPRequest   = "http.request"
-	EventImageUpload   = "image.upload"
-	EventImageDelete   = "image.delete"
-	EventAudioUpload  = "audio.upload"
-	EventAudioDelete  = "audio.delete"
+	EventHTTPRequest      = "http.request"
+	EventImageUpload      = "image.upload"
+	EventImageDelete      = "image.delete"
+	EventAudioUpload      = "audio.upload"
+	EventAudioDelete      = "audio.delete"
 	EventAudioUpdateCover = "audio.update_cover"
-	EventAPIKeyCreate  = "apikey.create"
-	EventAPIKeyRename  = "apikey.rename"
-	EventAPIKeyReset   = "apikey.reset"
-	EventAPIKeyRevoke  = "apikey.revoke"
-	EventAPIKeyDelete  = "apikey.delete"
-	EventAuthLoginOK   = "auth.login_success"
-	EventAuthLoginFail = "auth.login_failed"
-	EventLogClear      = "log.clear"
-	EventLogClearGet   = "log.clear_get"
-	EventPanic         = "panic"
+	EventAPIKeyCreate     = "apikey.create"
+	EventAPIKeyRename     = "apikey.rename"
+	EventAPIKeyReset      = "apikey.reset"
+	EventAPIKeyRevoke     = "apikey.revoke"
+	EventAPIKeyDelete     = "apikey.delete"
+	EventAuthLoginOK      = "auth.login_success"
+	EventAuthLoginFail    = "auth.login_failed"
+	EventAuthLoginLocked  = "auth.login_locked"
+	EventLogClear         = "log.clear"
+	EventLogClearGet      = "log.clear_get"
+	EventPanic            = "panic"
 )
 
 // Log 是日志中心的跨层数据载体（实体），独立于 Ent 生成的 ent.Log。
@@ -81,6 +82,7 @@ type LogQuery struct {
 	StatusClass string    // "2xx"/"4xx"/"5xx"，空表示不过滤
 	Keyword     string    // 对 path / message 模糊匹配，空表示不过滤
 	RequestID   string    // 精确匹配 request_id，空表示不过滤
+	ClientIP    string    // 按客户端 IP 前缀匹配（如 "203.0.113."），空表示不过滤
 	APIKeyID    *int      // 精确匹配来源密钥，nil 表示不过滤
 	Start       time.Time // 时间下界（含），零值表示不过滤
 	End         time.Time // 时间上界（不含），零值表示不过滤

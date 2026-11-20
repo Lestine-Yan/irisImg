@@ -155,6 +155,10 @@ func buildLogPreds(q model.LogQuery) []predicate.AccessLog {
 	if q.RequestID != "" {
 		preds = append(preds, accesslog.RequestIDEQ(q.RequestID))
 	}
+	// client_ip 按前缀匹配：输入完整 IP 等价精确匹配，输入 "203.0.113." 可筛网段。
+	if q.ClientIP != "" {
+		preds = append(preds, accesslog.ClientIPHasPrefix(q.ClientIP))
+	}
 	if q.APIKeyID != nil {
 		preds = append(preds, accesslog.APIKeyIDEQ(*q.APIKeyID))
 	}

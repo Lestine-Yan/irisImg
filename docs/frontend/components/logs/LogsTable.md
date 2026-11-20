@@ -5,7 +5,8 @@
 ## 职责
 
 - 四态：加载中 / 错误（含重试）/ 空态 / 数据表格。
-- 表格列（从左到右）：**时间** ｜ 级别徽章 ｜ 事件 ｜ 方法 · 路径 ｜ 状态 ｜ 耗时 ｜ 来源 ｜ 详情。
+- 表格列（从左到右）：**时间** ｜ 级别徽章 ｜ 事件 ｜ 方法 · 路径 ｜ 状态 ｜ 耗时 ｜ 来源 ｜ IP ｜ 详情。
+- IP 列以等宽字体展示 `client_ip`（来源不可信或历史数据为空时回退 `-`），hover 显示完整值。
 - 级别徽章按 `levelClass` 着色：error rose / warn amber / debug gray / info sky。
 - 来源列展示优先级：`username` > `Key #{api_key_id}` > `-`。
 - 详情列对 `message` 做 `truncate` 截断，hover 显示完整内容。

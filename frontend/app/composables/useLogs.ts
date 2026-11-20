@@ -65,6 +65,8 @@ export interface ListLogsParams {
   method?: string
   statusClass?: string
   keyword?: string
+  /** 客户端 IP 前缀（如 "203.0.113."），空表示不过滤。 */
+  clientIp?: string
   /** RFC3339 时间字符串。 */
   start?: string
   end?: string
@@ -92,6 +94,7 @@ export function useLogs() {
     if (params.method) query.method = params.method
     if (params.statusClass) query.status_class = params.statusClass
     if (params.keyword) query.keyword = params.keyword
+    if (params.clientIp) query.client_ip = params.clientIp
     if (params.start) query.start = params.start
     if (params.end) query.end = params.end
     return get<LogListResponse>('/admin/logs', { query } as FetchOptions)

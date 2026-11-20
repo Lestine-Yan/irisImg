@@ -22,6 +22,7 @@ zap 输出消息 `http.request`，按 level 分发到 `l.Info` / `l.Warn` / `l.E
 | `status` | `c.Writer.Status()` | int |
 | `duration` | `time.Since(start)` | `zap.Duration` |
 | `bytes` | `c.Writer.Size()` | 响应字节数 |
+| `client_ip` | `lc.ClientIP`（`c.ClientIP()`） | 受 `server.trusted_proxies` 约束：只采信可信反代追加的 XFF |
 | `username` | `lc.Username` | 非空才追加 |
 | `api_key_id` | `lc.APIKeyID` | 非 nil 才追加 |
 | `request_id` | — | 不在此显式写；`RequestID` 中间件已把 id 写进 `c.Request.Context()`，`logger.Logger` 的 `Info/Warn/Error` 会自动提取并附加 |

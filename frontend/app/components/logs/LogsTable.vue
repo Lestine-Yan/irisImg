@@ -43,6 +43,7 @@
             <th class="px-4 py-3">状态</th>
             <th class="px-4 py-3">耗时</th>
             <th class="px-4 py-3">来源</th>
+            <th class="px-4 py-3">IP</th>
             <th class="px-4 py-3">详情</th>
           </tr>
         </thead>
@@ -85,6 +86,11 @@
               <span v-if="log.username">{{ log.username }}</span>
               <span v-else-if="log.api_key_id != null">Key #{{ log.api_key_id }}</span>
               <span v-else class="text-gray-300">-</span>
+            </td>
+
+            <!-- IP -->
+            <td class="whitespace-nowrap px-4 py-3 font-mono text-xs text-gray-600" :title="log.client_ip">
+              {{ log.client_ip || '-' }}
             </td>
 
             <!-- 详情 -->

@@ -43,6 +43,15 @@
           />
         </label>
         <label class="block">
+          <span class="mb-1 block text-xs font-medium text-gray-500">IP</span>
+          <input
+            v-model="filters.clientIp"
+            type="text"
+            placeholder="前缀，如 203.0.113."
+            class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-iris-dark focus:bg-white focus:ring-2 focus:ring-iris-dark/10"
+          />
+        </label>
+        <label class="block">
           <span class="mb-1 block text-xs font-medium text-gray-500">起始日期</span>
           <input
             v-model="filters.start"
@@ -153,6 +162,7 @@ const filters = reactive({
   method: '',
   statusClass: '',
   keyword: '',
+  clientIp: '',
   start: '', // YYYY-MM-DD
   end: '',
 })
@@ -199,6 +209,7 @@ const eventOptions = [
   { value: 'apikey.delete', label: '删除密钥' },
   { value: 'auth.login_success', label: '登录成功' },
   { value: 'auth.login_failed', label: '登录失败' },
+  { value: 'auth.login_locked', label: '登录锁定' },
   { value: 'log.clear', label: '清理全部日志' },
   { value: 'log.clear_get', label: '清理GET日志' },
   { value: 'panic', label: 'Panic' },
@@ -227,6 +238,7 @@ function buildQuery(p: number): ListLogsParams {
   if (filters.method) q.method = filters.method
   if (filters.statusClass) q.statusClass = filters.statusClass
   if (filters.keyword.trim()) q.keyword = filters.keyword.trim()
+  if (filters.clientIp.trim()) q.clientIp = filters.clientIp.trim()
   if (filters.start) q.start = new Date(`${filters.start}T00:00:00`).toISOString()
   if (filters.end) {
     const d = new Date(`${filters.end}T00:00:00`)
@@ -279,6 +291,7 @@ function onReset() {
   filters.method = ''
   filters.statusClass = ''
   filters.keyword = ''
+  filters.clientIp = ''
   filters.start = ''
   filters.end = ''
   page.value = 1

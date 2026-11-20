@@ -2,6 +2,7 @@ package api
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Lestine-Yan/irisImg/backend/internal/middleware"
@@ -27,7 +28,8 @@ func NewLogAPI(svc *service.LogService, authSvc *service.AuthService) *LogAPI {
 //
 //	Query 参数:
 //	  - page / page_size: 分页，默认 1 / 50，page_size 上限 500。
-//	  - level / event / method / status_class / keyword / request_id / api_key_id: 过滤条件。
+//	  - level / event / method / status_class / keyword / request_id / api_key_id / client_ip: 过滤条件。
+//	  - client_ip 为前缀匹配（如 "203.0.113." 可筛整个 /24），长度上限 64。
 //	  - start / end: 时间区间（RFC3339），左闭右开。
 func (h *LogAPI) List(c *gin.Context) {
 	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -50,6 +52,13 @@ func (h *LogAPI) List(c *gin.Context) {
 		return
 	}
 
+	// client_ip 做前缀匹配（IPv4 / IPv6 均可），限制长度避免超长 LIKE 模式。
+	clientIP := strings.TrimSpace(c.Query("client_ip"))
+	if len(clientIP) > 64 {
+		response.BadRequest(c, "无效的 client_ip（过长）")
+		return
+	}
+
 	q := model.LogQuery{
 		Level:       c.Query("level"),
 		Event:       c.Query("event"),
@@ -57,6 +66,7 @@ func (h *LogAPI) List(c *gin.Context) {
 		StatusClass: statusClass,
 		Keyword:     c.Query("keyword"),
 		RequestID:   c.Query("request_id"),
+		ClientIP:    clientIP,
 		Offset:      (page - 1) * pageSize,
 		Limit:       pageSize,
 	}

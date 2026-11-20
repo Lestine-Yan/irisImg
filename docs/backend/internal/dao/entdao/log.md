@@ -33,6 +33,7 @@
   | `Event` | `accesslog.EventEQ(q.Event)` |
   | `Method` | `accesslog.MethodEQ(q.Method)` |
   | `RequestID` | `accesslog.RequestIDEQ(q.RequestID)` |
+  | `ClientIP` | `accesslog.ClientIPHasPrefix(q.ClientIP)`，前缀匹配（输入完整 IP 等价精确匹配，输入 `203.0.113.` 可筛网段）；无专用索引，性能与 `Keyword` 同级 |
   | `APIKeyID`（非 nil） | `accesslog.APIKeyIDEQ(*q.APIKeyID)` |
   | `Start`（非零） | `accesslog.TimestampGTE(q.Start.In(time.Local))` |
   | `End`（非零） | `accesslog.TimestampLT(q.End.In(time.Local))` |

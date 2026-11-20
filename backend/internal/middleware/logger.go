@@ -40,6 +40,7 @@ func Logger(l *logger.Logger, svc *service.LogService) gin.HandlerFunc {
 				zap.Int("status", status),
 				zap.Duration("duration", duration),
 				zap.Int("bytes", c.Writer.Size()),
+				zap.String("client_ip", lc.ClientIP),
 			}
 			if lc.Username != "" {
 				fields = append(fields, zap.String("username", lc.Username))
