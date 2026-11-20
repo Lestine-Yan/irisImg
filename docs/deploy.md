@@ -97,13 +97,18 @@ Windows 开发机 `git core.autocrlf=true` 会让 checkout 出来的 `.sh` / `.s
 - `location /audios/`：`alias <root>/data/audios/;`，路径须与 `storage.audio_root_dir` 一致，扩展名白名单为 mp3/m4a/flac + 封面图片扩展名（内嵌封面落 `covers/` 子目录，与音频共用前缀）；权限要求同 `/imgs/`。Nginx 原生支持 Range 请求，音频拖动进度条无需额外配置。
 - `location /`：`try_files $uri $uri/ /index.html;` 兜底 SPA 路由刷新。
 - `client_max_body_size` 需大于 `storage.audio_max_upload_size_mb`（默认 100MB，Nginx 示例取 150m）；图片上传仍由后端 `max_upload_size_mb=20` 精确限制。
+- **限流（无需 Redis）**：模板顶部定义 `limit_req_zone` / `limit_conn_zone`（`conf.d` 顶层即 http 上下文），登录接口 5r/m + burst 3，`/api/` 60r/m + burst 30，`/imgs` `/audios` 600r/m + burst 100，并对单 IP 限制并发连接；超限统一返回 **429**（`limit_req_status 429`）。
+- **防盗链（默认关闭）**：模板里 `valid_referers` / `if ($invalid_referer)` 两行是注释状态，不启用时不会因 Referer 返回 403。需要时取消注释并填入允许引用的站点（HTTPS 模板可用 `server_names`，HTTP 模板需写显式域名/IP）；启用后无 Referer 的直接访问仍放行，未列入白名单的外部站点嵌入图片会 403。
+- **X-Forwarded-For 只传 `$remote_addr`**：单层反代下丢弃客户端自带链，配合后端 `server.trusted_proxies` 得到不可伪造的 `c.ClientIP()`（决定日志里的 `client_ip`）。接入 CDN 时需改回 `$proxy_add_x_forwarded_for`、追加 CDN 网段并配置 `real_ip`。
+- **两个模板二选一**：`irisImg.conf.example` 与 `irisImg.http.conf.example` 定义了同名 zone，同时启用会让 `nginx -t` 报 duplicate zone。
 
 示例配置见 `deploy/nginx/irisImg.conf.example`（HTTPS 生产形态，仅监听 443；80->443 跳转不在该模板内，需由主站 Nginx 或宝塔另行处理，见模板内注释）与 `deploy/nginx/irisImg.http.conf.example`（HTTP 最简版）；release 包内同名 `.example` 模板，首次部署 `cp` 去后缀使用。
 
 ## 配置要点（生产）
 
-- `server.mode: release`；`server.trusted_proxies` 默认本地回环（同机反代），跨机反代需追加反代所在 CIDR（HTTPSOnly 仅对来自此列表的请求认 `X-Forwarded-Proto`）
+- `server.mode: release`；`server.trusted_proxies` 默认本地回环（同机反代），跨机反代需追加反代所在 CIDR。启动时它同时注入 `HTTPSOnly`（校验 `X-Forwarded-Proto`）与 Gin 的 `SetTrustedProxies`（决定 `c.ClientIP()` 是否采信 XFF，进而决定日志 `client_ip` 的可信度）
 - `auth.username` / `auth.password` / `auth.jwt.secret` 必改
+- `auth.login_max_failures` / `auth.login_lockout_hours`：同一客户端 IP 的登录失败阈值与锁定时长（默认 3 次 / 168 小时）。计数按 IP 隔离，锁定只存进程内存（上限 4096 个 IP），**忘记密码时 `systemctl restart irisImg` 即可解锁**，再改配置中的密码；不要改成持久化存储
 - `apikey.https_only: true`（后端据 `server.trusted_proxies` + `X-Forwarded-Proto` 校验 HTTPS；Nginx 仍建议 `proxy_set_header X-Forwarded-Proto $scheme` 覆盖该头作纵深防御）
 - `cors.allow_origins` 留空（同域部署无跨域需求，最安全）；`*` 会被 release 模式 `Validate` 拒绝启动
 - `storage.root_dir` 与 Nginx `/imgs/` alias 指向同一物理目录，落盘文件 0644、目录 0755 保证 Nginx 跨用户可读

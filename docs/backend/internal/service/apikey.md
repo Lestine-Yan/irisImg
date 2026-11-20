@@ -13,12 +13,16 @@ type APIKeyService struct {
     audioDAO   dao.AudioDAO
     saver      *storage.Saver
     audioSaver *storage.Saver
+
+    touchMu       sync.Mutex          // 保护 lastTouch
+    lastTouch     map[int]time.Time   // 密钥 ID -> 上次写 last_used_at 的时间
+    touchInterval time.Duration       // 去抖窗口，默认 60s
 }
 ```
 
 - 持有 [`dao.APIKeyDAO`](../dao/dao.md) 接口，由 [`router`](../router/router.md) 注入。
 - `imageDAO` / `audioDAO` 与两个 Saver（图片 `/imgs`、音频 `/audios`）仅用于 `Delete` 的级联清理（删除该密钥关联的图片与音频文件与记录），其余操作不依赖它们。
-- 无可变状态，goroutine 安全。
+- 除 `lastTouch` 去抖状态（`touchMu` 保护）外无可变状态；并发安全。
 
 ### sentinel 错误
 
@@ -79,6 +83,16 @@ type APIKeyService struct {
 ### `Touch(ctx, id int) error`
 
 把最近使用时间更新为 `time.Now()`，供鉴权通过后尽力调用（失败不阻断主流程）。
+
+### `TouchDebounced(ctx, id int) error`
+
+`Touch` 的去抖版本，默认窗口 60 秒：
+
+1. 窗口内（距上次写库 < `touchInterval`）直接返回 nil，不产生数据库 IO。
+2. 否则先记录本次时间，再调 `dao.TouchLastUsed`。
+3. 写库失败时删除该密钥的去抖记录，让下一次请求立即重试（不把失败状态固化一个窗口）。
+
+中间件鉴权通过后调用本方法（而不是 `Touch`），把「每请求一次 UPDATE」降为「每密钥每分钟最多一次」。
 
 ### `Authenticate(ctx, plaintext string) (*model.APIKey, error)`
 

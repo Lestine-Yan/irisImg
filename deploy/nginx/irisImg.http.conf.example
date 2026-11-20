@@ -3,6 +3,17 @@
 # 注意：HTTP 模式下请把 config.yaml 的 apikey.https_only 改为 false，
 # 否则密钥创建/重置/吊销等敏感接口会因 X-Forwarded-Proto != https 被拒。
 # 生产请改用 irisImg.conf（HTTPS）并保持 https_only=true。
+#
+# 限流说明（应用层之外的第二道防线，无需 Redis）：
+# - 全部 zone 必须定义在 http 上下文；本文件放在 conf.d/ 下时顶层即 http。
+# - 只允许启用本文件与 irisImg.conf.example 中的一个：同名 zone 重复定义会让 nginx -t 失败。
+# - $binary_remote_addr 不受 X-Forwarded-For 影响，客户端无法伪造；接入 CDN 时需先配 real_ip。
+limit_req_zone $binary_remote_addr zone=iris_login:10m rate=5r/m;
+limit_req_zone $binary_remote_addr zone=iris_api:10m rate=60r/m;
+limit_req_zone $binary_remote_addr zone=iris_media:10m rate=600r/m;
+limit_conn_zone $binary_remote_addr zone=iris_conn:10m;
+limit_req_status 429;
+limit_conn_status 429;
 
 server {
     listen 80;
@@ -13,22 +24,49 @@ server {
     # 上限须大于 storage.audio_max_upload_size_mb（默认 100），这里按 150m 对齐。
     client_max_body_size 150m;
 
+    # 单 IP 并发连接上限（server 级）。
+    limit_conn iris_conn 25;
+
     location / {
         try_files $uri $uri/ /index.html;
     }
 
-    location /api/ {
+    # 登录接口单独限流：5r/m + burst 3，挡住密码爆破洪峰（应用层另有按 IP 的失败锁定）。
+    location = /api/v1/auth/login {
+        limit_req zone=iris_login burst=3 nodelay;
         proxy_pass http://127.0.0.1:8080;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # 只传 TCP 对端地址，丢弃客户端自带的 X-Forwarded-For（防 IP 伪造）。
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+    }
+
+    # 60r/m 覆盖无效密钥探测；burst 30 容纳后台页面并发。
+    location /api/ {
+        limit_req zone=iris_api burst=30 nodelay;
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        # 只传 TCP 对端地址；后端 Gin trusted_proxies 据此得到不可伪造的 ClientIP。
+        proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
         # 100MB 音频经慢速上行链路上传时可能超过 60s，放宽到 300s。
         proxy_read_timeout 300s;
     }
 
     location /imgs/ {
+        # 限流。
+        limit_req zone=iris_media burst=100 nodelay;
+        limit_conn iris_conn 12;
+        # 防盗链（默认关闭）。启用时取消下面两行注释，并把 your-domain.com 换成实际访问域名/IP
+        # （server_name 为 _ 时 server_names 不可用；同时要包含本后台自己的同源引用）。
+        # valid_referers none blocked your-domain.com;
+        # if ($invalid_referer) { return 403; }
+
         # 仅放行图片扩展名（与后端 serveImages 白名单对齐的纵深防御）：
         # 即便 storage.root_dir 误配或目录混入非图片文件，也无法经 /imgs/ 下载
         # .yaml/.db/.go 等。扩展名须与 config.yaml storage.allowed_mime_types 对齐，
@@ -43,6 +81,10 @@ server {
     }
 
     location /audios/ {
+        # 与 /imgs/ 同款限流；防盗链默认关闭，启用方式见 /imgs/ 处的注释。
+        limit_req zone=iris_media burst=100 nodelay;
+        limit_conn iris_conn 12;
+
         # 音频静态服务：与 /imgs/ 同款纵深防御；白名单额外放行图片扩展名，
         # 因内嵌封面落在 <audio_root>/covers/ 下（三方对齐：本 regex
         # <-> storage.audio_allowed_mime_types <-> static.go 的 audioMimeExt）。

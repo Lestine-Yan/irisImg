@@ -29,6 +29,10 @@ auth:
     secret: "please-change-me-to-a-long-random-string"
     issuer: "irisImg"
     expire_hours: 24
+  # 登录防爆破：同一客户端 IP 连续失败达到 login_max_failures 次后锁定 login_lockout_hours 小时。
+  # 默认 3 次 / 168 小时（7 天）。锁定按 IP 隔离，仅存于进程内存，忘记密码时可重启后端解锁。
+  login_max_failures: 3
+  login_lockout_hours: 168
 
 # API 密钥鉴权配置。密钥用于外部程序「申请图片 / 添加图片」，独立于后台 JWT 登录。
 # https_only 在生产环境（Nginx HTTPS 反代）请置为 true，后端会校验 X-Forwarded-Proto；

@@ -16,8 +16,9 @@
 ### `Login(c *gin.Context)` -- `POST /api/v1/auth/login`
 
 1. `c.ShouldBindJSON(&req)` 解析 [`model.LoginRequest`](../model/auth.md)；失败 -> `response.BadRequest(err)`。
-2. 调 `authSvc.Login(&req)`：
-   - `errors.Is(err, service.ErrInvalidCredentials)` -> 调 `recordLogin(c, req.Username, false)` 记一次失败事件，再 `response.Unauthorized("用户名或密码错误")`。
+2. 调 `authSvc.Login(&req, c.ClientIP())`（IP 受 `server.trusted_proxies` 约束）：
+   - `errors.Is(err, service.ErrLoginLocked)` -> 写 `Retry-After`（剩余秒数）后 `response.TooManyRequests("登录尝试过多，请稍后再试")`；只走访问日志（429），**不**重复写业务事件，避免锁定期间的爆破流量放大日志。
+   - `errors.Is(err, service.ErrInvalidCredentials)` -> 调 `recordLogin(c, req.Username, false)` 记一次失败事件；若本次失败刚好触发锁定，再补记 `recordLocked`。最后 `response.Unauthorized("用户名或密码错误")`。
    - 其它非 nil err -> `response.ServerError(err)`。
 3. 成功时调 `recordLogin(c, req.Username, true)` 记一次成功事件，`response.Success(c, resp)`，`resp` 是 `*model.LoginResponse`，含 `token / token_type / expires_at`。
 
@@ -27,6 +28,15 @@
 - 成功 -> `model.EventAuthLoginOK` / `model.LevelInfo`，事件 `auth.login_success`。
 - 失败 -> `model.EventAuthLoginFail` / `model.LevelWarn`，事件 `auth.login_failed`。
 - `rec == nil` 时直接返回，便于测试时跳过日志记录。
+
+### `recordLocked(c, attemptedUsername)`（辅助）
+
+- 与 `recordLogin` 同款装配 `LogContext`（写入尝试的用户名），事件为 `model.EventAuthLoginLocked` / `model.LevelWarn`，文案 `login locked`。
+- 只在「触发锁定的那次失败」上调用（锁定期间的被拒请求不写此事件，防止日志洪水）。
+
+### `writeRetryAfter(c)`（辅助）
+
+- 从 `authSvc.LockoutRemaining(clientIP)` 取该 IP 的剩余时长，向上取整为秒写入 `Retry-After`；已解锁则不写。
 
 ### `Me(c *gin.Context)` -- `GET /api/v1/auth/me`
 
@@ -40,6 +50,7 @@
 | --- | --- | --- | --- |
 | 入参 JSON 缺失/不符合 binding | 400 | 40000 | validator 自带描述 |
 | 用户名或密码错误 | 401 | 40100 | `用户名或密码错误` |
+| 连续失败达到阈值 / 锁定期间 | 429 | 42900 | `登录尝试过多，请稍后再试`（附 `Retry-After`） |
 | jwt 签发失败等内部错误 | 500 | 50000 | 透传 err.Error() |
 
 ## 修改建议

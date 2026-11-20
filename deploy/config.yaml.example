@@ -30,6 +30,10 @@ auth:
     secret: "please-change-me-to-a-long-random-string"   # ⚠️ 必改：32 位以上随机串
     issuer: "irisImg"
     expire_hours: 24
+  # 登录防爆破：同一客户端 IP 连续失败达到 login_max_failures 次后锁定 login_lockout_hours 小时。
+  # 默认 3 次 / 168 小时（7 天）；按 IP 隔离，只存内存，重启后端即解锁（忘记密码时的恢复路径）。
+  login_max_failures: 3
+  login_lockout_hours: 168
 
 # API 密钥鉴权配置。
 # 生产环境（Nginx HTTPS 反代）请保持 https_only=true，后端会校验 X-Forwarded-Proto

@@ -34,6 +34,7 @@ const (
     EventAPIKeyDelete     = "apikey.delete"        // 密钥删除（级联清理图片与音频）
     EventAuthLoginOK      = "auth.login_success"   // 登录成功
     EventAuthLoginFail    = "auth.login_failed"    // 登录失败
+    EventAuthLoginLocked  = "auth.login_locked"    // 登录锁定（仅在触发锁定时记录一次）
     EventLogClear         = "log.clear"            // 日志清理（全量清空）
     EventLogClearGet      = "log.clear_get"        // 日志清理（仅 info 级 GET 请求日志）
     EventPanic            = "panic"                // panic 恢复记录
@@ -79,6 +80,7 @@ const (
 | `StatusClass` | `"2xx"` / `"4xx"` / `"5xx"`，空表示不过滤 |
 | `Keyword` | 对 `path` / `message` 模糊匹配，空表示不过滤 |
 | `RequestID` | 精确匹配 `request_id`，空表示不过滤 |
+| `ClientIP` | 按客户端 IP **前缀**匹配（如 `203.0.113.`），空表示不过滤 |
 | `APIKeyID` | 精确匹配来源密钥，`nil` 表示不过滤 |
 | `Start` | 时间下界（含），零值表示不过滤 |
 | `End` | 时间上界（不含），零值表示不过滤 |

@@ -6,7 +6,7 @@
 
 - 视觉：标题使用 `.admin-page-title` / `.admin-page-subtitle`；筛选栏与直方图卡片使用 `.admin-surface` 玻璃表面。
 - 顶部标题 + 副标题（「查看访问与业务日志，支持多维筛选、按日趋势与清理」）。
-- 筛选栏（`grid` 响应式 2/3/4 列）：级别 / 事件 / 方法 / 状态 / 关键字 / 起始日期 / 结束日期 + 「查询」「重置」按钮。
+- 筛选栏（`grid` 响应式 2/3/4 列）：级别 / 事件 / 方法 / 状态 / 关键字 / IP / 起始日期 / 结束日期 + 「查询」「重置」按钮。IP 为文本输入（前缀匹配，如 `203.0.113.`），不做下拉枚举。
 - 直方图卡片：标题「近 14 天日志量」+ 副文案「共 N 条」，右上角并排两个红色清理按钮——「清理全部日志」（触发 `purgeOpen`，清空全部）与「清理GET日志」（触发 `purgeGetOpen`，仅清 info 级 GET 请求日志），分别打开 [`LogsPurgeDialog`](../../components/logs/LogsPurgeDialog.md) 二次确认弹窗（同一组件，`scope` prop 区分模式）；卡片主体渲染 [`LogsHistogram`](../../components/logs/LogsHistogram.md)，透传 `:error="histError"` 与 `@retry="fetchHistogram"`，与表格一致支持加载 / 错误（重试）/ 空 / 图表四态。
 - 分页日志栏：顶部「共 N 条」+ [`UiPagination`](../../components/ui/Pagination.md) 页码控件（上一页 / 下一页 + 页码按钮与首末页直达，当前页灰色不可按），主体为 [`LogsTable`](../../components/logs/LogsTable.md)（四态：加载 / 错误（重试）/ 空 / 表格）。
 - 组件按目录前缀自动导入，但因文件名以目录名 `logs` 开头，Nuxt 会去重前缀：`components/logs/LogsHistogram.vue` -> `<LogsHistogram />`、`LogsTable.vue` -> `<LogsTable />`、`LogsPurgeDialog.vue` -> `<LogsPurgeDialog />`（注意不是 `LogsLogs*`）。
@@ -20,7 +20,7 @@
 
 | 类别 | 变量 | 类型 | 说明 |
 | --- | --- | --- | --- |
-| 筛选 | `filters` | `reactive` | `level / event / method / statusClass / keyword / start / end`，日期为本地 `YYYY-MM-DD`，其余为字符串（空表示不限）。 |
+| 筛选 | `filters` | `reactive` | `level / event / method / statusClass / keyword / clientIp / start / end`，日期为本地 `YYYY-MM-DD`，其余为字符串（空表示不限）；`clientIp` 为 IP 前缀。 |
 | 列表 | `logs` | `ref<LogItem[]>` | 当前页日志条目。 |
 | 列表 | `total` | `ref<number>` | 命中总条数，用于分页与「共 N 条」。 |
 | 列表 | `page` | `ref<number>` | 当前页码，从 1 起。 |
@@ -39,7 +39,7 @@
 
 | 函数 | 作用 |
 | --- | --- |
-| `buildQuery(p)` | 把 `filters` + 页码组装成 `ListLogsParams`（`page / pageSize` 必填，其余仅在前端非空时写入）；日期从本地 `YYYY-MM-DD` 转 RFC3339：`start` = 当日 `00:00:00`，`end` = 次日 `00:00:00`（左闭右开）。 |
+| `buildQuery(p)` | 把 `filters` + 页码组装成 `ListLogsParams`（`page / pageSize` 必填，其余仅在前端非空时写入，`clientIp` trim 后非空才传）；日期从本地 `YYYY-MM-DD` 转 RFC3339：`start` = 当日 `00:00:00`，`end` = 次日 `00:00:00`（左闭右开）。 |
 | `fetchLogs()` | 调 [`useLogs`](../../composables/useLogs.md).`list(buildQuery(page))`，写入 `logs / total`；失败写 `error` 并清空列表。 |
 | `fetchHistogram()` | 调 [`useLogs`](../../composables/useLogs.md).`histogram()`，起始清空 `histError`，成功写入 `buckets / histTotal`；失败写 `histError`（不再静默吞错）并清空 `buckets / histTotal`。 |
 | `onSearch()` | `page` 重置为 1 后 `fetchLogs()`。 |

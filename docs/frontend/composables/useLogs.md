@@ -11,7 +11,7 @@
 - `KeyCount`：某日某来源的新增图片计数（`name` 密钥标签，后台直传为 `"admin"` / `count`），供仪表盘 tooltip 按来源拆分。
 - `HistogramResponse`：`GET /admin/logs/histogram` 的响应 `data`，含 `buckets / total`。
 - `PurgeRequest`：清理日志请求体（账号密码二次确认），含 `username / password` 与可选 `scope`（`'all'` 清空全部，默认可省略；`'get'` 仅清 info 级 GET 请求日志）。
-- `ListLogsParams`：`list()` 的入参（`level / event / method / statusClass / keyword / start / end / page / pageSize`）。
+- `ListLogsParams`：`list()` 的入参（`level / event / method / statusClass / keyword / clientIp / start / end / page / pageSize`）。`clientIp` 映射为后端 `client_ip`（前缀匹配）。
 
 ## 导出函数
 
@@ -19,7 +19,7 @@
 
 返回 `{ list, histogram, purge }`，所有接口走后台 JWT 通道（由 [`useApi`](./useApi.md) 自动附带 `Authorization` 头、自动解包 `data`）。
 
-- `list(params)`：调 [`useApi`](./useApi.md) 的 `get('/admin/logs', { query })`，自动附带 JWT。`page` / `pageSize` 默认 `1` / `50`，并映射为后端的 `page` / `page_size`；`statusClass` 映射为下划线 `status_class`；`level` / `event` / `method` / `keyword` / `start` / `end`（RFC3339 时间字符串）原样透传，未传的字段不进入 query。
+- `list(params)`：调 [`useApi`](./useApi.md) 的 `get('/admin/logs', { query })`，自动附带 JWT。`page` / `pageSize` 默认 `1` / `50`，并映射为后端的 `page` / `page_size`；`statusClass` 映射为下划线 `status_class`，`clientIp` 映射为 `client_ip`；`level` / `event` / `method` / `keyword` / `start` / `end`（RFC3339 时间字符串）原样透传，未传的字段不进入 query。
 - `histogram()`：调 [`useApi`](./useApi.md) 的 `get('/admin/logs/histogram')`，返回按日聚合的请求计数，无入参。
 - `purge(creds)`：调 [`useApi`](./useApi.md) 的 `api('/admin/logs', { method: 'DELETE', body: creds })`，**走 DELETE 方法**，请求体携带 `username` / `password` 做账号密码二次确认，`scope` 随 body 透传（`'all'` 全部 / `'get'` 仅 info 级 GET，省略时后端视为全部），返回 `{ deleted }`（被删除的条数）。清理为敏感操作，后端密码校验失败返回 **403**（而非 401），从而不触发 `useApi` 的全局登出逻辑。
 
