@@ -12,7 +12,8 @@
 - **两种权限**：`readonly`（只读，仅 GET）/ `readwrite`（读写，可 POST）。
 - **请求头携带**：调用图片接口时放在 `X-API-Key` 头里（不是 `Authorization`）。
 - **独立于 JWT**：密钥管理接口（创建/列表/吊销）需后台 JWT 登录；图片接口用密钥鉴权。两套互不依赖。
-- **按密钥限流**：每把密钥一个内存令牌桶，默认 100 次/分钟。
+- **按密钥限流**：每把密钥一个内存令牌桶，默认 100 次/分钟（应用层）；Nginx 模板另有按 IP 的 `limit_req` 作为边缘防线。
+- **最近使用时间去抖**：`last_used_at` 最多每 60 秒写库一次（见 `TouchDebounced`），避免每个请求都产生一次 SQLite UPDATE。
 - **HTTPS 强制**：管理接口可按配置要求 HTTPS（生产由 Nginx 反代）。
 
 参与的代码文件：
@@ -88,7 +89,7 @@ client       middleware.APIKeyAuth      service.Authenticate      ratelimit.Stor
   │                     │ ── Allow(id,limit) ───────────────────────────►│ 令牌桶            │
   │                     │   超限→429 42900        │                       │                  │
   │                     │ c.Set("api_key_id",id) │                       │                  │
-  │                     │ Touch(尽力)            │                       │                  │
+  │                     │ TouchDebounced(60s去抖)            │                       │                  │
   │                     │ ── Next ──────────────────────────────────────────────────────────►│
 ```
 
@@ -137,6 +138,8 @@ client       middleware.APIKeyAuth      service.Authenticate      ratelimit.Stor
 - 实现见 [`ratelimit.md`](./internal/pkg/ratelimit.md)：每把密钥一个 `golang.org/x/time/rate` 令牌桶，速率「每分钟 N 次」、突发容量 N。
 - N 取密钥自身 `rate_limit`（>0 时），否则取全局 `apikey.rate_limit_per_minute`（默认 100）。
 - **内存实现**：单实例有效；进程重启清零；多实例需换 Redis。
+- **边缘防线**：`deploy/nginx/*.example` 内置 `limit_req_zone`（`/api/` 60r/m、登录 5r/m、静态 600r/m）与 `limit_conn`，用于在进入 Go 进程前挡住洪泛与无效密钥探测（无需 Redis）。详见 [deploy.md](../deploy.md)。
+- **最近使用时间**：鉴权通过后调用 `TouchDebounced`，同一密钥 60 秒内最多写库一次；写库失败会清除去抖记录，下个请求重试。
 
 ## 11. image.key 关联
 
@@ -187,4 +190,5 @@ curl -X DELETE http://localhost:8080/api/v1/apikeys/1 -H "Authorization: Bearer 
 
 - 明文密钥等价口令，泄露需立即吊销重建；库里只存哈希，泄露库文件不会直接暴露明文。
 - 生产务必 `https_only: true`。后端仅对 `server.trusted_proxies` 网段内的请求信任 `X-Forwarded-Proto`（默认本地回环，跨机反代需追加反代 CIDR）；不可信 peer 只认 `c.Request.TLS`，伪造该头无效。仍建议 Nginx 用 `proxy_set_header X-Forwarded-Proto $scheme` 覆盖该头作纵深防御。
-- 内存限流不抗多实例与重启；对抗滥用建议叠加反代层（Nginx/网关）限流。
+- 内存限流不抗多实例与重启；反代层限流已随仓库的 Nginx 模板提供（按 IP，与按密钥限流互补）。
+- `last_used_at` 精度为「分钟级近似值」：60 秒去抖意味着它可能比真实最近使用时间晚至多 1 分钟，属观测字段，不做业务判断。

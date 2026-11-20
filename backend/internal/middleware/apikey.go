@@ -69,7 +69,7 @@ func APIKeyAuth(svc *service.APIKeyService, limiter *ratelimit.Store) gin.Handle
 
 		// 通过：记录来源密钥 ID，并尽力更新最近使用时间（失败不阻断主流程）。
 		c.Set(ContextKeyAPIKeyID, key.ID)
-		_ = svc.Touch(c.Request.Context(), key.ID)
+		_ = svc.TouchDebounced(c.Request.Context(), key.ID)
 		c.Next()
 	}
 }

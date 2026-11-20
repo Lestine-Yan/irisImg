@@ -31,7 +31,7 @@ API 密钥鉴权中间件。挂在图片接口分组上，校验请求头里的�
 
 ```go
 c.Set(ContextKeyAPIKeyID, key.ID)
-_ = svc.Touch(c.Request.Context(), key.ID) // 尽力更新最近使用时间，失败不阻断
+_ = svc.TouchDebounced(c.Request.Context(), key.ID) // 60s 去抖更新最近使用时间，失败不阻断
 c.Next()
 ```
 
@@ -48,4 +48,5 @@ client ──X-API-Key──► APIKeyAuth ──► service.Authenticate ──
 
 - 错误码刻意区分：缺失（40110）与无效（40120）分开，便于前端/调用方分别提示「没带 key」与「key 不对」。
 - 权限与限流判定在本中间件而非 service：因为需要 HTTP 方法与令牌桶上下文。
-- `Touch` 失败被忽略：最近使用时间是观测信息，不应因写库失败而拒绝合法请求。
+- `TouchDebounced` 失败被忽略：最近使用时间是观测信息，不应因写库失败而拒绝合法请求。
+- 用去抖版本而非 `Touch`：`last_used_at` 只需分钟级精度，每请求同步 UPDATE 会在 SQLite 上形成写锁瓶颈。

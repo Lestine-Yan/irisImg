@@ -21,6 +21,10 @@ type mockAPIKeyDAO struct {
 	byID    map[int]*model.APIKey
 	created *model.APIKey
 	nextID  int
+
+	// 供 TouchDebounced 测试：记录写库次数与可注入的错误。
+	touchCount int
+	touchErr   error
 }
 
 func newMockAPIKeyDAO() *mockAPIKeyDAO {
@@ -106,7 +110,10 @@ func (m *mockAPIKeyDAO) Delete(_ context.Context, id int) error {
 	return dao.ErrNotFound
 }
 
-func (m *mockAPIKeyDAO) TouchLastUsed(_ context.Context, _ int, _ time.Time) error { return nil }
+func (m *mockAPIKeyDAO) TouchLastUsed(_ context.Context, _ int, _ time.Time) error {
+	m.touchCount++
+	return m.touchErr
+}
 
 func TestAPIKeyService_Create(t *testing.T) {
 	m := newMockAPIKeyDAO()

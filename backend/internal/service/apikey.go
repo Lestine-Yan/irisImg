@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/Lestine-Yan/irisImg/backend/internal/dao"
@@ -28,16 +29,30 @@ var (
 // imageDAO/audioDAO 与 saver/audioSaver 仅用于删除密钥时的级联清理
 // （删除该密钥关联的图片 / 音频文件与记录），其余密钥操作不依赖它们。
 type APIKeyService struct {
-	dao       dao.APIKeyDAO
-	imageDAO  dao.ImageDAO
-	audioDAO  dao.AudioDAO
-	saver     *storage.Saver
+	dao        dao.APIKeyDAO
+	imageDAO   dao.ImageDAO
+	audioDAO   dao.AudioDAO
+	saver      *storage.Saver
 	audioSaver *storage.Saver
+
+	// 最近使用时间去抖：同一密钥在 touchInterval 内最多写库一次，
+	// 避免每个 API 请求都产生一次 SQLite UPDATE（写锁竞争的主要来源）。
+	touchMu       sync.Mutex
+	lastTouch     map[int]time.Time
+	touchInterval time.Duration
 }
 
 // NewAPIKeyService 通过依赖注入构造 APIKeyService。
 func NewAPIKeyService(d dao.APIKeyDAO, imgDAO dao.ImageDAO, audioDAO dao.AudioDAO, saver, audioSaver *storage.Saver) *APIKeyService {
-	return &APIKeyService{dao: d, imageDAO: imgDAO, audioDAO: audioDAO, saver: saver, audioSaver: audioSaver}
+	return &APIKeyService{
+		dao:           d,
+		imageDAO:      imgDAO,
+		audioDAO:      audioDAO,
+		saver:         saver,
+		audioSaver:    audioSaver,
+		lastTouch:     make(map[int]time.Time),
+		touchInterval: time.Minute,
+	}
 }
 
 // Create 生成并落库一把新密钥，返回包含一次性明文的响应。
@@ -197,6 +212,34 @@ func (s *APIKeyService) Delete(ctx context.Context, id int) (int, int, error) {
 // Touch 更新密钥的最近使用时间为当前时刻，供鉴权通过后尽力调用。
 func (s *APIKeyService) Touch(ctx context.Context, id int) error {
 	return s.dao.TouchLastUsed(ctx, id, time.Now())
+}
+
+// TouchDebounced 是 Touch 的去抖版本：同一密钥在 touchInterval（默认 60s）内
+// 最多写库一次，供每个 API 请求的鉴权中间件调用。
+//
+// 为什么需要：鉴权中间件原先每请求同步 UPDATE last_used_at，SQLite 单写者 +
+// WAL 下这会成为高并发上传的写锁瓶颈；而 last_used_at 只是展示用的近似值，
+// 分钟级精度足够。窗口内直接返回，不产生任何数据库 IO。
+//
+// 写库失败时删除去抖记录，让下一次请求可以立即重试（避免错误状态被窗口固化）。
+func (s *APIKeyService) TouchDebounced(ctx context.Context, id int) error {
+	now := time.Now()
+
+	s.touchMu.Lock()
+	if last, ok := s.lastTouch[id]; ok && now.Sub(last) < s.touchInterval {
+		s.touchMu.Unlock()
+		return nil
+	}
+	s.lastTouch[id] = now
+	s.touchMu.Unlock()
+
+	if err := s.dao.TouchLastUsed(ctx, id, now); err != nil {
+		s.touchMu.Lock()
+		delete(s.lastTouch, id)
+		s.touchMu.Unlock()
+		return err
+	}
+	return nil
 }
 
 // Authenticate 校验明文密钥：格式校验 -> 查库 -> 吊销判定。
